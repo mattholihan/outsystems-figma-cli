@@ -9,13 +9,44 @@ CLI that controls Figma Desktop directly. No API key needed.
 | "connect to figma" | `node src/index.js connect` |
 | "add shadcn/tailwind colors" | `node src/index.js tokens tailwind` |
 | "show colors on canvas" / "display variables" | `node src/index.js var visualize` |
+| "create cards/buttons" | `render-batch` + `node to-component` (see section below) |
 | "create a rectangle/frame/text" | `node src/index.js render '<Frame>...'` |
+| "convert to component" | `node src/index.js node to-component "ID"` |
 | "list variables" | `node src/index.js var list` |
 | "find nodes named X" | `node src/index.js find "X"` |
 | "what's on canvas" | `node src/index.js canvas info` |
 | "export as PNG/SVG" | `node src/index.js export png` / `export svg` |
 
 **IMPORTANT:** Don't guess commands. Check this table or search this file first.
+
+---
+
+## IMPORTANT: Creating Components (Cards, Buttons, etc.)
+
+When user asks to "create cards", "design buttons", "make components":
+
+1. **Each component = separate frame** (NOT inside a parent gallery frame)
+2. **Convert to component** after creation with `node to-component`
+3. **Use variables** for colors when available (bind after creation)
+
+**Example: Create 3 cards**
+```bash
+# Step 1: Create each card separately (render-batch places them side by side)
+node src/index.js render-batch '[
+  "<Frame name=\"Card 1\" w={320} h={200} bg=\"#18181b\" rounded={12} flex=\"col\" p={24} gap={12}><Text color=\"#fff\" size={18} weight=\"bold\">Title</Text><Text color=\"#a1a1aa\" size={14}>Description</Text></Frame>",
+  "<Frame name=\"Card 2\" w={320} h={200} bg=\"#18181b\" rounded={12} flex=\"col\" p={24} gap={12}><Text color=\"#fff\" size={18} weight=\"bold\">Title</Text><Text color=\"#a1a1aa\" size={14}>Description</Text></Frame>",
+  "<Frame name=\"Card 3\" w={320} h={200} bg=\"#18181b\" rounded={12} flex=\"col\" p={24} gap={12}><Text color=\"#fff\" size={18} weight=\"bold\">Title</Text><Text color=\"#a1a1aa\" size={14}>Description</Text></Frame>"
+]'
+
+# Step 2: Convert to components
+node src/index.js node to-component "CARD1_ID" "CARD2_ID" "CARD3_ID"
+
+# Step 3: Bind variables (if available)
+node src/index.js bind fill "zinc/900" -n "CARD1_ID"
+```
+
+**WRONG:** Creating a parent "Cards" frame containing all cards
+**RIGHT:** Each card as its own top-level frame, then convert to component
 
 ---
 
