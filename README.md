@@ -59,23 +59,27 @@ This project includes a `CLAUDE.md` file that Claude reads automatically. It con
 
 ## Setup
 
-### 1. Start Claude Code
+### 1. Install
 
-Open Terminal and type:
+```bash
+git clone https://github.com/silships/figma-cli.git
+cd figma-cli
+npm install
+```
+
+### 2. Start Claude Code (from figma-cli folder!)
+
 ```bash
 claude
 ```
 
-### 2. Install & Connect
+**IMPORTANT:** Always start Claude Code from the figma-cli folder. This lets Claude read the instructions file.
+
+### 3. Connect
 
 Just say:
 ```
-Help me install https://github.com/silships/figma-cli
-```
-
-Then:
-```
-Initiate project
+Connect to Figma
 ```
 
 Claude asks which connection mode:
