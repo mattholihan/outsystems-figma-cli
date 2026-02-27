@@ -218,16 +218,11 @@ fi
 
 SELECTED_TITLE=""
 
-if [ ${#FILE_TITLES[@]} -eq 1 ]; then
-    SELECTED_TITLE="${FILE_TITLES[0]}"
-    echo -e "  ${GREEN}▸ ${SELECTED_TITLE}${NC}"
-else
-    echo ""
-    SELECTED_TITLE=$(select_file "${FILE_TITLES[@]}")
-    if [ -z "$SELECTED_TITLE" ]; then
-        echo "  Cancelled."
-        exit 0
-    fi
+echo ""
+SELECTED_TITLE=$(select_file "${FILE_TITLES[@]}")
+if [ -z "$SELECTED_TITLE" ]; then
+    echo "  Cancelled."
+    exit 0
 fi
 
 echo -e "  ${GREEN}✓ File: ${BOLD}${SELECTED_TITLE}${NC}"
