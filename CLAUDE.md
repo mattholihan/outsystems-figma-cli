@@ -134,13 +134,26 @@ stroke="#000"     // stroke color
 <Text size={18} weight="bold" color="#000">Hello</Text>
 ```
 
-**Common mistakes:**
+**Common mistakes (silently ignored, no error!):**
 ```
 WRONG                    RIGHT
 layout="horizontal"   →  flex="row"
 padding={24}          →  p={24}
 fill="#fff"           →  bg="#fff"
 cornerRadius={12}     →  rounded={12}
+fontSize={18}         →  size={18}
+fontWeight="bold"     →  weight="bold"
+```
+
+**Complete card example:**
+```bash
+node src/index.js render '<Frame name="Card" w={320} h={200} bg="#18181b" rounded={12} flex="col" p={24} gap={12}>
+  <Text size={18} weight="bold" color="#fff">Title</Text>
+  <Text size={14} color="#a1a1aa" w="fill">Description text</Text>
+  <Frame bg="#3b82f6" px={16} py={8} rounded={6}>
+    <Text size={14} weight="medium" color="#fff">Button</Text>
+  </Frame>
+</Frame>'
 ```
 
 ---
