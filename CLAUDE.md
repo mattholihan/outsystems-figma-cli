@@ -254,6 +254,96 @@ node src/index.js render '<Frame name="Card" w={320} h={200} bg="#18181b" rounde
 </Frame>'
 ```
 
+### Common Pitfalls
+
+**1. Text gets cut off (CRITICAL):**
+```jsx
+// BAD: Text without w="fill" will be single line and clip
+<Frame flex="col" gap={8}>
+  <Text size={14} color="#a1a1aa">Long text that will be cut off...</Text>
+</Frame>
+
+// GOOD: Add w="fill" to BOTH parent Frame AND Text element
+<Frame flex="col" gap={8} w="fill">
+  <Text size={14} color="#a1a1aa" w="fill">Long text that will wrap properly within the container width.</Text>
+</Frame>
+```
+**Rule:** For text to wrap, you need:
+1. Parent frame with `w="fill"` or fixed width
+2. Text element with `w="fill"`
+3. Parent must have `flex="col"` or `flex="row"`
+
+**Real example - card with description:**
+```jsx
+<Frame name="Card" w={340} bg="#18181b" rounded={16} flex="col" p={20} gap={16}>
+  <Frame flex="col" gap={8} w="fill">
+    <Text size={16} weight="semibold" color="#fff">Title</Text>
+    <Text size={14} color="#a1a1aa" w="fill">This is a longer description that will properly wrap to multiple lines because both the parent and text have w="fill".</Text>
+  </Frame>
+</Frame>
+```
+
+**2. Toggle switches - use flex, not absolute:**
+```jsx
+// BAD: Absolute positioning for knob
+<Frame w={52} h={28} bg="#3b82f6" rounded={14} p={2}>
+  <Frame w={24} h={24} bg="#fff" rounded={12} position="absolute" x={26} y={2} />
+</Frame>
+
+// GOOD: Flex with justify for ON/OFF state
+// ON state (knob right)
+<Frame w={52} h={28} bg="#3b82f6" rounded={14} flex="row" items="center" p={2} justify="end">
+  <Frame w={24} h={24} bg="#fff" rounded={12} />
+</Frame>
+// OFF state (knob left)
+<Frame w={52} h={28} bg="#27272a" rounded={14} flex="row" items="center" p={2} justify="start">
+  <Frame w={24} h={24} bg="#52525b" rounded={12} />
+</Frame>
+```
+
+**3. Buttons need flex for centered text:**
+```jsx
+// BAD: No flex, text not centered
+<Frame bg="#3b82f6" px={16} py={10} rounded={10}>
+  <Text>Button</Text>
+</Frame>
+
+// GOOD: Flex centers content
+<Frame bg="#3b82f6" px={16} py={10} rounded={10} flex="row" justify="center" items="center">
+  <Text>Button</Text>
+</Frame>
+```
+
+**4. No emojis - use shapes as icons:**
+```jsx
+// BAD: Emojis render inconsistently
+<Text>🏠</Text>
+
+// GOOD: Use shapes as icon placeholders
+<Frame w={20} h={20} rounded={4} stroke="#fff" strokeWidth={2} />  // square icon
+<Frame w={20} h={20} rounded={10} stroke="#fff" strokeWidth={2} /> // circle icon
+```
+
+**5. Three-dot menu icon:**
+```jsx
+<Frame flex="row" gap={3} justify="center" items="center">
+  <Frame w={4} h={4} bg="#52525b" rounded={2} />
+  <Frame w={4} h={4} bg="#52525b" rounded={2} />
+  <Frame w={4} h={4} bg="#52525b" rounded={2} />
+</Frame>
+```
+
+**6. Star rating with shapes:**
+```jsx
+<Frame flex="row" gap={4}>
+  <Frame w={14} h={14} bg="#fbbf24" rounded={2} />
+  <Frame w={14} h={14} bg="#fbbf24" rounded={2} />
+  <Frame w={14} h={14} bg="#fbbf24" rounded={2} />
+  <Frame w={14} h={14} bg="#fbbf24" rounded={2} />
+  <Frame w={14} h={14} bg="#fbbf24" rounded={2} />
+</Frame>
+```
+
 ---
 
 ## Key Rules
