@@ -77,13 +77,21 @@ fig-start
 
 This will:
 1. Start Figma (if not running)
-2. Connect to Figma (Yolo Mode — patches Figma once for direct access)
-3. Show your open Figma files — pick one with arrow keys
+2. Connect to Figma (Yolo Mode: patches Figma once for direct access)
+3. Show your open Figma files: pick one with arrow keys
 4. Launch Claude Code with all commands pre-loaded
 
 **Done.** Talk to Claude about your Figma file.
 
-> **Note:** `fig-start` works from any directory. The setup script saves the repo location automatically.
+> **Note:** `fig-start` works from any directory. The setup script saves the repo location to `~/.figma-cli/config.json`.
+
+### fig-start Options
+
+| Command | Description |
+|---------|-------------|
+| `fig-start` | Yolo Mode (default), interactive file picker |
+| `fig-start --safe` | Safe Mode (plugin-based, no patching) |
+| `fig-start --setup` | Change the figma-cli repo path |
 
 ### Safe Mode (no patching)
 
@@ -131,7 +139,7 @@ The included `CLAUDE.md` teaches Claude all commands automatically. No manual re
 **Pros:**
 - Fully automatic (no manual steps after setup)
 - Slightly faster execution
-- Secure: random port (9222-9322) per session, localhost only
+- Secure: random port, token auth, localhost only, auto-shutdown on idle
 
 **Cons:**
 - Requires one-time Figma patch
@@ -281,9 +289,21 @@ Connects to Figma Desktop via Chrome DevTools Protocol (CDP). No API key needed 
 ```
 ┌─────────────┐      WebSocket (CDP)      ┌─────────────┐
 │ figma-ds-cli │ ◄───────────────────────► │   Figma     │
-│    (CLI)    │      localhost:9222       │  Desktop    │
-└─────────────┘                           └─────────────┘
+│    (CLI)    │   localhost:9222-9322     │  Desktop    │
+└─────────────┘      (random port)        └─────────────┘
 ```
+
+### Security
+
+The CLI runs a local daemon for faster command execution. Security features:
+
+- **Session token authentication**: Random 32-byte token required for all requests
+- **No CORS headers**: Blocks cross-origin browser requests
+- **Host header validation**: Only accepts localhost/127.0.0.1
+- **Idle timeout**: Auto-shutdown after 10 minutes of inactivity (configurable)
+- **Random port**: CDP uses a random port between 9222-9322 per session
+
+Token is stored at `~/.figma-ds-cli/.daemon-token` with owner-only permissions (0600).
 
 ---
 
@@ -345,6 +365,7 @@ Connects to Figma Desktop via Chrome DevTools Protocol (CDP). No API key needed 
 
 ### Export
 
+- **Export node by ID** (`export node "1:234" -s 2 -f png`)
 - Export nodes as PNG (with scale factor)
 - Export nodes as SVG
 - **Export multiple sizes** (@1x, @2x, @3x)
@@ -431,6 +452,7 @@ Connects to Figma Desktop via Chrome DevTools Protocol (CDP). No API key needed 
 
 ### Console & Debugging
 
+- **List open Figma files** (`files` command, used by fig-start)
 - **Capture console logs** from Figma
 - **Execute code with log capture**
 - **Reload page**

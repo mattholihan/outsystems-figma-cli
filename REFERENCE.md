@@ -204,6 +204,16 @@ node src/index.js fj eval "figma.currentPage.children.length"
 
 Shape types: `ROUNDED_RECTANGLE`, `RECTANGLE`, `ELLIPSE`, `DIAMOND`, `TRIANGLE_UP`, `TRIANGLE_DOWN`, `PARALLELOGRAM_RIGHT`, `PARALLELOGRAM_LEFT`
 
+## Daemon & Connection
+
+```bash
+node src/index.js connect                  # Connect (Yolo Mode)
+node src/index.js connect --safe           # Connect (Safe Mode, plugin)
+node src/index.js daemon status            # Check daemon status
+node src/index.js daemon restart           # Restart daemon
+node src/index.js files                    # List open Figma files (JSON)
+```
+
 ## JavaScript Eval
 
 ```bash
