@@ -15,7 +15,7 @@ The biggest challenge: switching variable modes (Light/Dark) when variables come
 Access the collection through bound variables on nodes:
 
 ```javascript
-const node = figma.getNodeById('1:92');
+const node = figma.getNodeById('NODE_ID');
 
 function findModeCollection(n) {
   if (n.boundVariables) {
@@ -55,12 +55,14 @@ if (found) {
 ### Apply to Multiple Nodes
 
 ```javascript
-const ids = ['1:92', '1:112', '1:134', '1:154', '1:179'];
+const ids = ['NODE_ID_1', 'NODE_ID_2', 'NODE_ID_3'];
 ids.forEach(id => {
   const n = figma.getNodeById(id);
   if (n) n.setExplicitVariableModeForCollection(found.col, lightMode.modeId);
 });
 ```
+
+> 💡 Get your node IDs by running `os-figma raw query "//FRAME"` and noting the IDs in the output.
 
 ---
 
@@ -76,7 +78,7 @@ Use `rescale()` which scales proportionally, then reposition:
 
 ```javascript
 // Scale from top-right corner
-const node = figma.getNodeById('1:92');
+const node = figma.getNodeById('NODE_ID');
 const oldRight = node.x + node.width;
 const oldTop = node.y;
 
@@ -87,12 +89,20 @@ node.x = oldRight - node.width;
 node.y = oldTop;
 ```
 
-### Scale and Center
+### Scale and Center in an OutSystems Screen Frame
 
 ```javascript
-const frameW = 1920, frameH = 1080;
+// Mobile (390×844)
+const frameW = 390, frameH = 844;
 
-node.rescale(1.2);
+node.rescale(0.9);
+node.x = (frameW - node.width) / 2;
+node.y = (frameH - node.height) / 2;
+
+// Web (1440×900)
+const frameW = 1440, frameH = 900;
+
+node.rescale(1.0);
 node.x = (frameW - node.width) / 2;
 node.y = (frameH - node.height) / 2;
 ```
@@ -101,42 +111,45 @@ node.y = (frameH - node.height) / 2;
 
 ## Batch Operations
 
-### Rename Multiple Nodes
+### Rename Multiple Nodes to OutSystems Convention
 
 ```javascript
 const page = figma.currentPage;
-const frames = page.children.filter(n => n.name.startsWith('Stream-'));
+const frames = page.children.filter(n => n.name.startsWith('Frame'));
 
 frames.forEach((frame, i) => {
-  frame.name = `session-${i + 1}`;
+  frame.name = `OS/Screen/Mobile/${i + 1}`;
 });
 ```
 
 ### Rename Children Inside Frames
 
 ```javascript
-const sessions = page.children.filter(n => n.name.startsWith('session-'));
+const screens = page.children.filter(n => n.name.startsWith('OS/Screen/'));
 
-sessions.forEach(session => {
-  const group = session.children.find(c => c.type === 'GROUP');
-  if (group) group.name = 'content';
+screens.forEach(screen => {
+  const group = screen.children.find(c => c.type === 'GROUP');
+  if (group) group.name = 'OS/Content';
 });
 ```
 
-### Different Scaling Based on Content
+### Different Scaling Based on Screen Type
 
 ```javascript
-sessions.forEach(session => {
-  const content = session.children.find(c => c.name === 'content');
+const screens = page.children.filter(n => n.name.startsWith('OS/Screen/'));
+
+screens.forEach(screen => {
+  const content = screen.children.find(c => c.name === 'OS/Content');
   if (!content) return;
 
-  // Check parent frame name for logic
-  const parentName = session.parent?.name || '';
-  const scale = parentName.includes('One Speaker') ? 1.2 : 1.1;
+  // Scale differently for mobile vs web
+  const isMobile = screen.name.includes('Mobile');
+  const frameW = isMobile ? 390 : 1440;
+  const frameH = isMobile ? 844 : 900;
 
-  content.rescale(scale);
-  content.x = (1920 - content.width) / 2;
-  content.y = (1080 - content.height) / 2;
+  content.rescale(isMobile ? 0.9 : 1.0);
+  content.x = (frameW - content.width) / 2;
+  content.y = (frameH - content.height) / 2;
 });
 ```
 
@@ -145,18 +158,18 @@ sessions.forEach(session => {
 ## Export with Custom Naming
 
 ```javascript
-// Export all sessions with suffix
-const sessions = page.children.filter(n => n.name.startsWith('session-'));
+// Export all screens with a suffix
+const screens = page.children.filter(n => n.name.startsWith('OS/Screen/'));
 
-for (const session of sessions) {
-  // Use figma-use export command
-  // figma-ds-cli raw export "SESSION_ID" --scale 2 --suffix "_dark"
+for (const screen of screens) {
+  // Use os-figma export command with the screen's node ID
+  // os-figma raw export "SCREEN_ID" --scale 2 --suffix "_export"
 }
 ```
 
 Via CLI:
 ```bash
-figma-ds-cli raw export "1:90" --scale 2 --suffix "_dark"
+os-figma raw export "NODE_ID" --scale 2 --suffix "_export"
 ```
 
 ---
@@ -166,7 +179,9 @@ figma-ds-cli raw export "1:90" --scale 2 --suffix "_dark"
 ### Select Nodes Programmatically
 
 ```javascript
-const nodes = ['1:92', '1:112', '1:134'].map(id => figma.getNodeById(id)).filter(Boolean);
+const nodes = ['NODE_ID_1', 'NODE_ID_2', 'NODE_ID_3']
+  .map(id => figma.getNodeById(id))
+  .filter(Boolean);
 figma.currentPage.selection = nodes;
 ```
 
@@ -191,20 +206,26 @@ selected.map(n => n.name + ' (' + n.id + ')').join(', ');
 
 Sometimes eval commands execute but return nothing. The code still runs. Verify by:
 
-1. Query the nodes after: `figma-ds-cli raw query "//GROUP"`
-2. Check properties changed: look at sizes, positions, names
+1. Query the nodes after: `os-figma raw query "//FRAME"`
+2. Check that properties changed: look at sizes, positions, names
 
 ### Finding Node IDs
 
 ```bash
 # Query returns IDs in format: [TYPE] "name" (ID) dimensions
-figma-ds-cli raw query "//FRAME"
-# Output: [FRAME] "session-1" (1:90) 1920×1080
+os-figma raw query "//FRAME"
+# Output: [FRAME] "OS/Screen/Mobile/1" (1:90) 390×844
 ```
 
 ### Check Node Structure
 
 ```javascript
-const node = figma.getNodeById('1:90');
+const node = figma.getNodeById('NODE_ID');
 node.children.map(c => c.name + ' (' + c.type + ')').join(', ');
+```
+
+### Find All OutSystems Components on Canvas
+
+```bash
+os-figma raw query "//*[@name^='OS/']"
 ```

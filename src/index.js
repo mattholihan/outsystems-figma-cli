@@ -595,7 +595,7 @@ if (children.length > 0) {
 }
 
 program
-  .name('figma-ds-cli')
+  .name('os-figma')
   .description('CLI for managing Figma design systems')
   .version(pkg.version);
 

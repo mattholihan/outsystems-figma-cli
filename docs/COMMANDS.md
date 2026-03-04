@@ -1,50 +1,174 @@
 # Commands Reference
 
+> All commands use the `os-figma` alias. See README for alias setup instructions.
+
+---
+
+## Setup & Connection
+
+```bash
+# Connect to running Figma Desktop
+os-figma connect
+
+# Connect in safe mode (uses plugin, no Figma modification)
+os-figma connect --safe
+```
+
+---
+
+## Design Tokens
+
+```bash
+# OutSystems UI tokens (colors, spacing, radius, typography)
+os-figma tokens preset outsystems
+
+# Tailwind CSS colors (220 variables)
+os-figma tokens tailwind
+
+# Spacing scale (4px base)
+os-figma tokens spacing
+
+# Border radii
+os-figma tokens radii
+```
+
+---
+
+## Variables
+
+```bash
+# List all variables
+os-figma var list
+
+# Create a variable
+os-figma var create "color/primary" -c "CollectionId" -t COLOR -v "#0057D9"
+
+# Find variables by pattern
+os-figma var find "color/*"
+
+# Visualize all variables as swatches on canvas
+os-figma var visualize
+
+# Delete all variables
+os-figma var delete-all
+
+# Delete a specific collection
+os-figma var delete-all -c "primitives"
+```
+
+---
+
+## Collections
+
+```bash
+# List collections
+os-figma col list
+
+# Create collection
+os-figma col create "OutSystems UI Tokens"
+```
+
+---
+
+## Create Elements
+
+```bash
+# Create a mobile screen frame (OutSystems standard)
+os-figma create frame "OS/Screen/Mobile" -w 390 -h 844
+
+# Create a web screen frame (OutSystems standard)
+os-figma create frame "OS/Screen/Web" -w 1440 -h 900
+
+# Create a frame with OutSystems token fill
+os-figma create frame "OS/Card/Default" -w 320 -h 200 --fill "var:--color-neutral-0" --radius 8
+
+# Create an icon (Iconify, 150k+ icons)
+os-figma create icon lucide:star -s 24 -c "#f59e0b"
+os-figma create icon mdi:home -s 32 -c "#3b82f6"
+```
+
+---
+
+## JSX Rendering
+
+```bash
+# Create an OutSystems Card component
+os-figma render '<Frame name="OS/Card/Default" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" overflow="hidden" stroke="var:--color-neutral-200" strokeWidth={1}>
+  <Frame name="OS/Card/Image" w="fill" h={160} bg="var:--color-neutral-100" />
+  <Frame name="OS/Card/Content" flex="col" gap={8} p={16} w="fill">
+    <Text size={18} weight="bold" color="var:--color-neutral-900" w="fill">Card Title</Text>
+    <Text size={14} color="var:--color-neutral-500" w="fill">Card description text.</Text>
+  </Frame>
+</Frame>'
+
+# Create multiple components at once
+os-figma render-batch '[...]'
+```
+
+---
+
+## Export
+
+```bash
+# Screenshot current view
+os-figma export screenshot -o screenshot.png
+
+# Export variables as OutSystems CSS custom properties
+os-figma export css
+
+# Export as PNG
+os-figma export png
+
+# Export as SVG
+os-figma export svg
+```
+
+---
+
 ## FigJam Commands
 
-FigJam has its own command group with direct CDP connection (bypasses figma-use):
+FigJam has its own command group with direct CDP connection:
 
 ```bash
 # List open FigJam pages
-figma-ds-cli figjam list
-figma-ds-cli fj list  # alias
+os-figma figjam list
+os-figma fj list  # alias
 
 # Show page info
-figma-ds-cli fj info
+os-figma fj info
 
 # List elements on page
-figma-ds-cli fj nodes
-figma-ds-cli fj nodes --limit 50
+os-figma fj nodes
+os-figma fj nodes --limit 50
 
 # Create sticky note
-figma-ds-cli fj sticky "Hello World!" -x 100 -y 100
-figma-ds-cli fj sticky "Yellow Note" -x 200 -y 100 --color "#FEF08A"
+os-figma fj sticky "Hello World!" -x 100 -y 100
+os-figma fj sticky "Yellow Note" -x 200 -y 100 --color "#FEF08A"
 
 # Create shape with text
-figma-ds-cli fj shape "Box Label" -x 100 -y 200 -w 200 -h 100
-figma-ds-cli fj shape "Diamond" -x 300 -y 200 --type DIAMOND
+os-figma fj shape "Box Label" -x 100 -y 200 -w 200 -h 100
+os-figma fj shape "Diamond" -x 300 -y 200 --type DIAMOND
 
 # Create text
-figma-ds-cli fj text "Plain text" -x 100 -y 400 --size 24
+os-figma fj text "Plain text" -x 100 -y 400 --size 24
 
 # Connect two nodes
-figma-ds-cli fj connect "2:30" "2:34"
+os-figma fj connect "2:30" "2:34"
 
 # Move a node
-figma-ds-cli fj move "2:30" 500 500
+os-figma fj move "2:30" 500 500
 
 # Update text content
-figma-ds-cli fj update "2:30" "New text content"
+os-figma fj update "2:30" "New text content"
 
 # Delete a node
-figma-ds-cli fj delete "2:30"
+os-figma fj delete "2:30"
 
 # Execute JavaScript in FigJam
-figma-ds-cli fj eval "figma.currentPage.children.length"
+os-figma fj eval "figma.currentPage.children.length"
 ```
 
 ### Shape Types
-
 - `ROUNDED_RECTANGLE` (default)
 - `RECTANGLE`
 - `ELLIPSE`
@@ -57,108 +181,26 @@ figma-ds-cli fj eval "figma.currentPage.children.length"
 ### Page Selection
 
 All FigJam commands support `-p` or `--page` to target a specific page:
-
 ```bash
-figma-ds-cli fj sticky "Note" -p "My Board" -x 100 -y 100
+os-figma fj sticky "Note" -p "My Board" -x 100 -y 100
 ```
 
 ---
 
-## Setup & Connection
-
-```bash
-# Initial setup (patches Figma, installs dependencies)
-figma-ds-cli
-
-# Connect to running Figma
-figma-ds-cli connect
-```
-
-## Design Tokens
-
-```bash
-# IDS Base Design System (71 variables, 5 collections)
-figma-ds-cli tokens ds
-
-# Tailwind CSS colors (220 variables)
-figma-ds-cli tokens tailwind
-
-# Spacing scale (4px base)
-figma-ds-cli tokens spacing
-
-# Border radii
-figma-ds-cli tokens radii
-```
-
-## Variables
-
-```bash
-# List all variables
-figma-ds-cli var list
-
-# Create a variable
-figma-ds-cli var create "primary/500" -c "CollectionId" -t COLOR -v "#3b82f6"
-
-# Find variables by pattern
-figma-ds-cli var find "primary/*"
-```
-
-## Collections
-
-```bash
-# List collections
-figma-ds-cli col list
-
-# Create collection
-figma-ds-cli col create "Color - Semantic"
-```
-
-## Create Elements
-
-```bash
-# Create a frame
-figma-ds-cli create frame "Card" -w 320 -h 200 --fill "#ffffff" --radius 12
-
-# Create an icon (Iconify, 150k+ icons)
-figma-ds-cli create icon lucide:star -s 24 -c "#f59e0b"
-figma-ds-cli create icon mdi:home -s 32 -c "#3b82f6"
-```
-
-## JSX Rendering
-
-```bash
-# Create complex UI from JSX
-figma-ds-cli render '<Frame w={320} h={200} bg="#fff" rounded={12} p={24} flex="col" gap={16}>
-  <Text size={18} weight="bold" color="#111">Card Title</Text>
-  <Text size={14} color="#666">Description</Text>
-</Frame>'
-```
-
-## Export
-
-```bash
-# Screenshot current view
-figma-ds-cli export screenshot -o screenshot.png
-
-# Export variables as CSS custom properties
-figma-ds-cli export css
-
-# Export as Tailwind config
-figma-ds-cli export tailwind
-```
-
 ## Raw Commands
 
 ```bash
-# Execute arbitrary JavaScript
-figma-ds-cli eval "figma.currentPage.name"
+# Execute arbitrary JavaScript in Figma
+os-figma eval "figma.currentPage.name"
 
 # Run figma-use commands directly
-figma-ds-cli raw query "//COMPONENT"
-figma-ds-cli raw lint
-figma-ds-cli raw select "1:234"
-figma-ds-cli raw export "1:234" --scale 2
+os-figma raw query "//COMPONENT"
+os-figma raw lint
+os-figma raw select "1:234"
+os-figma raw export "1:234" --scale 2
 ```
+
+---
 
 ## Query Syntax
 
@@ -166,43 +208,56 @@ The query command uses XPath-like syntax:
 
 ```bash
 # All frames
-figma-ds-cli raw query "//FRAME"
+os-figma raw query "//FRAME"
 
 # Frames with specific name
-figma-ds-cli raw query "//FRAME[@name='Card']"
+os-figma raw query "//FRAME[@name='OS/Card/Default']"
+
+# All OutSystems components (name starts with OS/)
+os-figma raw query "//*[@name^='OS/']"
 
 # All components
-figma-ds-cli raw query "//COMPONENT"
-
-# All groups
-figma-ds-cli raw query "//GROUP"
-
-# Name starts with
-figma-ds-cli raw query "//*[@name^='session-']"
+os-figma raw query "//COMPONENT"
 
 # Name contains
-figma-ds-cli raw query "//*[contains(@name, 'Button')]"
+os-figma raw query "//*[contains(@name, 'Button')]"
 ```
+
+---
 
 ## Selection
 
 ```bash
 # Select by ID
-figma-ds-cli raw select "1:234"
+os-figma raw select "1:234"
 
 # Select multiple
-figma-ds-cli raw select "1:234,1:235,1:236"
+os-figma raw select "1:234,1:235,1:236"
 
 # Clear selection
-figma-ds-cli eval "figma.currentPage.selection = []"
+os-figma eval "figma.currentPage.selection = []"
 ```
+
+---
 
 ## Export Nodes
 
 ```bash
 # Export at 2x scale
-figma-ds-cli raw export "1:234" --scale 2
+os-figma raw export "1:234" --scale 2
 
 # Export with suffix
-figma-ds-cli raw export "1:234" --scale 2 --suffix "_dark"
+os-figma raw export "1:234" --scale 2 --suffix "_export"
+```
+
+---
+
+## Daemon
+
+```bash
+# Check daemon status
+os-figma daemon status
+
+# Restart daemon
+os-figma daemon restart
 ```

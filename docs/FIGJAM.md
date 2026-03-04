@@ -2,40 +2,40 @@
 
 ## Overview
 
-`figma-ds-cli` includes full FigJam support via CLI commands and a programmatic client, connecting directly via Chrome DevTools Protocol (CDP).
+`outsystems-figma-cli` includes full FigJam support via CLI commands and a programmatic client, connecting directly via Chrome DevTools Protocol (CDP).
 
 ## CLI Commands
 
 ```bash
 # List open FigJam pages
-figma-ds-cli figjam list
-figma-ds-cli fj list  # alias
+os-figma figjam list
+os-figma fj list  # alias
 
 # Show page info
-figma-ds-cli fj info
+os-figma fj info
 
 # List elements on page
-figma-ds-cli fj nodes
+os-figma fj nodes
 
 # Create sticky note
-figma-ds-cli fj sticky "Hello World!" -x 100 -y 100
+os-figma fj sticky "Hello World!" -x 100 -y 100
 
 # Create shape with text
-figma-ds-cli fj shape "Box Label" -x 100 -y 200 -w 200 -h 100
+os-figma fj shape "Box Label" -x 100 -y 200 -w 200 -h 100
 
 # Create text
-figma-ds-cli fj text "Plain text" -x 100 -y 400 --size 24
+os-figma fj text "Plain text" -x 100 -y 400 --size 24
 
 # Connect two nodes
-figma-ds-cli fj connect "2:30" "2:34"
+os-figma fj connect "2:30" "2:34"
 
 # Move, update, delete
-figma-ds-cli fj move "2:30" 500 500
-figma-ds-cli fj update "2:30" "New text"
-figma-ds-cli fj delete "2:30"
+os-figma fj move "2:30" 500 500
+os-figma fj update "2:30" "New text"
+os-figma fj delete "2:30"
 
 # Execute JavaScript
-figma-ds-cli fj eval "figma.currentPage.children.length"
+os-figma fj eval "figma.currentPage.children.length"
 ```
 
 ### All Options
@@ -123,12 +123,6 @@ For `createShape()`, valid shape types:
 - `PARALLELOGRAM_RIGHT`
 - `PARALLELOGRAM_LEFT`
 
-## Test Script
-
-```bash
-node test-figjam.js
-```
-
 ## Architecture
 
 ```
@@ -146,21 +140,18 @@ node test-figjam.js
 
 ## Known Issues
 
-### IDS AIVCC 2026 Page Not Working
-
-Some FigJam pages don't expose the `figma` context immediately. This might be related to:
-- Page not fully loaded
-- Different internal state
-- Large file size
-
-**Workaround:** Try refreshing the FigJam page, or use a different FigJam file.
-
 ### Font Loading
 
 All text operations require font loading first. The client handles this automatically with:
 ```javascript
 await figma.loadFontAsync({ family: "Inter", style: "Medium" });
 ```
+
+### FigJam Page Not Responding
+
+Some FigJam pages don't expose the `figma` context immediately. This might be related to the page not being fully loaded, a different internal state, or a large file size.
+
+**Workaround:** Try refreshing the FigJam page, or use a different FigJam file.
 
 ## Differences from Figma Design
 

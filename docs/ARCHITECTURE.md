@@ -1,12 +1,12 @@
 # Architecture
 
-## How figma-ds-cli Works
+## How outsystems-figma-cli Works
 
 ```
-┌─────────────────┐      Chrome DevTools      ┌─────────────────┐
-│  figma-ds-cli   │ ◄────── Protocol ───────► │  Figma Desktop  │
-│     (CLI)       │      (localhost:9222)     │                 │
-└─────────────────┘                           └─────────────────┘
+┌─────────────────────┐      Chrome DevTools      ┌─────────────────┐
+│ outsystems-figma-cli│ ◄────── Protocol ───────► │  Figma Desktop  │
+│        (CLI)        │      (localhost:9222)      │                 │
+└─────────────────────┘                            └─────────────────┘
 ```
 
 ### Technology Stack
@@ -19,7 +19,7 @@
 
 ### Connection Flow
 
-1. User runs `figma-ds-cli connect`
+1. User runs `node src/index.js connect`
 2. CLI patches Figma to enable remote debugging (adds `--remote-debugging-port=9222` flag)
 3. Figma restarts with debugging enabled
 4. CLI connects via WebSocket to `localhost:9222`
@@ -28,12 +28,16 @@
 ### Key Files
 
 ```
-figma-cli/
+outsystems-figma-cli/
 ├── src/
-│   └── index.js      # Main CLI entry point, all commands
-├── package.json      # npm package config
-├── README.md         # User documentation
-└── docs/             # Technical documentation
+│   ├── index.js          # Main CLI entry point, all commands
+│   └── outsystems.js     # OutSystems-specific constants and helpers
+├── package.json          # npm package config
+├── CLAUDE.md             # AI agent knowledge base (OutSystems conventions)
+├── OUTSYSTEMS.md         # OutSystems design system reference
+├── ARCHITECTURE.md       # This file
+├── README.md             # User documentation
+└── docs/                 # Technical documentation
 ```
 
 ### No API Key Required
@@ -44,6 +48,16 @@ Unlike the Figma REST API which requires authentication, we use the Plugin API d
 - No rate limits
 - Access to features not available in REST API (like variable modes)
 - Works with the user's existing Figma session
+
+### OutSystems-Specific Design
+
+This CLI is purpose-built for OutSystems app design. It is aware of:
+
+- **OutSystems UI Kit v2.0** — component and pattern naming conventions
+- **Design tokens** — OutSystems CSS custom property naming (`--color-primary`, `--space-m`, etc.)
+- **Platform targets** — ODC (OutSystems Developer Cloud) and O11 (OutSystems 11)
+- **Screen sizes** — correct frame dimensions for mobile (390×844), tablet (768×1024), and web (1440×900)
+- **Layer naming** — enforces `OS/{Component}/{Variant}/{State}` convention throughout
 
 ### Limitations
 

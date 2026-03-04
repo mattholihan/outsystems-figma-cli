@@ -2,81 +2,52 @@
 
 ## Project Overview
 
-`figma-ds-cli` is a CLI tool for managing Figma design systems. It connects to Figma Desktop via Chrome DevTools Protocol and executes JavaScript against the Figma Plugin API.
+`outsystems-figma-cli` is a CLI tool for designing OutSystems apps in Figma. It connects to Figma Desktop via Chrome DevTools Protocol and executes JavaScript against the Figma Plugin API.
 
-**Location:** `/Users/sil/claude/figma-cli`
-**npm package:** `figma-ds-cli` (v1.1.0)
-**GitHub:** https://github.com/silships/figma-cli
+**Location:** `~/projects/outsystems-figma-cli`
+**npm package:** `outsystems-figma-cli`
+**GitHub:** https://github.com/mattholihan/outsystems-figma-cli
 
 ## Key Commands for Claude
 
-### Execute JavaScript in Figma
+### Connect to Figma
+```bash
+node src/index.js connect
+```
 
+### Execute JavaScript in Figma
 ```bash
 node src/index.js eval "YOUR_JAVASCRIPT_HERE"
 ```
 
 ### Query Nodes
-
 ```bash
 node src/index.js raw query "//FRAME"
 node src/index.js raw query "//GROUP[@name='content']"
-node src/index.js raw query "//*[@name^='session-']"
+node src/index.js raw query "//*[@name^='OS/']"
 ```
 
 ### Export
-
 ```bash
-node src/index.js raw export "NODE_ID" --scale 2 --suffix "_dark"
+node src/index.js raw export "NODE_ID" --scale 2 --suffix "_export"
 ```
 
-## FigJam Commands
+## Common OutSystems Operations
 
+### Create an OutSystems Mobile Screen Frame
 ```bash
-# List pages
-node src/index.js fj list
-
-# Create sticky
-node src/index.js fj sticky "Text" -x 100 -y 100
-
-# Create shape
-node src/index.js fj shape "Label" -x 200 -y 100
-
-# Connect nodes
-node src/index.js fj connect "2:30" "2:34"
-
-# List elements
-node src/index.js fj nodes
-
-# Execute JS
-node src/index.js fj eval "figma.currentPage.children.length"
+node src/index.js render '<Frame name="OS/Screen/Mobile" w={390} h={844} bg="var:--color-neutral-0" flex="col" />'
 ```
 
-## Common Operations
-
-### Scale and Center Content
-
+### Create an OutSystems Web Screen Frame
 ```bash
-node src/index.js eval "
-const ids = ['1:92', '1:112', '1:134'];  // content group IDs
-const frameW = 1920, frameH = 1080;
-
-ids.forEach(id => {
-  const n = figma.getNodeById(id);
-  if (n) {
-    n.rescale(1.2);  // or 0.9 for scale down
-    n.x = (frameW - n.width) / 2;
-    n.y = (frameH - n.height) / 2;
-  }
-});
-"
+node src/index.js render '<Frame name="OS/Screen/Web" w={1440} h={900} bg="var:--color-neutral-0" flex="col" />'
 ```
 
 ### Switch Variable Mode (Light/Dark)
-
 ```bash
 node src/index.js eval "
-const node = figma.getNodeById('1:92');
+const node = figma.getNodeById('NODE_ID');
 
 function findModeCollection(n) {
   if (n.boundVariables) {
@@ -107,26 +78,57 @@ function findModeCollection(n) {
 const found = findModeCollection(node);
 if (found) {
   const mode = found.modes.find(m => m.name.includes('Light'));  // or 'Dark'
-  if (mode) {
-    const ids = ['1:92', '1:112', '1:134'];
-    ids.forEach(id => {
-      const n = figma.getNodeById(id);
-      if (n) n.setExplicitVariableModeForCollection(found.col, mode.modeId);
-    });
-  }
+  if (mode) node.setExplicitVariableModeForCollection(found.col, mode.modeId);
 }
 "
 ```
 
-### Rename Nodes
-
+### Rename Nodes to OutSystems Convention
 ```bash
 node src/index.js eval "
 const page = figma.currentPage;
-page.children.filter(n => n.name.startsWith('Stream-')).forEach((f, i) => {
-  f.name = 'session-' + (i + 1);
+page.children.filter(n => n.name.startsWith('Frame')).forEach((f, i) => {
+  f.name = 'OS/Screen/Mobile/' + (i + 1);
 });
 "
+```
+
+### Scale and Center Content
+```bash
+node src/index.js eval "
+const ids = ['1:92', '1:112'];  // replace with your node IDs
+const frameW = 390, frameH = 844;  // adjust for mobile or web
+
+ids.forEach(id => {
+  const n = figma.getNodeById(id);
+  if (n) {
+    n.rescale(1.2);  // or 0.9 to scale down
+    n.x = (frameW - n.width) / 2;
+    n.y = (frameH - n.height) / 2;
+  }
+});
+"
+```
+
+## FigJam Commands
+```bash
+# List pages
+node src/index.js fj list
+
+# Create sticky
+node src/index.js fj sticky "Text" -x 100 -y 100
+
+# Create shape
+node src/index.js fj shape "Label" -x 200 -y 100
+
+# Connect nodes
+node src/index.js fj connect "2:30" "2:34"
+
+# List elements
+node src/index.js fj nodes
+
+# Execute JS
+node src/index.js fj eval "figma.currentPage.children.length"
 ```
 
 ## Important Notes
@@ -139,15 +141,23 @@ page.children.filter(n => n.name.startsWith('Stream-')).forEach((f, i) => {
 
 4. **Node IDs** are in format `PAGE:NODE` like `1:92`. Get them from query output.
 
-5. **Working directory** must be `/Users/sil/claude/figma-cli` to run commands.
+5. **Working directory** must be `~/projects/outsystems-figma-cli` to run commands.
+
+6. **Always follow OutSystems layer naming** — `OS/{Component}/{Variant}/{State}`.
+
+7. **Always use OutSystems token variables** — not raw hex values. See `CLAUDE.md` for full token list.
 
 ## File Structure
 
 ```
-figma-cli/
-├── src/index.js     # Main CLI, all commands
-├── package.json     # npm config
-├── README.md        # User docs
+outsystems-figma-cli/
+├── src/
+│   ├── index.js          # Main CLI, all commands
+│   └── outsystems.js     # OutSystems constants and helpers
+├── package.json          # npm config
+├── CLAUDE.md             # AI agent knowledge base (OutSystems conventions)
+├── OUTSYSTEMS.md         # OutSystems design system reference
+├── README.md             # User docs
 └── docs/
     ├── ARCHITECTURE.md   # How it works
     ├── COMMANDS.md       # All commands
@@ -157,13 +167,16 @@ figma-cli/
 
 ## Current Session Context
 
-Content group IDs (may change per file):
+> 💡 Update this section at the start of each working session with the relevant
+> node IDs from your active Figma file. Run `node src/index.js canvas info` to
+> get the current node IDs.
+
+Active file node IDs:
 ```
-1:92, 1:112, 1:134, 1:154, 1:179, 1:200, 1:223, 1:244, 1:269, 1:297, 1:315, 1:332, 1:355, 1:381, 1:405
+(paste your node IDs here)
 ```
 
-These are inside session-1 through session-15 frames (1920×1080).
-
-Variable collection: "Mode (Alias)" from library "IDS_Tokens"
-- Light Mode
-- Dark Mode
+OutSystems token collection in use:
+```
+(note your variable collection name here, e.g. "OutSystems UI / Light")
+```
