@@ -1,87 +1,226 @@
-# figma-ds-cli
+# outsystems-figma-cli
 
-CLI that controls Figma Desktop directly. No API key needed.
+CLI that controls Figma Desktop directly for designing OutSystems apps. No API key needed.
+
+---
 
 ## Quick Reference
 
 | User says | Command |
 |-----------|---------|
 | "connect to figma" | `node src/index.js connect` |
-| "add shadcn colors" | `node src/index.js tokens preset shadcn` |
-| "add tailwind colors" | `node src/index.js tokens tailwind` |
+| "create mobile screen" | `node src/index.js render '<Frame name="OS/Screen/Mobile" w={390} h={844} ...'` |
+| "create web screen" | `node src/index.js render '<Frame name="OS/Screen/Web" w={1440} h={900} ...'` |
+| "add OutSystems tokens" | `node src/index.js tokens preset outsystems` |
 | "show colors on canvas" | `node src/index.js var visualize` |
-| "create cards/buttons" | `render-batch` + `node to-component` |
-| "create a rectangle/frame" | `node src/index.js render '<Frame>...'` |
-| "convert to component" | `node src/index.js node to-component "ID"` |
 | "list variables" | `node src/index.js var list` |
 | "find nodes named X" | `node src/index.js find "X"` |
 | "what's on canvas" | `node src/index.js canvas info` |
 | "export as PNG/SVG" | `node src/index.js export png` |
+| "convert to component" | `node src/index.js node to-component "ID"` |
 
 **Full command reference:** See REFERENCE.md
 
 ---
 
-## Design Tokens
+## OutSystems Design Tokens
 
-"Add shadcn colors":
-```bash
-node src/index.js tokens preset shadcn   # 244 primitives + 32 semantic (Light/Dark)
+OutSystems uses CSS custom properties as design tokens. Always use these variable names
+(not raw hex values) when creating variables or binding to nodes.
+
+### Colors
+```
+--color-primary           Main brand color (default: #0057D9)
+--color-secondary         Secondary brand color (default: #00A3E0)
+--color-neutral-0         White (#FFFFFF)
+--color-neutral-100       Lightest gray
+--color-neutral-200
+--color-neutral-300
+--color-neutral-400
+--color-neutral-500       Mid gray
+--color-neutral-600
+--color-neutral-700
+--color-neutral-800
+--color-neutral-900       Darkest gray (#1A1A1A)
+--color-feedback-success  (#28A745)
+--color-feedback-warning  (#FFC107)
+--color-feedback-error    (#DC3545)
+--color-feedback-info     (#17A2B8)
 ```
 
-"Add tailwind colors":
-```bash
-node src/index.js tokens tailwind        # 242 primitive colors only
+### Typography
+```
+--font-size-base     16px
+--font-size-h1       32px
+--font-size-h2       24px
+--font-size-h3       20px
+--font-size-h4       18px
+--font-size-h5       16px
+--font-size-h6       14px
+--font-weight-regular   400
+--font-weight-medium    500
+--font-weight-bold      700
+--line-height-base      1.5
 ```
 
-"Create design system":
-```bash
-node src/index.js tokens ds              # IDS Base colors
+### Spacing
+```
+--space-xs    4px
+--space-s     8px
+--space-m     16px
+--space-l     24px
+--space-xl    32px
+--space-2xl   48px
 ```
 
-**shadcn vs tailwind:**
-- `tokens preset shadcn` = Full shadcn system (primitives + semantic tokens with Light/Dark mode)
-- `tokens tailwind` = Just the Tailwind color palette (primitives only)
-
-"Delete all variables":
-```bash
-node src/index.js var delete-all                    # All collections
-node src/index.js var delete-all -c "primitives"    # Only specific collection
+### Border Radius
+```
+--border-radius-s     4px
+--border-radius-m     8px
+--border-radius-l     16px
+--border-radius-pill  999px
 ```
 
-**Note:** `var list` only SHOWS existing variables. Use `tokens` commands to CREATE them.
+### Fast Variable Binding (var: syntax)
+Use `var:name` syntax to bind OutSystems tokens directly at creation time:
+
+```bash
+node src/index.js create rect "Card" --fill "var:--color-neutral-0" --stroke "var:--color-neutral-200"
+node src/index.js create frame "Section" --fill "var:--color-primary"
+node src/index.js create text "Label" -c "var:--color-neutral-900"
+```
+
+```jsx
+<Frame bg="var:--color-neutral-0" stroke="var:--color-neutral-200" rounded={8} p={24}>
+  <Text color="var:--color-neutral-900" size={16}>Card content</Text>
+  <Frame bg="var:--color-primary" px={16} py={8} rounded={4}>
+    <Text color="var:--color-neutral-0">Button</Text>
+  </Frame>
+</Frame>
+```
 
 ---
 
-## Fast Variable Binding (var: syntax)
+## OutSystems Fallback Colors (when no variables present)
 
-Use `var:name` syntax to bind variables directly at creation time (currently searches shadcn collections):
+Use these defaults if no variable collections exist in the file:
 
-### Create Commands with var:
-```bash
-node src/index.js create rect "Card" --fill "var:card" --stroke "var:border"
-node src/index.js create circle "Avatar" --fill "var:primary"
-node src/index.js create text "Hello" -c "var:foreground"
-node src/index.js create line -c "var:border"
-node src/index.js create frame "Section" --fill "var:background"
-node src/index.js create autolayout "Container" --fill "var:muted"
-node src/index.js create icon lucide:star -c "var:primary"
+```javascript
+const colors = {
+  primary:        { r: 0.00, g: 0.34, b: 0.85 },  // #0057D9
+  secondary:      { r: 0.00, g: 0.64, b: 0.88 },  // #00A3E0
+  neutral0:       { r: 1.00, g: 1.00, b: 1.00 },  // #FFFFFF
+  neutral100:     { r: 0.96, g: 0.96, b: 0.96 },  // #F5F5F5
+  neutral500:     { r: 0.60, g: 0.60, b: 0.60 },  // #999999
+  neutral900:     { r: 0.10, g: 0.10, b: 0.10 },  // #1A1A1A
+  success:        { r: 0.16, g: 0.65, b: 0.27 },  // #28A745
+  warning:        { r: 1.00, g: 0.76, b: 0.03 },  // #FFC107
+  error:          { r: 0.86, g: 0.21, b: 0.27 },  // #DC3545
+  info:           { r: 0.09, g: 0.64, b: 0.72 },  // #17A2B8
+};
 ```
 
-### JSX render with var:
+---
+
+## OutSystems Screen Sizes
+
+Always use these frame sizes for OutSystems app designs:
+
+```
+Mobile:   390 × 844    (iPhone 14 base — used for ODC mobile apps)
+Tablet:   768 × 1024   (iPad base)
+Web:      1440 × 900   (Desktop web)
+```
+
+### Layer naming convention
+Always name layers using this pattern: `OS/{Component}/{Variant}/{State}`
+
+Examples:
+```
+OS/Screen/Mobile/Login
+OS/Screen/Web/Dashboard
+OS/Button/Primary/Default
+OS/Button/Primary/Hover
+OS/Card/Default
+OS/Input/Text/Focused
+OS/Navigation/TopBar/Mobile
+OS/Navigation/Sidebar/Web
+```
+
+---
+
+## OutSystems UI Patterns
+
+When a user asks to create an OutSystems UI pattern, use these exact names.
+Each pattern should be built as a component using OutSystems token variables.
+
+```
+Accordion       Alert           AnimatedLabel   Balloon
+Badge           BottomBar       Breadcrumbs     ButtonGroup
+Card            Carousel        Columns         DatePicker
+Dropdown        FileUpload      FloatingActions Gallery
+IconBadge       InputWithIcon   Map             MasterDetail
+Modal           Notification    ProgressBar     RangeSlider
+Rating          Ribbon          Search          Section
+SectionIndex    Sidebar         Skeleton        StackedCards
+StatusBar       Tabs            Tag             TimePicker
+Timeline        Toggle          ToolTip         Video
+Wizard
+```
+
+### Example — OutSystems Card pattern
 ```bash
-node src/index.js render '<Frame bg="var:card" stroke="var:border" rounded={12} p={24}>
-  <Text color="var:foreground" size={18}>Title</Text>
+node src/index.js render '<Frame name="OS/Card/Default" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" overflow="hidden" stroke="var:--color-neutral-200" strokeWidth={1}>
+  <Frame name="OS/Card/Image" w="fill" h={160} bg="var:--color-neutral-100" />
+  <Frame name="OS/Card/Content" flex="col" gap={8} p={16} w="fill">
+    <Text name="OS/Card/Title" size={18} weight="bold" color="var:--color-neutral-900" w="fill">Card Title</Text>
+    <Text name="OS/Card/Description" size={14} color="var:--color-neutral-500" w="fill">Card description text goes here.</Text>
+  </Frame>
+  <Frame name="OS/Card/Footer" flex="row" p={16} gap={8} w="fill">
+    <Frame name="OS/Button/Primary" bg="var:--color-primary" px={16} py={8} rounded={4} flex="row" justify="center" items="center" grow={1}>
+      <Text size={14} weight="medium" color="var:--color-neutral-0">Action</Text>
+    </Frame>
+  </Frame>
 </Frame>'
 ```
 
-### Set commands with var:
-```bash
-node src/index.js set fill "var:primary"
-node src/index.js set stroke "var:border"
+---
+
+## Platform Targets
+
+Always ask or check which platform the user is designing for:
+
+```
+--platform odc        OutSystems Developer Cloud (modern, recommended)
+--platform o11        OutSystems 11 / Service Studio (classic)
 ```
 
-**Variables:** `background`, `foreground`, `card`, `primary`, `secondary`, `muted`, `accent`, `border`, and their `-foreground` variants.
+CSS export targets:
+```bash
+# ODC Theme CSS
+node src/index.js tokens export --target odc-studio
+
+# O11 Service Studio theme
+node src/index.js tokens export --target service-studio
+```
+
+---
+
+## Screen Templates
+
+When a user asks to create an OutSystems screen, use these templates as a starting point.
+Always ask for platform (ODC or O11) and device (mobile or web) first if not specified.
+
+| Template | Mobile size | Web size |
+|----------|-------------|----------|
+| Dashboard | 390×844 | 1440×900 |
+| List | 390×844 | 1440×900 |
+| Detail | 390×844 | 1440×900 |
+| Form | 390×844 | 1440×900 |
+| Login | 390×844 | 1440×900 |
+| Register | 390×844 | 1440×900 |
+| Empty State | 390×844 | 1440×900 |
+| Settings | 390×844 | 1440×900 |
 
 ---
 
@@ -104,93 +243,22 @@ Then: Plugins → Development → FigCli
 
 ## Creating Components
 
-When user asks to "create cards", "design buttons":
+When user asks to "create cards", "design buttons", or any OutSystems pattern:
 
 1. **Each component = separate frame** (NOT inside parent gallery)
 2. **Convert to component** after creation
-3. **Use variables** for colors
+3. **Use OutSystems token variables** for all colors, spacing, and radius
+4. **Follow OS layer naming** (`OS/{Component}/{Variant}/{State}`)
 
 ```bash
-# Step 1: Create separately
-node src/index.js render-batch '[
-  "<Frame name=\"Card 1\" w={320} h={200} bg=\"#18181b\" rounded={12} flex=\"col\" p={24}><Text color=\"#fff\">Title</Text></Frame>",
-  "<Frame name=\"Card 2\" w={320} h={200} bg=\"#18181b\" rounded={12} flex=\"col\" p={24}><Text color=\"#fff\">Title</Text></Frame>"
-]'
+# Step 1: Create
+node src/index.js render-batch '[...]'
 
-# Step 2: Convert
+# Step 2: Convert to component
 node src/index.js node to-component "ID1" "ID2"
 
-# Step 3: Bind variables
-node src/index.js bind fill "zinc/900" -n "ID1"
-```
-
----
-
-## Complex Components (Pricing Cards, etc.)
-
-For complex multi-element components, use a **single eval** with native Figma API instead of JSX:
-
-### Pattern
-1. **Check for variables first** - don't assume any collection exists
-2. **Use fallback colors** when no variables present
-3. **Single eval** - create everything in one API call
-4. **Data-driven** - define content in array, loop to create
-5. **Equal height** - use `layoutAlign: "STRETCH"` and `layoutGrow: 1`
-
-### Fallback Colors (Dark Theme)
-```javascript
-const colors = {
-  bg: { r: 0.09, g: 0.09, b: 0.11 },       // #17171c
-  card: { r: 0.11, g: 0.11, b: 0.13 },     // #1c1c21
-  border: { r: 0.2, g: 0.2, b: 0.22 },     // #333338
-  primary: { r: 0.23, g: 0.51, b: 0.97 },  // #3b82f8
-  text: { r: 0.98, g: 0.98, b: 0.98 },     // #fafafa
-  muted: { r: 0.6, g: 0.6, b: 0.65 },      // #999aa6
-  white: { r: 1, g: 1, b: 1 }
-};
-```
-
-### Variable Detection
-```javascript
-// Check for ANY variables, not just shadcn
-const collections = await figma.variables.getLocalVariableCollectionsAsync();
-if (collections.length > 0) {
-  // Ask user which collection to use
-} else {
-  // Use fallback colors
-}
-```
-
-### Equal Height Cards
-```javascript
-// After creating cards in container:
-for (const card of container.children) {
-  card.layoutAlign = 'STRETCH';           // Fill container height
-  card.primaryAxisSizingMode = 'FIXED';   // Keep fixed width
-  for (const child of card.children) {
-    if (child.name === 'Features') {
-      child.layoutGrow = 1;               // Features section grows
-    }
-  }
-}
-```
-
----
-
-## Creating Webpages
-
-Create ONE parent frame with vertical auto-layout containing all sections:
-
-```bash
-node src/index.js render '<Frame name="Landing Page" w={1440} flex="col" bg="#0a0a0f">
-  <Frame name="Hero" w="fill" h={800} flex="col" justify="center" items="center" gap={24} p={80}>
-    <Text size={64} weight="bold" color="#fff">Headline</Text>
-    <Frame bg="#3b82f6" px={32} py={16} rounded={8}><Text color="#fff">CTA</Text></Frame>
-  </Frame>
-  <Frame name="Features" w="fill" flex="row" gap={40} p={80} bg="#111">
-    <Frame flex="col" gap={12} grow={1}><Text size={24} weight="bold" color="#fff">Feature 1</Text></Frame>
-  </Frame>
-</Frame>'
+# Step 3: Bind OutSystems variables
+node src/index.js bind fill "--color-primary" -n "ID1"
 ```
 
 ---
@@ -203,284 +271,84 @@ flex="row"              // or "col"
 gap={16}                // spacing between items
 p={24}                  // padding all sides
 px={16} py={8}          // padding x/y
-pt={8} pr={16} pb={8} pl={16}  // individual padding
 
 // Alignment
-justify="center"        // main axis: start, center, end, between
-items="center"          // cross axis: start, center, end
+justify="center"        // start, center, end, between
+items="center"          // start, center, end
 
 // Size
 w={320} h={200}         // fixed size
 w="fill" h="fill"       // fill parent
-minW={100} maxW={500}   // constraints
-minH={50} maxH={300}
 
 // Appearance
-bg="#fff"               // fill color
-bg="var:card"           // bind to variable (FAST, inline binding)
-stroke="#000"           // stroke color
-stroke="var:border"     // bind stroke to variable
-strokeWidth={2}         // stroke thickness
-strokeAlign="inside"    // inside, outside, center
-opacity={0.8}           // 0..1
-blendMode="multiply"    // multiply, overlay, etc.
-
-// Corners
-rounded={16}            // all corners
-roundedTL={8} roundedTR={8} roundedBL={0} roundedBR={0}  // individual
-cornerSmoothing={0.6}   // iOS squircle (0..1)
-
-// Effects
-shadow="4px 4px 12px rgba(0,0,0,0.25)"  // drop shadow
-blur={8}                // layer blur
-overflow="hidden"       // clip content
-rotate={45}             // rotation degrees
+bg="#fff"               // fill color (use token vars instead when possible)
+bg="var:--color-primary"
+stroke="var:--color-neutral-200"
+strokeWidth={1}
+rounded={8}             // corner radius
+opacity={0.8}
 
 // Text
-<Text size={18} weight="bold" color="#000" font="Inter">Hello</Text>
-<Text color="var:foreground">Text with variable color</Text>
+<Text size={16} weight="bold" color="var:--color-neutral-900" w="fill">Hello</Text>
 ```
 
-### Fast Variable Binding (var: syntax)
+---
 
-Use `var:name` syntax to bind variables directly at creation time (FAST, no separate bind commands needed):
+## Common Pitfalls
 
+**1. Text gets cut off:**
+Always add `w="fill"` to both the parent frame AND every Text element.
 ```jsx
-// Frame with bound fill and stroke
-<Frame bg="var:card" stroke="var:border">
-  <Text color="var:foreground">Bound text</Text>
-  <Frame bg="var:primary">
-    <Text color="var:primary-foreground">Button</Text>
-  </Frame>
-</Frame>
-```
-
-**Available shadcn variables:**
-- `background`, `foreground` (page background/text)
-- `card`, `card-foreground` (card backgrounds)
-- `primary`, `primary-foreground` (buttons, accents)
-- `secondary`, `secondary-foreground`
-- `muted`, `muted-foreground` (subtle text)
-- `accent`, `accent-foreground`
-- `border`, `input`, `ring`
-
-**Advantages over separate `bind` commands:**
-- Single render call binds all variables at once
-- No timeouts or multiple API calls
-- Works with complex nested structures
-
-**Also works with `set` commands:**
-```bash
-node src/index.js set fill "var:primary"    # Bind fill to existing element
-node src/index.js set stroke "var:border"   # Bind stroke to existing element
-```
-
-### Auto-Layout
-
-```jsx
-// Wrap: items flow to next row when full
-wrap={true}             // layoutWrap = 'WRAP'
-rowGap={12}             // gap between rows (counterAxisSpacing)
-
-// Grow: expand to fill remaining space
-grow={1}                // layoutGrow = 1
-
-// Stretch: fill cross-axis
-stretch={true}          // layoutAlign = 'STRETCH'
-
-// Absolute: position freely within parent
-position="absolute" x={12} y={12}  // must have name for x/y to work
-```
-
-**Complete example:**
-```bash
-node src/index.js render '<Frame name="Card" w={300} flex="col" bg="#18181b" rounded={12} overflow="hidden">
-  <Frame w="fill" h={100} bg="#333" />
-  <Frame name="Badge" w={40} h={20} bg="#ef4444" rounded={4} position="absolute" x={12} y={12} />
-  <Frame name="Tags" flex="row" wrap={true} rowGap={8} gap={8} p={16}>
-    <Frame w={60} h={24} bg="#3b82f6" rounded={12} />
-    <Frame w={70} h={24} bg="#22c55e" rounded={12} />
-    <Frame w={80} h={24} bg="#a855f7" rounded={12} />
-  </Frame>
-  <Frame flex="row" p={16} gap={8}>
-    <Frame w={40} h="fill" bg="#222" />
-    <Frame h="fill" bg="#333" grow={1} />
-  </Frame>
-</Frame>'
-```
-
-**Common mistakes (silently ignored, no error!):**
-```
-WRONG                    RIGHT
-layout="horizontal"   →  flex="row"
-padding={24}          →  p={24}
-fill="#fff"           →  bg="#fff"
-cornerRadius={12}     →  rounded={12}
-fontSize={18}         →  size={18}
-fontWeight="bold"     →  weight="bold"
-justify="between"     →  use grow={1} spacer instead
-```
-
-### Layout Patterns
-
-**Push items to edges (navbar pattern):**
-```jsx
-// justify="between" doesn't work reliably, use grow spacer instead
-<Frame flex="row" items="center">
-  <Frame>Logo</Frame>
-  <Frame grow={1} justify="center">Nav Links</Frame>
-  <Frame>Buttons</Frame>
-</Frame>
-```
-
-**Badge at avatar corner:**
-```jsx
-// Absolute x/y is relative to parent padding
-// Avatar at padding=24, size=100, badge=20
-// Position: padding + avatarSize - badgeSize/2 = 24 + 100 - 10 = 114
-<Frame p={24}>
-  <Frame w={100} h={100} rounded={50} />
-  <Frame name="Badge" w={20} h={20} position="absolute" x={114} y={114} />
-</Frame>
-```
-
-**Input at bottom (chat pattern):**
-```jsx
-<Frame flex="col" h={400}>
-  <Frame>Message 1</Frame>
-  <Frame>Message 2</Frame>
-  <Frame grow={1} />
-  <Frame>Input field</Frame>
-</Frame>
-```
-
-**Avoid content overflow:**
-```jsx
-// BAD: fixed height too small for auto-sized children
-<Frame h={160} p={24}><Frame h={139} /></Frame>  // 139+48 > 160!
-
-// GOOD: ensure height fits content + padding
-<Frame h={200} p={24}><Frame h={139} /></Frame>  // 139+48 < 200 ✓
-```
-
-**Complete card example:**
-```bash
-node src/index.js render '<Frame name="Card" w={320} h={200} bg="#18181b" rounded={12} flex="col" p={24} gap={12}>
-  <Text size={18} weight="bold" color="#fff">Title</Text>
-  <Text size={14} color="#a1a1aa" w="fill">Description text</Text>
-  <Frame bg="#3b82f6" px={16} py={8} rounded={6}>
-    <Text size={14} weight="medium" color="#fff">Button</Text>
-  </Frame>
-</Frame>'
-```
-
-### Common Pitfalls
-
-**1. Text gets cut off (CRITICAL):**
-```jsx
-// BAD: Text without w="fill" will be single line and clip
-<Frame flex="col" gap={8}>
-  <Text size={16} weight="semibold" color="#fff">Title cut off</Text>
-  <Text size={14} color="#a1a1aa">Description also cut off...</Text>
-</Frame>
-
-// GOOD: Add w="fill" to parent Frame AND ALL Text elements
+// GOOD
 <Frame flex="col" gap={8} w="fill">
-  <Text size={16} weight="semibold" color="#fff" w="fill">Title wraps properly</Text>
-  <Text size={14} color="#a1a1aa" w="fill">Description wraps properly.</Text>
-</Frame>
-```
-**Rule:** For text to wrap, you need:
-1. Parent frame with `w="fill"` or fixed width
-2. **EVERY** Text element needs `w="fill"` (not just descriptions!)
-3. Parent must have `flex="col"` or `flex="row"`
-
-**IMPORTANT:** ALL text that could wrap needs `w="fill"`:
-- Titles (e.g., "Wireless Noise-Canceling Headphones")
-- Descriptions
-- Labels
-- Any multi-word text
-
-**Real example - card with title AND description:**
-```jsx
-<Frame name="Card" w={340} bg="#18181b" rounded={16} flex="col" p={20} gap={16}>
-  <Frame flex="col" gap={8} w="fill">
-    <Text size={16} weight="semibold" color="#fff" w="fill">Wireless Noise-Canceling Headphones</Text>
-    <Text size={14} color="#a1a1aa" w="fill">Premium audio experience with 40-hour battery life.</Text>
-  </Frame>
+  <Text size={16} weight="bold" color="var:--color-neutral-900" w="fill">Title</Text>
+  <Text size={14} color="var:--color-neutral-500" w="fill">Description</Text>
 </Frame>
 ```
 
-**2. Toggle switches - use flex, not absolute:**
+**2. Buttons need flex for centered text:**
 ```jsx
-// BAD: Absolute positioning for knob
-<Frame w={52} h={28} bg="#3b82f6" rounded={14} p={2}>
-  <Frame w={24} h={24} bg="#fff" rounded={12} position="absolute" x={26} y={2} />
-</Frame>
-
-// GOOD: Flex with justify for ON/OFF state
-// ON state (knob right)
-<Frame w={52} h={28} bg="#3b82f6" rounded={14} flex="row" items="center" p={2} justify="end">
-  <Frame w={24} h={24} bg="#fff" rounded={12} />
-</Frame>
-// OFF state (knob left)
-<Frame w={52} h={28} bg="#27272a" rounded={14} flex="row" items="center" p={2} justify="start">
-  <Frame w={24} h={24} bg="#52525b" rounded={12} />
+// GOOD
+<Frame bg="var:--color-primary" px={16} py={10} rounded={4} flex="row" justify="center" items="center">
+  <Text color="var:--color-neutral-0" weight="medium">Button</Text>
 </Frame>
 ```
 
-**3. Buttons need flex for centered text:**
+**3. No emojis — use shapes as icon placeholders:**
 ```jsx
-// BAD: No flex, text not centered
-<Frame bg="#3b82f6" px={16} py={10} rounded={10}>
-  <Text>Button</Text>
-</Frame>
+<Frame w={20} h={20} rounded={4} stroke="var:--color-neutral-900" strokeWidth={2} />
+```
 
-// GOOD: Flex centers content
-<Frame bg="#3b82f6" px={16} py={10} rounded={10} flex="row" justify="center" items="center">
-  <Text>Button</Text>
+**4. Push items to edges (navbar/topbar pattern):**
+```jsx
+<Frame flex="row" items="center" w="fill" p={16}>
+  <Frame>Logo</Frame>
+  <Frame grow={1} />
+  <Frame>Menu</Frame>
 </Frame>
 ```
 
-**4. No emojis - use shapes as icons:**
-```jsx
-// BAD: Emojis render inconsistently
-<Text>🏠</Text>
-
-// GOOD: Use shapes as icon placeholders
-<Frame w={20} h={20} rounded={4} stroke="#fff" strokeWidth={2} />  // square icon
-<Frame w={20} h={20} rounded={10} stroke="#fff" strokeWidth={2} /> // circle icon
+**5. Common wrong → right JSX props:**
 ```
-
-**5. Three-dot menu icon:**
-```jsx
-<Frame flex="row" gap={3} justify="center" items="center">
-  <Frame w={4} h={4} bg="#52525b" rounded={2} />
-  <Frame w={4} h={4} bg="#52525b" rounded={2} />
-  <Frame w={4} h={4} bg="#52525b" rounded={2} />
-</Frame>
-```
-
-**6. Star rating with shapes:**
-```jsx
-<Frame flex="row" gap={4}>
-  <Frame w={14} h={14} bg="#fbbf24" rounded={2} />
-  <Frame w={14} h={14} bg="#fbbf24" rounded={2} />
-  <Frame w={14} h={14} bg="#fbbf24" rounded={2} />
-  <Frame w={14} h={14} bg="#fbbf24" rounded={2} />
-  <Frame w={14} h={14} bg="#fbbf24" rounded={2} />
-</Frame>
+layout="horizontal"  →  flex="row"
+padding={24}         →  p={24}
+fill="#fff"          →  bg="#fff"
+cornerRadius={8}     →  rounded={8}
+fontSize={16}        →  size={16}
+fontWeight="bold"    →  weight="bold"
 ```
 
 ---
 
 ## Key Rules
 
-1. **Always use `render` for frames** - has smart positioning
-2. **Never use `eval` to create** - no positioning, overlaps at (0,0)
-3. **Never use `npx figma-use render`** - no smart positioning
-4. **For multiple frames:** Use `render-batch`
-5. **Convert to components:** `node to-component` after creation
+1. **Always use OutSystems token variable names**, not raw hex values
+2. **Always follow OS layer naming** — `OS/{Component}/{Variant}/{State}`
+3. **Always confirm platform** (ODC or O11) before exporting CSS
+4. **Always use `render` for frames** — has smart positioning
+5. **Never use `eval` to create** — no positioning, overlaps at (0,0)
+6. **For multiple frames:** Use `render-batch`
+7. **Convert to components:** `node to-component` after creation
 
 ---
 
@@ -491,36 +359,16 @@ node src/index.js render '<Frame name="Card" w={320} h={200} bg="#18181b" rounde
 1. Run `npm install` silently
 2. Ask connection mode (Yolo or Safe)
 3. Run `node src/index.js connect` (or `--safe`)
-4. When connected, say: "Connected! What would you like to create?"
+4. Ask: ODC or O11? Mobile or Web?
+5. When connected, say: "Connected! What OutSystems screen or component would you like to design?"
 
 If permission error (macOS): System Settings → Privacy → Full Disk Access → Add Terminal
 
 ---
 
-## Variable Visualization
-
-"Show colors on canvas" / "display variables" / "create palette":
-```bash
-node src/index.js var visualize              # All collections
-node src/index.js var visualize "primitives" # Filter
-```
-
-Creates shadcn-style color swatches bound to variables.
-
----
-
-## Website Recreation
-
-```bash
-node src/index.js recreate-url "https://example.com" --name "Page"
-node src/index.js screenshot-url "https://example.com"
-```
-
----
-
 ## Speed Daemon
 
-`connect` auto-starts daemon for 10x faster commands.
+`connect` auto-starts daemon for faster commands.
 
 ```bash
 node src/index.js daemon status
