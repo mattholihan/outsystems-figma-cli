@@ -1,3 +1,6 @@
 .DS_Store
 *.log
 DEV-NOTES.md
+node_modules/
+.daemon-token
+.env
