@@ -10,33 +10,31 @@ It understands OutSystems UI patterns, tokens, and component naming conventions.
 - Supports both ODC (OutSystems Developer Cloud) and O11 (OutSystems 11)
 
 ## Design Token Naming Conventions
-Colors:
+Color:
   --color-primary         (main brand color)
   --color-secondary       (secondary brand color)
   --color-neutral-0       (white)
-  --color-neutral-100     (lightest gray) through --color-neutral-900 (darkest)
-  --color-feedback-success / -warning / -error / -info
+  --color-neutral-1     (lightest gray) through --color-neutral-10 (darkest)
+  --color-info / info-light/ success / success-light / -warning / warning-light / -error / -error-light
 
 Typography:
-  --font-size-base        (16px default)
+  --font-size-xs / -s / -base (16px default)
   --font-size-h1 through --font-size-h6
-  --font-weight-regular / -medium / -bold
+  --font-light / -regular / -semi-bold / -bold
   --line-height-base
 
-Spacing:
-  --space-xs / -s / -m / -l / -xl / -2xl
+Border:
+  --border-radius-soft / -rounded / -circle
+  --border-size- s / -m / -l
 
-Radius:
-  --border-radius-s / -m / -l / -pill
+Spacing:
+  --space-xs / -s / -base / -m / -l / -xl / -xxl
+
+Shadow:
+  --shadow-xs / -s / -m / -l / -xl
 
 ## OutSystems UI Pattern Names (for use in commands)
-Accordion, Alert, AnimatedLabel, Balloon, Badge, BottomBar, Breadcrumbs,
-ButtonGroup, Card, Carousel, Columns, DatePicker, Dropdown, FileUpload,
-FloatingActions, Gallery, IconBadge, InlineSVG, InputWithIcon, Map,
-MasterDetail, Modal, Notification, ProgressBar, RangeSlider, Rating,
-Ribbon, Search, Section, SectionIndex, Sidebar, Skeleton, Stacked Cards,
-StatusBar, Tabs, Tag, TimePicker, Timeline, Toggle, ToolTip, Video,
-Wizard
+Accordion, Alert, Badge, Blank Slate, Breadcrumbs, Button, Button Group, Card, Card Background, Card Item, Card Sectioned, Carousel, Checkbox, Chat Message, Counter, Date Picker, Dropdown, Dropdown Search, Dropdown Tags, Feedback Message, Flip Content, Floating Actions, Floating Content, Form, Input, Input With Icon, Link, List, List Item Content, Notification, Pagination, Popover, Popup, Progress Bar, Progress Circle, Radio Group, Range Slider, Search, Section, Section Group, SectionIndex, Sidebar, Switch, Table, Tabs, Tag, Text Area, Tooltip, Upload, User Avatar, Wizard
 
 ## Layer Naming Conventions
 Always name Figma layers using this pattern:
@@ -49,14 +47,13 @@ Examples:
   OS/Navigation/TopBar/Mobile
 
 ## Screen Templates
-Available screen template types:
-  - Dashboard
-  - List (mobile and web)
-  - Detail
-  - Form
-  - Login / Register
-  - Empty State
-  - Settings
+Available screen template types (mobile and web):
+  - Dashboards
+  - Details
+  - Forms
+  - Galleries
+  - Lists
+  - Onboardings
 
 ## Platform Flags
 Always specify platform when relevant:
@@ -72,4 +69,3 @@ Always specify platform when relevant:
 2. Mobile frames are 390x844 (iPhone 14 base)
 3. Web frames are 1440x900 (desktop) or 768x1024 (tablet)
 4. Components should be built with Auto-Layout enabled
-5. Dark mode variants should always be created alongside Light mode

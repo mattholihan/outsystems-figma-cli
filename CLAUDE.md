@@ -28,71 +28,102 @@ CLI that controls Figma Desktop directly for designing OutSystems apps. No API k
 OutSystems uses CSS custom properties as design tokens. Always use these variable names
 (not raw hex values) when creating variables or binding to nodes.
 
-### Colors
+### Color
+
+#### Brand Palette
 ```
---color-primary           Main brand color (default: #0057D9)
---color-secondary         Secondary brand color (default: #00A3E0)
---color-neutral-0         White (#FFFFFF)
---color-neutral-100       Lightest gray
---color-neutral-200
---color-neutral-300
---color-neutral-400
---color-neutral-500       Mid gray
---color-neutral-600
---color-neutral-700
---color-neutral-800
---color-neutral-900       Darkest gray (#1A1A1A)
---color-feedback-success  (#28A745)
---color-feedback-warning  (#FFC107)
---color-feedback-error    (#DC3545)
---color-feedback-info     (#17A2B8)
+--color-primary						Main brand color (default: #1068EB)
+--color-secondary					Secondary brand color (default: #303D60)
+```
+#### Neutral Palette
+```
+--color-neutral-0					White (#FFFFFF)
+--color-neutral-1					(#F8F9FA)
+--color-neutral-2					(#F1F3F5)
+--color-neutral-3					(#E9ECEF)
+--color-neutral-4					(#DEE2E6)
+--color-neutral-5					(#CED4DA)
+--color-neutral-6					(#ADB5BD)
+--color-neutral-7					(#6A7178)
+--color-neutral-8					(#4F575E)
+--color-neutral-9					(#272B30)
+--color-neutral-10				Black (#101213)
+```
+#### Semantic Palette
+```
+--color-info							(#017AAD)
+--color-info-light				(#E5F5FC)
+--color-success						(#29323B)
+--color-success-light			(#EAF3EB)
+--color-warning						(#E9A100)
+--color-warning-light			(#FDF6E5)
+--color-error							(#DC2020)
+--color-error-light				(#FCEAEA)
 ```
 
 ### Typography
+
+#### Font Size
 ```
---font-size-base     16px
---font-size-h1       32px
---font-size-h2       24px
---font-size-h3       20px
---font-size-h4       18px
---font-size-h5       16px
---font-size-h6       14px
---font-weight-regular   400
---font-weight-medium    500
---font-weight-bold      700
---line-height-base      1.5
+--font-size-display		36px
+--font-size-h1				32px
+--font-size-h2				28px
+--font-size-h3				26px
+--font-size-h4				22px
+--font-size-h5				20px
+--font-size-h6				18px
+--font-size-base			16px
+--font-size-s					14px
+--font-size-xs				12px
+```
+#### Font Weight
+```
+--font-light					300
+--font-regular				400
+--font-semi-bold			600
+--font-bold						700
+```
+
+### Border
+
+#### Border Radius
+```
+--border-radius-none			0px
+--border-radius-soft			4px
+--border-radius-rounded		100px
+```
+#### Border Sizes
+```
+--border-size-none		0px
+--border-size-s				1px
+--border-size-m				2px
+--border-size-l				3px
 ```
 
 ### Spacing
 ```
---space-xs    4px
---space-s     8px
---space-m     16px
---space-l     24px
---space-xl    32px
---space-2xl   48px
-```
-
-### Border Radius
-```
---border-radius-s     4px
---border-radius-m     8px
---border-radius-l     16px
---border-radius-pill  999px
+--space-none		0px
+--space-xs			4px
+--space-s				8px
+--space-base		16px
+--space-m				24px
+--space-l				32px
+--space-xl			40px
+--space-xxl			48px
 ```
 
 ### Fast Variable Binding (var: syntax)
 Use `var:name` syntax to bind OutSystems tokens directly at creation time:
 
 ```bash
-node src/index.js create rect "Card" --fill "var:--color-neutral-0" --stroke "var:--color-neutral-200"
+node src/index.js create rect "Card" --fill "var:--color-neutral-0" --stroke "var:--color-neutral-4"
 node src/index.js create frame "Section" --fill "var:--color-primary"
-node src/index.js create text "Label" -c "var:--color-neutral-900"
+node src/index.js create text "Label" -c "var:--color-neutral-10"
 ```
 
 ```jsx
-<Frame bg="var:--color-neutral-0" stroke="var:--color-neutral-200" rounded={8} p={24}>
-  <Text color="var:--color-neutral-900" size={16}>Card content</Text>
+<Frame bg="var:--color-neutral-0" stroke="var:--color-neutral-4" rounded={8} p={24}>
+  <Text color="var:--color-neutral-10" size={16}>Card content</Text>
   <Frame bg="var:--color-primary" px={16} py={8} rounded={4}>
     <Text color="var:--color-neutral-0">Button</Text>
   </Frame>
@@ -107,16 +138,16 @@ Use these defaults if no variable collections exist in the file:
 
 ```javascript
 const colors = {
-  primary:        { r: 0.00, g: 0.34, b: 0.85 },  // #0057D9
-  secondary:      { r: 0.00, g: 0.64, b: 0.88 },  // #00A3E0
-  neutral0:       { r: 1.00, g: 1.00, b: 1.00 },  // #FFFFFF
-  neutral100:     { r: 0.96, g: 0.96, b: 0.96 },  // #F5F5F5
-  neutral500:     { r: 0.60, g: 0.60, b: 0.60 },  // #999999
-  neutral900:     { r: 0.10, g: 0.10, b: 0.10 },  // #1A1A1A
-  success:        { r: 0.16, g: 0.65, b: 0.27 },  // #28A745
-  warning:        { r: 1.00, g: 0.76, b: 0.03 },  // #FFC107
-  error:          { r: 0.86, g: 0.21, b: 0.27 },  // #DC3545
-  info:           { r: 0.09, g: 0.64, b: 0.72 },  // #17A2B8
+  primary:				{ r: 0.06, g: 0.41, b: 0.92 },	// #1068EB
+  secondary:			{ r: 0.19, g: 0.24, b: 0.38 },	// #303D60
+  neutral0:				{ r: 1.00, g: 1.00, b: 1.00 },	// #FFFFFF
+  neutral1:				{ r: 0.97, g: 0.98, b: 0.98 },	// #F8F9FA
+  neutral5:				{ r: 0.81, g: 0.83, b: 0.85 },	// #CED4DA
+  neutral10:			{ r: 0.06, g: 0.07, b: 0.07 },	// #101213
+  info:						{ r: 0.00, g: 0.48, b: 0.68 },	// #017AAD
+  success:				{ r: 0.16, g: 0.51, b: 0.23 },	// #29823B
+  warning:				{ r: 0.91, g: 0.63, b: 0.00 },	// #E9A100
+  error:					{ r: 0.86, g: 0.13, b: 0.13 },	// #DC2020
 };
 ```
 
@@ -154,27 +185,32 @@ OS/Navigation/Sidebar/Web
 When a user asks to create an OutSystems UI pattern, use these exact names.
 Each pattern should be built as a component using OutSystems token variables.
 
-```
-Accordion       Alert           AnimatedLabel   Balloon
-Badge           BottomBar       Breadcrumbs     ButtonGroup
-Card            Carousel        Columns         DatePicker
-Dropdown        FileUpload      FloatingActions Gallery
-IconBadge       InputWithIcon   Map             MasterDetail
-Modal           Notification    ProgressBar     RangeSlider
-Rating          Ribbon          Search          Section
-SectionIndex    Sidebar         Skeleton        StackedCards
-StatusBar       Tabs            Tag             TimePicker
-Timeline        Toggle          ToolTip         Video
-Wizard
-```
+| | | | |
+|---|---|---|---|
+| Accordion | Carousel | Floating Actions | Radio Group |
+| Alert | Checkbox | Floating Content | Range Slider |
+| Badge | Chat Message | Form | Search |
+| Blank Slate | Counter | Input | Section |
+| Breadcrumbs | Date Picker | Input With Icon | Section Group |
+| Button | Dropdown | Link | SectionIndex |
+| Button Group | Dropdown Search | List | Sidebar |
+| Card | Dropdown Tags | List Item Content | Switch |
+| Card Background | Feedback Message | Notification | Table |
+| Card Item | Flip Content | Pagination | Tabs |
+| Card Sectioned | Floating Actions | Popover | Tag |
+| Carousel | Floating Content | Popup | Text Area |
+| | | Progress Bar | Tooltip |
+| | | Progress Circle | Upload |
+| | | | User Avatar |
+| | | | Wizard |
 
 ### Example — OutSystems Card pattern
 ```bash
-node src/index.js render '<Frame name="OS/Card/Default" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" overflow="hidden" stroke="var:--color-neutral-200" strokeWidth={1}>
-  <Frame name="OS/Card/Image" w="fill" h={160} bg="var:--color-neutral-100" />
+node src/index.js render '<Frame name="OS/Card/Default" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" overflow="hidden" stroke="var:--color-neutral-5" strokeWidth={1}>
+  <Frame name="OS/Card/Image" w="fill" h={160} bg="var:--color-neutral-1" />
   <Frame name="OS/Card/Content" flex="col" gap={8} p={16} w="fill">
-    <Text name="OS/Card/Title" size={18} weight="bold" color="var:--color-neutral-900" w="fill">Card Title</Text>
-    <Text name="OS/Card/Description" size={14} color="var:--color-neutral-500" w="fill">Card description text goes here.</Text>
+    <Text name="OS/Card/Title" size={18} weight="bold" color="var:--color-neutral-10" w="fill">Card Title</Text>
+    <Text name="OS/Card/Description" size={14} color="var:--color-neutral-5" w="fill">Card description text goes here.</Text>
   </Frame>
   <Frame name="OS/Card/Footer" flex="row" p={16} gap={8} w="fill">
     <Frame name="OS/Button/Primary" bg="var:--color-primary" px={16} py={8} rounded={4} flex="row" justify="center" items="center" grow={1}>
@@ -214,13 +250,11 @@ Always ask for platform (ODC or O11) and device (mobile or web) first if not spe
 | Template | Mobile size | Web size |
 |----------|-------------|----------|
 | Dashboard | 390×844 | 1440×900 |
-| List | 390×844 | 1440×900 |
 | Detail | 390×844 | 1440×900 |
 | Form | 390×844 | 1440×900 |
-| Login | 390×844 | 1440×900 |
-| Register | 390×844 | 1440×900 |
-| Empty State | 390×844 | 1440×900 |
-| Settings | 390×844 | 1440×900 |
+| Gallery | 390×844 | 1440×900 |
+| List | 390×844 | 1440×900 |
+| Onboarding | 390×844 | 1440×900 |
 
 ---
 
@@ -283,13 +317,13 @@ w="fill" h="fill"       // fill parent
 // Appearance
 bg="#fff"               // fill color (use token vars instead when possible)
 bg="var:--color-primary"
-stroke="var:--color-neutral-200"
+stroke="var:--color-neutral-5"
 strokeWidth={1}
 rounded={8}             // corner radius
 opacity={0.8}
 
 // Text
-<Text size={16} weight="bold" color="var:--color-neutral-900" w="fill">Hello</Text>
+<Text size={16} weight="bold" color="var:--color-neutral-10" w="fill">Hello</Text>
 ```
 
 ---
@@ -301,8 +335,8 @@ Always add `w="fill"` to both the parent frame AND every Text element.
 ```jsx
 // GOOD
 <Frame flex="col" gap={8} w="fill">
-  <Text size={16} weight="bold" color="var:--color-neutral-900" w="fill">Title</Text>
-  <Text size={14} color="var:--color-neutral-500" w="fill">Description</Text>
+  <Text size={16} weight="bold" color="var:--color-neutral-10" w="fill">Title</Text>
+  <Text size={14} color="var:--color-neutral-5" w="fill">Description</Text>
 </Frame>
 ```
 
@@ -310,13 +344,13 @@ Always add `w="fill"` to both the parent frame AND every Text element.
 ```jsx
 // GOOD
 <Frame bg="var:--color-primary" px={16} py={10} rounded={4} flex="row" justify="center" items="center">
-  <Text color="var:--color-neutral-0" weight="medium">Button</Text>
+  <Text color="var:--color-neutral-0" weight="semi-bold">Button</Text>
 </Frame>
 ```
 
 **3. No emojis — use shapes as icon placeholders:**
 ```jsx
-<Frame w={20} h={20} rounded={4} stroke="var:--color-neutral-900" strokeWidth={2} />
+<Frame w={20} h={20} rounded={4} stroke="var:--color-neutral-10" strokeWidth={2} />
 ```
 
 **4. Push items to edges (navbar/topbar pattern):**
