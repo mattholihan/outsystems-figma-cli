@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "figma-ds-cli": "src/index.js",
+    "outsystems-figma-cli": "src/index.js",
     "fig-start": "bin/fig-start"
   },
   "files": [

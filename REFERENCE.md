@@ -1,35 +1,35 @@
-# figma-ds-cli Command Reference
+# outsystems-figma-cli Command Reference
 
-Full command reference for the Figma CLI. For quick start, see CLAUDE.md.
+Full command reference. For quick start, see CLAUDE.md.
 
 ## Design Tokens & Variables
 
-### Create Design Systems
+### Create OutSystems Token Collections
 
 ```bash
-node src/index.js tokens ds              # IDS Base colors
-node src/index.js tokens tailwind        # Tailwind 22 color families (242 vars)
-node src/index.js tokens spacing         # Spacing tokens
+os-figma tokens preset                   # Create all OutSystems token collections
+os-figma tokens spacing                  # OutSystems spacing tokens only
+os-figma tokens radii                    # OutSystems border radius tokens only
 ```
 
 ### Manage Variables
 
 ```bash
-node src/index.js var list               # Show all variables
-node src/index.js var list -t COLOR      # Filter by type
-node src/index.js var visualize          # Show colors on canvas
-node src/index.js var create "name" -c "ColId" -t COLOR -v "#3b82f6"
+os-figma var list                        # Show all variables
+os-figma var list -t COLOR               # Filter by type
+os-figma var visualize                   # Show colors on canvas
+os-figma var create "name" -c "ColId" -t COLOR -v "#1068EB"
 ```
 
 ### Bind Variables
 
 ```bash
-node src/index.js bind fill "primary/500"
-node src/index.js bind stroke "border/default"
-node src/index.js bind radius "radius/md"
-node src/index.js bind gap "spacing/md"
-node src/index.js bind padding "spacing/lg"
-node src/index.js bind list              # List available variables
+os-figma bind fill "--color-primary"
+os-figma bind stroke "--color-neutral-4"
+os-figma bind radius "--border-radius-soft"
+os-figma bind gap "--space-m"
+os-figma bind padding "--space-l"
+os-figma bind list                       # List available variables
 ```
 
 ## Create Elements
@@ -37,62 +37,60 @@ node src/index.js bind list              # List available variables
 ### Quick Primitives
 
 ```bash
-node src/index.js create rect "Card" -w 320 -h 200 --fill "#fff" --radius 12
-node src/index.js create circle "Avatar" -w 48 --fill "#3b82f6"
-node src/index.js create text "Hello" -s 24 -c "#000" -w bold
-node src/index.js create line -l 200 -c "#e4e4e7"
-node src/index.js create autolayout "Card" -d col -g 16 -p 24 --fill "#fff"
-node src/index.js create icon lucide:star -s 24 -c "#f59e0b"
-node src/index.js create image "https://example.com/photo.png" -w 200
-node src/index.js create group "Header"
-node src/index.js create component "Button"
+os-figma create rect "Card" -w 320 -h 200 --fill "var:--color-neutral-0" --radius 8
+os-figma create circle "Avatar" -w 48 --fill "var:--color-primary"
+os-figma create text "Hello" -s 16 -c "var:--color-neutral-10" -w bold
+os-figma create line -l 200 -c "var:--color-neutral-4"
+os-figma create autolayout "Card" -d col -g 16 -p 24 --fill "var:--color-neutral-0"
+os-figma create icon lucide:star -s 24 -c "var:--color-warning"
+os-figma create image "https://example.com/photo.png" -w 200
+os-figma create group "Header"
+os-figma create component "Button"
 ```
 
-### Create with Variable Binding (Fast)
+### Create with OutSystems Variable Binding
 
-Use `var:name` syntax to bind shadcn variables at creation time:
+Use `var:name` syntax to bind OutSystems tokens at creation time:
 
 ```bash
-node src/index.js create rect "Card" --fill "var:card" --stroke "var:border"
-node src/index.js create circle "Avatar" --fill "var:primary"
-node src/index.js create text "Hello" -c "var:foreground"
-node src/index.js create line -c "var:border"
-node src/index.js create frame "Section" --fill "var:background"
-node src/index.js create autolayout "Container" --fill "var:muted"
-node src/index.js create icon lucide:star -c "var:primary"
+os-figma create rect "Card" --fill "var:--color-neutral-0" --stroke "var:--color-neutral-4"
+os-figma create circle "Avatar" --fill "var:--color-primary"
+os-figma create text "Hello" -c "var:--color-neutral-10"
+os-figma create line -c "var:--color-neutral-4"
+os-figma create frame "Section" --fill "var:--color-neutral-0"
+os-figma create autolayout "Container" --fill "var:--color-neutral-1"
+os-figma create icon lucide:star -c "var:--color-warning"
 ```
 
 ### Render with JSX
 
 ```bash
-node src/index.js render '<Frame name="Card" w={320} h={180} bg="#fff" rounded={16} flex="col" gap={8} p={24}>
-  <Text size={20} weight="bold" color="#111">Title</Text>
-  <Text size={14} color="#666" w="fill">Description</Text>
+os-figma render '<Frame name="OS/Card/Default" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" gap={8} p={24} stroke="var:--color-neutral-4" strokeWidth={1}>
+  <Text size={18} weight="bold" color="var:--color-neutral-10" w="fill">Card Title</Text>
+  <Text size={14} color="var:--color-neutral-7" w="fill">Card description text.</Text>
 </Frame>'
 ```
 
-### Render with Variable Binding (Fast)
-
-Use `var:name` syntax to bind shadcn variables at creation time (no separate bind commands needed):
+### Render with OutSystems Variable Binding
 
 ```bash
-node src/index.js render '<Frame name="Card" w={320} h={180} bg="var:card" stroke="var:border" rounded={16} flex="col" gap={8} p={24}>
-  <Text size={20} weight="bold" color="var:foreground">Title</Text>
-  <Text size={14} color="var:muted-foreground" w="fill">Description</Text>
-  <Frame bg="var:primary" px={16} py={8} rounded={8}>
-    <Text color="var:primary-foreground">Button</Text>
+os-figma render '<Frame name="OS/Card/Default" w={320} bg="var:--color-neutral-0" stroke="var:--color-neutral-4" rounded={8} flex="col" gap={8} p={24}>
+  <Text size={18} weight="bold" color="var:--color-neutral-10" w="fill">Card Title</Text>
+  <Text size={14} color="var:--color-neutral-7" w="fill">Description text.</Text>
+  <Frame bg="var:--color-primary" px={16} py={8} rounded={4} flex="row" justify="center" items="center">
+    <Text color="var:--color-neutral-0" weight="semi-bold">Action</Text>
   </Frame>
 </Frame>'
 ```
 
-Variables: `background`, `foreground`, `card`, `primary`, `secondary`, `muted`, `accent`, `border`, and their `-foreground` variants.
+OutSystems color variables: `--color-primary`, `--color-secondary`, `--color-neutral-0` through `--color-neutral-10`, `--color-feedback-success`, `--color-feedback-warning`, `--color-feedback-error`, `--color-feedback-info`
 
 ### Render Batch (Multiple Frames)
 
 ```bash
-node src/index.js render-batch '[
-  "<Frame name=\"Card 1\" w={300} h={200} bg=\"#fff\"><Text>Card 1</Text></Frame>",
-  "<Frame name=\"Card 2\" w={300} h={200} bg=\"#fff\"><Text>Card 2</Text></Frame>"
+os-figma render-batch '[
+  "<Frame name=\"OS/Card/1\" w={300} h={200} bg=\"var:--color-neutral-0\"><Text>Card 1</Text></Frame>",
+  "<Frame name=\"OS/Card/2\" w={300} h={200} bg=\"var:--color-neutral-0\"><Text>Card 2</Text></Frame>"
 ]' -d row -g 40
 ```
 
@@ -101,94 +99,93 @@ Options: `-d row|col` (direction), `-g <n>` (gap)
 ## Modify Elements
 
 ```bash
-node src/index.js set fill "#3b82f6"           # Change fill (hex)
-node src/index.js set fill "var:primary"       # Bind fill to variable (fast)
-node src/index.js set fill "#3b82f6" -n "1:234" # On specific node
-node src/index.js set stroke "#e4e4e7" -w 1    # Add stroke (hex)
-node src/index.js set stroke "var:border"      # Bind stroke to variable
-node src/index.js set radius 12                # Corner radius
-node src/index.js set size 320 200             # Resize
-node src/index.js set pos 100 100              # Move
-node src/index.js set opacity 0.5              # Opacity
-node src/index.js set autolayout row -g 8 -p 16 # Apply auto-layout
-node src/index.js set name "Header"            # Rename
+os-figma set fill "var:--color-primary"          # Bind fill to OS token
+os-figma set fill "#1068EB" -n "1:234"            # On specific node (hex fallback)
+os-figma set stroke "var:--color-neutral-4" -w 1  # Add stroke
+os-figma set radius 8                             # Corner radius
+os-figma set size 320 200                         # Resize
+os-figma set pos 100 100                          # Move
+os-figma set opacity 0.5                          # Opacity
+os-figma set autolayout row -g 8 -p 16            # Apply auto-layout
+os-figma set name "OS/Button/Primary/Default"     # Rename (use OS convention)
 ```
 
 ## Layout & Sizing
 
 ```bash
-node src/index.js sizing hug                   # Hug contents
-node src/index.js sizing fill                  # Fill container
-node src/index.js sizing fixed 320 200         # Fixed size
-node src/index.js padding 16                   # All sides
-node src/index.js padding 16 24                # Vertical, horizontal
-node src/index.js gap 16                       # Set gap
-node src/index.js align center                 # Align items
+os-figma sizing hug                      # Hug contents
+os-figma sizing fill                     # Fill container
+os-figma sizing fixed 390 844            # Fixed size (e.g. mobile screen)
+os-figma padding 16                      # All sides
+os-figma padding 16 24                   # Vertical, horizontal
+os-figma gap 16                          # Set gap
+os-figma align center                    # Align items
 ```
 
 ## Find & Select
 
 ```bash
-node src/index.js find "Button"                # Find by name
-node src/index.js find "Card" -t FRAME         # Filter by type
-node src/index.js select "1:234"               # Select node
-node src/index.js get                          # Get selection props
-node src/index.js get "1:234"                  # Get specific node
+os-figma find "OS/Button"                # Find by name
+os-figma find "OS/Card" -t FRAME         # Filter by type
+os-figma raw query "//*[@name^='OS/']"   # All OutSystems layers
+os-figma select "1:234"                  # Select node
+os-figma get                             # Get selection props
+os-figma get "1:234"                     # Get specific node
 ```
 
 ## Canvas Operations
 
 ```bash
-node src/index.js canvas info                  # What's on canvas
-node src/index.js canvas next                  # Next free position
-node src/index.js arrange -g 100               # Arrange frames
-node src/index.js arrange -g 100 -c 3          # 3 columns
+os-figma canvas info                     # What's on canvas
+os-figma canvas next                     # Next free position
+os-figma arrange -g 100                  # Arrange frames
+os-figma arrange -g 100 -c 3             # 3 columns
 ```
 
 ## Duplicate & Delete
 
 ```bash
-node src/index.js duplicate                    # Duplicate selection
-node src/index.js dup "1:234" --offset 50      # With offset
-node src/index.js delete                       # Delete selection
-node src/index.js delete "1:234"               # Delete by ID
+os-figma duplicate                       # Duplicate selection
+os-figma dup "1:234" --offset 50         # With offset
+os-figma delete                          # Delete selection
+os-figma delete "1:234"                  # Delete by ID
 ```
 
 ## Node Operations
 
 ```bash
-node src/index.js node tree                    # Show tree structure
-node src/index.js node tree "1:234" -d 5       # Deeper depth
-node src/index.js node bindings                # Show variable bindings
-node src/index.js node to-component "1:234"    # Convert to component
-node src/index.js node delete "1:234"          # Delete by ID
+os-figma node tree                       # Show tree structure
+os-figma node tree "1:234" -d 5          # Deeper depth
+os-figma node bindings                   # Show variable bindings
+os-figma node to-component "1:234"       # Convert to component
+os-figma node delete "1:234"             # Delete by ID
 ```
 
 ## Export
 
 ```bash
-node src/index.js export css                   # Variables as CSS
-node src/index.js export tailwind              # Tailwind config
-node src/index.js export screenshot -o out.png # Viewport screenshot
-node src/index.js export node "1:234" -o card.png         # Export node by ID
-node src/index.js export node "1:234" -s 2 -f png         # 2x scale PNG
-node src/index.js export node "1:234" -f svg -o card.svg  # SVG export
-node src/index.js export-jsx "1:234"           # Export as JSX
-node src/index.js export-jsx "1:234" -o Card.jsx --pretty
-node src/index.js export-storybook "1:234"     # Storybook stories
+os-figma export css                      # Variables as CSS (OutSystems format)
+os-figma export screenshot -o out.png    # Viewport screenshot
+os-figma export node "1:234" -o card.png          # Export node by ID
+os-figma export node "1:234" -s 2 -f png          # 2x scale PNG
+os-figma export node "1:234" -f svg -o card.svg   # SVG export
+os-figma export-jsx "1:234"              # Export as JSX
+os-figma export-jsx "1:234" -o Card.jsx --pretty
+os-figma export-storybook "1:234"        # Storybook stories
 ```
 
 ## Analysis & Linting
 
 ```bash
-node src/index.js lint                         # Check all rules
-node src/index.js lint --fix                   # Auto-fix
-node src/index.js lint --rule color-contrast   # Specific rule
-node src/index.js lint --preset accessibility  # Use preset
-node src/index.js analyze colors               # Color usage
-node src/index.js analyze typography           # Typography
-node src/index.js analyze spacing              # Spacing
-node src/index.js analyze clusters             # Find patterns
+os-figma lint                            # Check all rules
+os-figma lint --fix                      # Auto-fix
+os-figma lint --rule color-contrast      # Specific rule
+os-figma lint --rule no-hardcoded-colors # Enforce OS token usage
+os-figma lint --preset accessibility     # Accessibility preset
+os-figma analyze colors                  # Color usage
+os-figma analyze typography              # Typography
+os-figma analyze spacing                 # Spacing
+os-figma analyze clusters                # Find repeated patterns
 ```
 
 Lint rules: `no-default-names`, `no-deeply-nested`, `no-empty-frames`, `prefer-auto-layout`, `no-hardcoded-colors`, `color-contrast`, `touch-target-size`, `min-text-size`
@@ -198,40 +195,41 @@ Presets: `recommended`, `strict`, `accessibility`, `design-system`
 ## XPath Queries
 
 ```bash
-node src/index.js raw query "//FRAME"
-node src/index.js raw query "//COMPONENT"
-node src/index.js raw query "//*[contains(@name, 'Button')]"
-node src/index.js raw select "1:234"
-node src/index.js raw export "1:234" --scale 2
+os-figma raw query "//FRAME"
+os-figma raw query "//COMPONENT"
+os-figma raw query "//*[@name^='OS/']"
+os-figma raw query "//*[contains(@name, 'Button')]"
+os-figma raw select "1:234"
+os-figma raw export "1:234" --scale 2
 ```
 
 ## Website Recreation
 
 ```bash
-node src/index.js recreate-url "https://example.com" --name "My Page"
-node src/index.js recreate-url "https://example.com" -w 375 -h 812  # Mobile
-node src/index.js analyze-url "https://example.com" --screenshot
-node src/index.js screenshot-url "https://example.com" --full
+os-figma recreate-url "https://example.com" --name "My Page"
+os-figma recreate-url "https://example.com" -w 390 -h 844   # Mobile
+os-figma analyze-url "https://example.com" --screenshot
+os-figma screenshot-url "https://example.com" --full
 ```
 
 ## Images
 
 ```bash
-node src/index.js create image "https://example.com/photo.png"
-node src/index.js screenshot-url "https://example.com"
-node src/index.js remove-bg                    # Remove background (needs API key)
+os-figma create image "https://example.com/photo.png"
+os-figma screenshot-url "https://example.com"
+os-figma remove-bg                       # Remove background (needs API key)
 ```
 
 ## FigJam
 
 ```bash
-node src/index.js fj list                      # List pages
-node src/index.js fj sticky "Text" -x 100 -y 100 --color "#FEF08A"
-node src/index.js fj shape "Label" -x 200 -y 100 -w 200 -h 100
-node src/index.js fj connect "ID1" "ID2"       # Connect elements
-node src/index.js fj nodes                     # Show elements
-node src/index.js fj delete "ID"
-node src/index.js fj eval "figma.currentPage.children.length"
+os-figma fj list                         # List pages
+os-figma fj sticky "Text" -x 100 -y 100 --color "#FEF08A"
+os-figma fj shape "Label" -x 200 -y 100 -w 200 -h 100
+os-figma fj connect "ID1" "ID2"          # Connect elements
+os-figma fj nodes                        # Show elements
+os-figma fj delete "ID"
+os-figma fj eval "figma.currentPage.children.length"
 ```
 
 Shape types: `ROUNDED_RECTANGLE`, `RECTANGLE`, `ELLIPSE`, `DIAMOND`, `TRIANGLE_UP`, `TRIANGLE_DOWN`, `PARALLELOGRAM_RIGHT`, `PARALLELOGRAM_LEFT`
@@ -239,53 +237,56 @@ Shape types: `ROUNDED_RECTANGLE`, `RECTANGLE`, `ELLIPSE`, `DIAMOND`, `TRIANGLE_U
 ## Daemon & Connection
 
 ```bash
-node src/index.js connect                  # Connect (Yolo Mode)
-node src/index.js connect --safe           # Connect (Safe Mode, plugin)
-node src/index.js daemon status            # Check daemon status
-node src/index.js daemon restart           # Restart daemon
-node src/index.js files                    # List open Figma files (JSON)
+os-figma connect                         # Connect (Yolo Mode)
+os-figma connect --safe                  # Connect (Safe Mode, plugin)
+os-figma daemon status                   # Check daemon status
+os-figma daemon restart                  # Restart daemon
+os-figma files                           # List open Figma files (JSON)
 ```
 
 ## JavaScript Eval
 
 ```bash
-node src/index.js eval "figma.currentPage.name"
-node src/index.js eval --file /tmp/script.js
-node src/index.js run /tmp/script.js
+os-figma eval "figma.currentPage.name"
+os-figma eval --file /tmp/script.js
+os-figma run /tmp/script.js
 ```
 
 ## Render JSX Syntax
 
 **Elements:** `<Frame>`, `<Rectangle>`, `<Ellipse>`, `<Text>`, `<Line>`, `<Image>`, `<SVG>`, `<Icon>`
 
-**Size:** `w={320} h={200}`, `w="fill"`, `minW={100} maxW={500}`
+**Size:** `w={390} h={844}` (mobile), `w={1440} h={900}` (web), `w="fill"`, `minW={100} maxW={500}`
 
 **Layout:** `flex="row|col"`, `gap={16}`, `wrap={true}`, `justify="start|center|end|between"`, `items="start|center|end"`
 
 **Padding:** `p={24}`, `px={16} py={8}`, `pt={8} pr={16} pb={8} pl={16}`
 
-**Appearance:** `bg="#fff"`, `stroke="#000"`, `strokeWidth={1}`, `opacity={0.5}`
+**Appearance:** `bg="var:--color-neutral-0"`, `stroke="var:--color-neutral-4"`, `strokeWidth={1}`, `opacity={0.5}`
 
-**Corners:** `rounded={16}`, `roundedTL={8}`, `overflow="hidden"`
+**Corners:** `rounded={8}` (soft), `rounded={100}` (pill), `overflow="hidden"`
 
 **Effects:** `shadow="0 4 12 #0001"`, `blur={10}`, `rotate={45}`
 
-**Text:** `<Text size={18} weight="bold" color="#000" font="Inter">Hello</Text>`
+**Text:** `<Text size={16} weight="bold" color="var:--color-neutral-10" w="fill">Hello</Text>`
 
 **WRONG vs RIGHT:**
 ```
 layout="horizontal"  →  flex="row"
 padding={24}         →  p={24}
-fill="#fff"          →  bg="#fff"
-cornerRadius={12}    →  rounded={12}
+fill="#fff"          →  bg="var:--color-neutral-0"
+cornerRadius={8}     →  rounded={8}
+fontSize={16}        →  size={16}
+fontWeight="bold"    →  weight="bold"
 ```
 
 ## Advanced Examples
 
-### Switch to Dark Mode
+### Switch to Dark Mode (OutSystems Light/Dark tokens)
+
 ```javascript
-node src/index.js eval "
-const node = figma.getNodeById('1:234');
+os-figma eval "
+const node = figma.getNodeById('NODE_ID');
 function findModeCollection(n) {
   if (n.boundVariables) {
     for (const [prop, binding] of Object.entries(n.boundVariables)) {
@@ -315,10 +316,11 @@ if (found) {
 "
 ```
 
-### Create Component Instance
+### Create OutSystems Component Instance
+
 ```javascript
-node src/index.js eval "(function() {
-  const comp = figma.currentPage.findOne(n => n.type === 'COMPONENT' && n.name === 'Button');
+os-figma eval "(function() {
+  const comp = figma.currentPage.findOne(n => n.type === 'COMPONENT' && n.name === 'OS/Button/Primary/Default');
   if (!comp) return 'Component not found';
   const instance = comp.createInstance();
   instance.x = 100;
@@ -327,11 +329,14 @@ node src/index.js eval "(function() {
 })()"
 ```
 
-### Smart Positioning
+### Smart Positioning (respects existing OS frames)
+
 ```javascript
 let smartX = 0;
 figma.currentPage.children.forEach(n => { smartX = Math.max(smartX, n.x + n.width); });
 smartX += 100;
 const frame = figma.createFrame();
 frame.x = smartX;
+frame.resize(390, 844); // Mobile screen size
+frame.name = 'OS/Screen/Mobile/New';
 ```

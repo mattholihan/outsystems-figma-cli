@@ -22,9 +22,6 @@ os-figma connect --safe
 # OutSystems UI tokens (colors, spacing, radius, typography)
 os-figma tokens preset outsystems
 
-# Tailwind CSS colors (220 variables)
-os-figma tokens tailwind
-
 # Spacing scale (4px base)
 os-figma tokens spacing
 

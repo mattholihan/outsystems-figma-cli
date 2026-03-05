@@ -1,14 +1,14 @@
 #!/bin/bash
 
-# fig-start — Launch Figma CLI + Claude Code
+# fig-start — Launch OutSystems Figma CLI + Claude Code
 # Connects to Figma, lets you pick an open file, then launches Claude Code.
 #
 # Usage:
 #   fig-start          → Yolo Mode (default) with file selector
 #   fig-start --safe   → Safe Mode (plugin-based, no patching)
-#   fig-start --setup  → set/change the figma-cli repo path
+#   fig-start --setup  → set/change the outsystems-figma-cli repo path
 
-CONFIG_DIR="$HOME/.figma-cli"
+CONFIG_DIR="$HOME/.outsystems-figma-cli"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 
 GREEN='\033[0;32m'
@@ -21,7 +21,7 @@ NC='\033[0m'
 # ── Config helpers ──
 
 get_daemon_token() {
-    local token_file="$HOME/.figma-ds-cli/.daemon-token"
+    local token_file="$HOME/.outsystems-figma-cli/.daemon-token"
     if [ -f "$token_file" ]; then
         cat "$token_file" 2>/dev/null
     fi
@@ -46,7 +46,7 @@ with open(path, 'w') as f: json.dump(cfg, f, indent=2)
 "
 }
 
-# ── Arrow-key selector (same UX as fancoolo-start) ──
+# ── Arrow-key selector ──
 
 select_file() {
     local options=("$@")
@@ -118,11 +118,11 @@ if [ "$1" = "--safe" ]; then
 fi
 
 if [ "$1" = "--setup" ]; then
-    printf "${BOLD}Enter the path to your figma-cli repo:${NC} "
+    printf "${BOLD}Enter the path to your outsystems-figma-cli repo:${NC} "
     read -r repo_path < /dev/tty
     repo_path="${repo_path/#\~/$HOME}"
     if [ ! -f "$repo_path/src/index.js" ]; then
-        echo -e "${RED}Not a valid figma-cli repo:${NC} $repo_path"
+        echo -e "${RED}Not a valid outsystems-figma-cli repo:${NC} $repo_path"
         exit 1
     fi
     save_repo_path "$repo_path"
@@ -140,12 +140,12 @@ if [ -z "$REPO_PATH" ] || [ ! -d "$REPO_PATH" ]; then
         REPO_PATH="$SCRIPT_DIR"
         save_repo_path "$REPO_PATH"
     else
-        echo -e "${YELLOW}figma-cli repo not configured.${NC}"
-        printf "${BOLD}Enter the path to your figma-cli repo:${NC} "
+        echo -e "${YELLOW}outsystems-figma-cli repo not configured.${NC}"
+        printf "${BOLD}Enter the path to your outsystems-figma-cli repo:${NC} "
         read -r REPO_PATH < /dev/tty
         REPO_PATH="${REPO_PATH/#\~/$HOME}"
         if [ ! -f "$REPO_PATH/src/index.js" ]; then
-            echo -e "${RED}Not a valid figma-cli repo:${NC} $REPO_PATH"
+            echo -e "${RED}Not a valid outsystems-figma-cli repo:${NC} $REPO_PATH"
             exit 1
         fi
         save_repo_path "$REPO_PATH"
@@ -156,9 +156,9 @@ CLI="$REPO_PATH/src/index.js"
 
 echo ""
 if [ "$SAFE_MODE" = true ]; then
-    echo -e "${BOLD}  fig-start${NC} ${DIM}— Figma CLI launcher (Safe Mode)${NC}"
+    echo -e "${BOLD}  fig-start${NC} ${DIM}— OutSystems Figma CLI launcher (Safe Mode)${NC}"
 else
-    echo -e "${BOLD}  fig-start${NC} ${DIM}— Figma CLI launcher${NC}"
+    echo -e "${BOLD}  fig-start${NC} ${DIM}— OutSystems Figma CLI launcher${NC}"
 fi
 echo ""
 
@@ -172,7 +172,6 @@ fi
 # Step 2: Connect to Figma
 if [ "$SAFE_MODE" = true ]; then
     # ── Safe Mode: plugin-based connection ──
-    # Run connect --safe interactively so user sees plugin setup instructions
     echo -e "  ${BOLD}🔒 Safe Mode${NC} — plugin-based, no patching required"
     echo ""
     node "$CLI" connect --safe
@@ -182,21 +181,18 @@ if [ "$SAFE_MODE" = true ]; then
     fi
     echo ""
 
-    # Skip file selector (Safe Mode only sees the active file via plugin)
     echo -e "  ${GREEN}Launching Claude Code...${NC}"
     echo ""
     cd "$REPO_PATH" || exit 1
     exec claude
 else
     # ── Yolo Mode: CDP-based connection ──
-    # Check if CDP is already accessible (avoid killing/restarting Figma)
     CDP_OK=false
     if curl -s -o /dev/null -w "%{http_code}" http://localhost:9222/json 2>/dev/null | grep -q "200"; then
         CDP_OK=true
     fi
 
     if [ "$CDP_OK" = true ]; then
-        # Figma is already accessible — just ensure daemon is running
         DAEMON_OK=false
         DAEMON_TOKEN=$(get_daemon_token)
         if [ -n "$DAEMON_TOKEN" ]; then
@@ -211,7 +207,6 @@ else
         fi
         echo -e "  ${GREEN}✓ Connected${NC}"
     else
-        # Not accessible — run full connect (will kill + restart Figma)
         echo -e "  Connecting to Figma..."
         CONNECT_OUT=$(node "$CLI" connect 2>&1)
         if [ $? -ne 0 ]; then
@@ -222,7 +217,6 @@ else
             exit 1
         fi
         echo -e "  ${GREEN}✓ Connected${NC}"
-        # Wait for Figma to fully restore all tabs after restart
         sleep 3
     fi
 
@@ -235,7 +229,6 @@ else
         exit 1
     fi
 
-    # Parse file titles
     FILE_TITLES=()
     while IFS= read -r title; do
         FILE_TITLES+=("$title")
@@ -244,7 +237,6 @@ import json, sys
 files = json.load(sys.stdin)
 for f in files:
     t = f.get('title', 'Untitled')
-    # Clean up Figma title format (remove ' – Figma' suffix)
     t = t.replace(' – Figma', '').replace(' - Figma', '')
     print(t)
 " 2>/dev/null)

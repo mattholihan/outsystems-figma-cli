@@ -17,12 +17,12 @@ import { isPatched, patchFigma, unpatchFigma, getFigmaCommand, getCdpPort } from
 
 // Daemon configuration
 const DAEMON_PORT = 3456;
-const DAEMON_PID_FILE = join(homedir(), '.figma-cli-daemon.pid');
-const DAEMON_TOKEN_FILE = join(homedir(), '.figma-ds-cli', '.daemon-token');
+const DAEMON_PID_FILE = join(homedir(), '.outsystems-figma-cli-daemon.pid');
+const DAEMON_TOKEN_FILE = join(homedir(), '.outsystems-figma-cli', '.daemon-token');
 
 // Generate and save a new session token for daemon authentication
 function generateDaemonToken() {
-  const configDir = join(homedir(), '.figma-ds-cli');
+  const configDir = join(homedir(), '.outsystems-figma-cli');
   if (!existsSync(configDir)) mkdirSync(configDir, { recursive: true });
   const token = randomBytes(32).toString('hex');
   writeFileSync(DAEMON_TOKEN_FILE, token, { mode: 0o600 });
@@ -222,7 +222,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8'));
 
-const CONFIG_DIR = join(homedir(), '.figma-ds-cli');
+const CONFIG_DIR = join(homedir(), '.outsystems-figma-cli');
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
 
 const program = new Command();
@@ -459,8 +459,8 @@ async function checkConnection() {
   if (!connected) {
     console.log(chalk.red('\n✗ Not connected to Figma\n'));
     console.log(chalk.white('  Make sure Figma is running:'));
-    console.log(chalk.cyan('  figma-ds-cli connect') + chalk.gray(' (Yolo Mode)'));
-    console.log(chalk.cyan('  figma-ds-cli connect --safe') + chalk.gray(' (Safe Mode)\n'));
+    console.log(chalk.cyan('  outsystems-figma-cli connect') + chalk.gray(' (Yolo Mode)'));
+    console.log(chalk.cyan('  outsystems-figma-cli connect --safe') + chalk.gray(' (Safe Mode)\n'));
     process.exit(1);
   }
   return true;
@@ -487,8 +487,8 @@ function checkConnectionSync() {
   } catch {
     console.log(chalk.red('\n✗ Not connected to Figma\n'));
     console.log(chalk.white('  Make sure Figma is running:'));
-    console.log(chalk.cyan('  figma-ds-cli connect') + chalk.gray(' (Yolo Mode)'));
-    console.log(chalk.cyan('  figma-ds-cli connect --safe') + chalk.gray(' (Safe Mode)\n'));
+    console.log(chalk.cyan('  outsystems-figma-cli connect') + chalk.gray(' (Yolo Mode)'));
+    console.log(chalk.cyan('  outsystems-figma-cli connect --safe') + chalk.gray(' (Safe Mode)\n'));
     process.exit(1);
   }
 }
@@ -750,8 +750,8 @@ function showBanner() {
   ██║     ██║╚██████╔╝██║ ╚═╝ ██║██║  ██║      ██████╔╝███████║      ╚██████╗███████╗██║
   ╚═╝     ╚═╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝      ╚═════╝ ╚══════╝       ╚═════╝╚══════╝╚═╝
 `));
-  console.log(chalk.white(`  Design System CLI for Figma ${chalk.gray('v' + pkg.version)}`));
-  console.log(chalk.gray(`  by Sil Bormüller • intodesignsystems.com\n`));
+  console.log(chalk.white(`  OutSystems Figma CLI ${chalk.gray('v' + pkg.version)}`));
+  console.log(chalk.gray(`  OutSystems app design tools for Figma\n`));
 }
 
 // ============ INIT (Interactive Onboarding) ============
@@ -858,7 +858,7 @@ program
   .description('Setup Figma for CLI access (alias for init)')
   .action(() => {
     // Redirect to init
-    execSync('figma-ds-cli init', { stdio: 'inherit' });
+    execSync('outsystems-figma-cli init', { stdio: 'inherit' });
   });
 
 // ============ STATUS ============
@@ -871,7 +871,7 @@ program
     const config = loadConfig();
     if (!config.patched && !checkDependencies(true)) {
       console.log(chalk.yellow('\n⚠ First time? Run the setup wizard:\n'));
-      console.log(chalk.cyan('  figma-ds-cli init\n'));
+      console.log(chalk.cyan('  outsystems-figma-cli init\n'));
       return;
     }
     figmaUse('status');
@@ -1623,7 +1623,7 @@ daemon
       console.log(chalk.green('✓ Daemon is running on port ' + DAEMON_PORT));
     } else {
       console.log(chalk.yellow('○ Daemon is not running'));
-      console.log(chalk.gray('  Run "figma-ds-cli connect" to start it automatically'));
+      console.log(chalk.gray('  Run "outsystems-figma-cli connect" to start it automatically'));
     }
   });
 
@@ -1676,7 +1676,7 @@ daemon
   .action(async () => {
     if (!isDaemonRunning()) {
       console.log(chalk.yellow('○ Daemon is not running'));
-      console.log(chalk.gray('  Run "figma-ds-cli connect" first'));
+      console.log(chalk.gray('  Run "outsystems-figma-cli connect" first'));
       return;
     }
     console.log(chalk.blue('Reconnecting to Figma...'));
@@ -2281,7 +2281,7 @@ return count;
     console.log(chalk.gray('    • Border Radii (none to full)'));
     console.log();
     console.log(chalk.gray('  Total: ~74 variables across 5 collections\n'));
-    console.log(chalk.gray('  Next: ') + chalk.cyan('figma-ds-cli tokens components') + chalk.gray(' to add UI components\n'));
+    console.log(chalk.gray('  Next: ') + chalk.cyan('outsystems-figma-cli tokens components') + chalk.gray(' to add UI components\n'));
   });
 
 tokens
@@ -4736,32 +4736,6 @@ return ':root {\\n' + css + '\\n}';
     console.log(result);
   });
 
-exp
-  .command('tailwind')
-  .description('Export color variables as Tailwind config')
-  .action(() => {
-    checkConnection();
-    const code = `(async () => {
-const vars = await figma.variables.getLocalVariablesAsync();
-const colorVars = vars.filter(v => v.resolvedType === 'COLOR');
-const colors = {};
-colorVars.forEach(v => {
-  const val = Object.values(v.valuesByMode)[0];
-  const hex = '#' + [val.r, val.g, val.b].map(n => Math.round(n*255).toString(16).padStart(2,'0')).join('');
-  const parts = v.name.split('/');
-  if (parts.length === 2) {
-    if (!colors[parts[0]]) colors[parts[0]] = {};
-    colors[parts[0]][parts[1]] = hex;
-  } else {
-    colors[v.name.replace(/\\//g, '-')] = hex;
-  }
-});
-return JSON.stringify({ theme: { extend: { colors } } }, null, 2);
-})()`;
-    const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
-    console.log(result);
-  });
-
 // ============ EVAL ============
 
 program
@@ -5043,7 +5017,7 @@ figjam
       console.log();
     } catch (error) {
       console.log(chalk.red('\n✗ Could not connect to Figma\n'));
-      console.log(chalk.gray('  Make sure Figma is running with: figma-ds-cli connect\n'));
+      console.log(chalk.gray('  Make sure Figma is running with: outsystems-figma-cli connect\n'));
     }
   });
 
