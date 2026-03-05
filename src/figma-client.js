@@ -603,9 +603,7 @@ export class FigmaClient {
         ${fWrap && fFlex === 'row' ? `el${idx}.layoutWrap = 'WRAP';` : ''}
         el${idx}.primaryAxisSizingMode = '${hasWidth && !fillWidth ? 'FIXED' : 'AUTO'}';
         el${idx}.counterAxisSizingMode = '${hasHeight && !fillHeight ? 'FIXED' : 'AUTO'}';
-        ${hasWidth && !fillWidth || hasHeight && !fillHeight ? `el${idx}.resize(${hasWidth ? fWidth : 100}, ${hasHeight ? fHeight : 40});` : ''}
-        ${fillWidth ? `el${idx}.layoutSizingHorizontal = 'FILL';` : ''}
-        ${fillHeight ? `el${idx}.layoutSizingVertical = 'FILL';` : ''}
+        ${(hasWidth && !fillWidth) || (hasHeight && !fillHeight) ? `el${idx}.resize(${hasWidth && !fillWidth ? fWidth : 100}, ${hasHeight && !fillHeight ? fHeight : 40});` : ''}
         el${idx}.itemSpacing = ${fGap};
         el${idx}.paddingTop = ${fPy};
         el${idx}.paddingBottom = ${fPy};
@@ -618,6 +616,8 @@ export class FigmaClient {
         el${idx}.counterAxisAlignItems = '${fAlignVal}';
         el${idx}.clipsContent = ${fClip};
         ${parentVar}.appendChild(el${idx});
+        ${fillWidth ? `el${idx}.layoutSizingHorizontal = 'FILL';` : ''}
+        ${fillHeight ? `el${idx}.layoutSizingVertical = 'FILL';` : ''}
         ${nestedChildren}
         ${fWrap && fFlex === 'row' && fWrapGap > 0 ? `el${idx}.counterAxisSpacing = ${fWrapGap};` : ''}
         ${fGrow !== null ? `el${idx}.layoutGrow = ${fGrow};` : ''}
