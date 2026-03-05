@@ -723,12 +723,11 @@ export class FigmaClient {
 
     // Variable loading code (only if any vars used)
     const varLoadCode = usesVars ? `
-        // Load shadcn variables
+        // Load variables from all collections
         const collections = await figma.variables.getLocalVariableCollectionsAsync();
-        const shadcnCol = collections.find(c => c.name === 'shadcn');
         const vars = {};
-        if (shadcnCol) {
-          for (const id of shadcnCol.variableIds) {
+        for (const col of collections) {
+          for (const id of col.variableIds) {
             const v = await figma.variables.getVariableByIdAsync(id);
             if (v) vars[v.name] = v;
           }

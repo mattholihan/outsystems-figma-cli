@@ -562,18 +562,16 @@ function generateStrokeCode(color, nodeVar = 'node', weight = 1) {
   };
 }
 
-// Helper: Variable loading code for shadcn collection
+// Helper: Variable loading code for all collections
 function varLoadingCode() {
   return `
 const collections = await figma.variables.getLocalVariableCollectionsAsync();
 const vars = {};
-// Load variables from shadcn collections (shadcn/semantic and shadcn/primitives)
+// Load variables from all collections
 for (const col of collections) {
-  if (col.name.startsWith('shadcn')) {
-    for (const id of col.variableIds) {
-      const v = await figma.variables.getVariableByIdAsync(id);
-      if (v) vars[v.name] = v;
-    }
+  for (const id of col.variableIds) {
+    const v = await figma.variables.getVariableByIdAsync(id);
+    if (v) vars[v.name] = v;
   }
 }
 const boundFill = (variable) => figma.variables.setBoundVariableForPaint(
@@ -734,12 +732,11 @@ program.action(async () => {
 
 function showQuickStart() {
   console.log(chalk.white('  Just ask Claude:\n'));
-  console.log(chalk.white('    "Add shadcn colors to my project"'));
+  console.log(chalk.white('    "Add OutSystems tokens to my project"'));
   console.log(chalk.white('    "Create a blue card with rounded corners"'));
   console.log(chalk.white('    "Show me what\'s on the canvas"'));
   console.log(chalk.white('    "Export this frame as PNG"'));
   console.log();
-  console.log(chalk.gray('  Learn more: ') + chalk.cyan('https://intodesignsystems.com\n'));
 }
 
 // ============ WELCOME BANNER ============
@@ -847,12 +844,11 @@ program
     console.log(chalk.green('\n  ✓ Setup complete!\n'));
 
     console.log(chalk.white('  Just ask Claude:\n'));
-    console.log(chalk.white('    "Add shadcn colors to my project"'));
+    console.log(chalk.white('    "Add OutSystems tokens to my project"'));
     console.log(chalk.white('    "Create a blue card with rounded corners"'));
     console.log(chalk.white('    "Show me what\'s on the canvas"'));
     console.log(chalk.white('    "Export this frame as PNG"'));
     console.log();
-    console.log(chalk.gray('  Learn more: ') + chalk.cyan('https://intodesignsystems.com\n'));
   });
 
 // ============ SETUP (alias for init) ============
@@ -1147,7 +1143,7 @@ variables
 
 variables
   .command('visualize [collection]')
-  .description('Create color swatches on canvas (shadcn-style layout)')
+  .description('Create color swatches on canvas')
   .action(async (collection, options) => {
     checkConnection();
     const spinner = ora('Creating color palette...').start();
@@ -1174,8 +1170,8 @@ startX += 100;
 
 let totalSwatches = 0;
 
-// shadcn color order
-const colorOrder = ['slate','gray','zinc','neutral','stone','red','orange','amber','yellow','lime','green','emerald','teal','cyan','sky','blue','indigo','violet','purple','fuchsia','pink','rose','white','black'];
+// color order for palette display
+const colorOrder = ['primary','secondary','neutral','info','success','warning','error','brand','accent','slate','gray','zinc','stone','red','orange','amber','yellow','lime','green','emerald','teal','cyan','sky','blue','indigo','violet','purple','fuchsia','pink','rose','white','black'];
 
 for (const col of filteredCols) {
   const colVars = colorVars.filter(v => v.variableCollectionId === col.id);
@@ -1730,390 +1726,203 @@ const tokens = program
   .description('Create design token presets');
 
 tokens
-  .command('tailwind')
-  .description('Create Tailwind CSS color palette')
-  .option('-c, --collection <name>', 'Collection name', 'Color - Primitive')
-  .action((options) => {
+  .command('preset')
+  .description('Create all OutSystems design token collections')
+  .action(async () => {
     checkConnection();
-    const spinner = ora('Creating Tailwind color palette...').start();
 
-    const tailwindColors = {
-      slate: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' },
-      gray: { 50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db', 400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151', 800: '#1f2937', 900: '#111827', 950: '#030712' },
-      zinc: { 50: '#fafafa', 100: '#f4f4f5', 200: '#e4e4e7', 300: '#d4d4d8', 400: '#a1a1aa', 500: '#71717a', 600: '#52525b', 700: '#3f3f46', 800: '#27272a', 900: '#18181b', 950: '#09090b' },
-      neutral: { 50: '#fafafa', 100: '#f5f5f5', 200: '#e5e5e5', 300: '#d4d4d4', 400: '#a3a3a3', 500: '#737373', 600: '#525252', 700: '#404040', 800: '#262626', 900: '#171717', 950: '#0a0a0a' },
-      stone: { 50: '#fafaf9', 100: '#f5f5f4', 200: '#e7e5e4', 300: '#d6d3d1', 400: '#a8a29e', 500: '#78716c', 600: '#57534e', 700: '#44403c', 800: '#292524', 900: '#1c1917', 950: '#0c0a09' },
-      red: { 50: '#fef2f2', 100: '#fee2e2', 200: '#fecaca', 300: '#fca5a5', 400: '#f87171', 500: '#ef4444', 600: '#dc2626', 700: '#b91c1c', 800: '#991b1b', 900: '#7f1d1d', 950: '#450a0a' },
-      orange: { 50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa', 300: '#fdba74', 400: '#fb923c', 500: '#f97316', 600: '#ea580c', 700: '#c2410c', 800: '#9a3412', 900: '#7c2d12', 950: '#431407' },
-      amber: { 50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e', 900: '#78350f', 950: '#451a03' },
-      yellow: { 50: '#fefce8', 100: '#fef9c3', 200: '#fef08a', 300: '#fde047', 400: '#facc15', 500: '#eab308', 600: '#ca8a04', 700: '#a16207', 800: '#854d0e', 900: '#713f12', 950: '#422006' },
-      lime: { 50: '#f7fee7', 100: '#ecfccb', 200: '#d9f99d', 300: '#bef264', 400: '#a3e635', 500: '#84cc16', 600: '#65a30d', 700: '#4d7c0f', 800: '#3f6212', 900: '#365314', 950: '#1a2e05' },
-      green: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d', 950: '#052e16' },
-      emerald: { 50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b', 950: '#022c22' },
-      teal: { 50: '#f0fdfa', 100: '#ccfbf1', 200: '#99f6e4', 300: '#5eead4', 400: '#2dd4bf', 500: '#14b8a6', 600: '#0d9488', 700: '#0f766e', 800: '#115e59', 900: '#134e4a', 950: '#042f2e' },
-      cyan: { 50: '#ecfeff', 100: '#cffafe', 200: '#a5f3fc', 300: '#67e8f9', 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2', 700: '#0e7490', 800: '#155e75', 900: '#164e63', 950: '#083344' },
-      sky: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e', 950: '#082f49' },
-      blue: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a', 950: '#172554' },
-      indigo: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81', 950: '#1e1b4b' },
-      violet: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95', 950: '#2e1065' },
-      purple: { 50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea', 700: '#7e22ce', 800: '#6b21a8', 900: '#581c87', 950: '#3b0764' },
-      fuchsia: { 50: '#fdf4ff', 100: '#fae8ff', 200: '#f5d0fe', 300: '#f0abfc', 400: '#e879f9', 500: '#d946ef', 600: '#c026d3', 700: '#a21caf', 800: '#86198f', 900: '#701a75', 950: '#4a044e' },
-      pink: { 50: '#fdf2f8', 100: '#fce7f3', 200: '#fbcfe8', 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777', 700: '#be185d', 800: '#9d174d', 900: '#831843', 950: '#500724' },
-      rose: { 50: '#fff1f2', 100: '#ffe4e6', 200: '#fecdd3', 300: '#fda4af', 400: '#fb7185', 500: '#f43f5e', 600: '#e11d48', 700: '#be123c', 800: '#9f1239', 900: '#881337', 950: '#4c0519' }
+    console.log(chalk.cyan('\n  OutSystems Design Tokens'));
+    console.log(chalk.gray('  Creating collections in Figma...\n'));
+
+    // ── Colors (Light/Dark modes) ──
+    const osColors = {
+      '--color-primary':       { light: '#1068EB', dark: '#5A9BF5' },
+      '--color-secondary':     { light: '#303D60', dark: '#8D9BB5' },
+      '--color-neutral-0':     { light: '#FFFFFF', dark: '#101213' },
+      '--color-neutral-1':     { light: '#F8F9FA', dark: '#1A1D1F' },
+      '--color-neutral-2':     { light: '#F1F3F5', dark: '#222628' },
+      '--color-neutral-3':     { light: '#E9ECEF', dark: '#2C3033' },
+      '--color-neutral-4':     { light: '#DEE2E6', dark: '#3A3F44' },
+      '--color-neutral-5':     { light: '#CED4DA', dark: '#4F575E' },
+      '--color-neutral-6':     { light: '#ADB5BD', dark: '#6A7178' },
+      '--color-neutral-7':     { light: '#6A7178', dark: '#ADB5BD' },
+      '--color-neutral-8':     { light: '#4F575E', dark: '#CED4DA' },
+      '--color-neutral-9':     { light: '#272B30', dark: '#E9ECEF' },
+      '--color-neutral-10':    { light: '#101213', dark: '#FFFFFF' },
+      '--color-info':          { light: '#017AAD', dark: '#33A3D4' },
+      '--color-info-light':    { light: '#E5F5FC', dark: '#0A2E3D' },
+      '--color-success':       { light: '#29823B', dark: '#4CAF5E' },
+      '--color-success-light': { light: '#EAF3EB', dark: '#0F2E14' },
+      '--color-warning':       { light: '#E9A100', dark: '#FFB82E' },
+      '--color-warning-light': { light: '#FDF6E5', dark: '#3D2A00' },
+      '--color-error':         { light: '#DC2020', dark: '#F25050' },
+      '--color-error-light':   { light: '#FCEAEA', dark: '#3D0A0A' }
     };
 
-    const code = `(async () => {
-const colors = ${JSON.stringify(tailwindColors)};
-function hexToRgb(hex) {
-  const r = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);
-  return { r: parseInt(r[1], 16) / 255, g: parseInt(r[2], 16) / 255, b: parseInt(r[3], 16) / 255 };
-}
-const cols = await figma.variables.getLocalVariableCollectionsAsync();
-let col = cols.find(c => c.name === '${options.collection}');
-if (!col) col = figma.variables.createVariableCollection('${options.collection}');
-const modeId = col.modes[0].modeId;
-const existingVars = await figma.variables.getLocalVariablesAsync();
-let count = 0;
-for (const [colorName, shades] of Object.entries(colors)) {
-  for (const [shade, hex] of Object.entries(shades)) {
-    const existing = existingVars.find(v => v.name === colorName + '/' + shade);
-    if (!existing) {
-      const v = figma.variables.createVariable(colorName + '/' + shade, col, 'COLOR');
-      v.setValueForMode(modeId, hexToRgb(hex));
-      count++;
-    }
-  }
-}
-return 'Created ' + count + ' color variables in ${options.collection}';
-})()`;
-
-    try {
-      const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
-      spinner.succeed(result?.trim() || 'Created Tailwind palette');
-    } catch (error) {
-      spinner.fail('Failed to create palette');
-      console.error(error.message);
-    }
-  });
-
-tokens
-  .command('preset <name>')
-  .description('Add color presets: shadcn, radix')
-  .action(async (preset) => {
-    checkConnection();
-
-    const presetLower = preset.toLowerCase();
-
-    if (presetLower === 'shadcn') {
-      // shadcn/ui colors: primitives + semantic tokens (Light/Dark)
-      const spinner = ora('Adding shadcn colors...').start();
-
-      // Tailwind primitives (same as shadcn uses)
-      const primitives = {
-        slate: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' },
-        gray: { 50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db', 400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151', 800: '#1f2937', 900: '#111827', 950: '#030712' },
-        zinc: { 50: '#fafafa', 100: '#f4f4f5', 200: '#e4e4e7', 300: '#d4d4d8', 400: '#a1a1aa', 500: '#71717a', 600: '#52525b', 700: '#3f3f46', 800: '#27272a', 900: '#18181b', 950: '#09090b' },
-        neutral: { 50: '#fafafa', 100: '#f5f5f5', 200: '#e5e5e5', 300: '#d4d4d4', 400: '#a3a3a3', 500: '#737373', 600: '#525252', 700: '#404040', 800: '#262626', 900: '#171717', 950: '#0a0a0a' },
-        stone: { 50: '#fafaf9', 100: '#f5f5f4', 200: '#e7e5e4', 300: '#d6d3d1', 400: '#a8a29e', 500: '#78716c', 600: '#57534e', 700: '#44403c', 800: '#292524', 900: '#1c1917', 950: '#0c0a09' },
-        red: { 50: '#fef2f2', 100: '#fee2e2', 200: '#fecaca', 300: '#fca5a5', 400: '#f87171', 500: '#ef4444', 600: '#dc2626', 700: '#b91c1c', 800: '#991b1b', 900: '#7f1d1d', 950: '#450a0a' },
-        orange: { 50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa', 300: '#fdba74', 400: '#fb923c', 500: '#f97316', 600: '#ea580c', 700: '#c2410c', 800: '#9a3412', 900: '#7c2d12', 950: '#431407' },
-        amber: { 50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e', 900: '#78350f', 950: '#451a03' },
-        yellow: { 50: '#fefce8', 100: '#fef9c3', 200: '#fef08a', 300: '#fde047', 400: '#facc15', 500: '#eab308', 600: '#ca8a04', 700: '#a16207', 800: '#854d0e', 900: '#713f12', 950: '#422006' },
-        lime: { 50: '#f7fee7', 100: '#ecfccb', 200: '#d9f99d', 300: '#bef264', 400: '#a3e635', 500: '#84cc16', 600: '#65a30d', 700: '#4d7c0f', 800: '#3f6212', 900: '#365314', 950: '#1a2e05' },
-        green: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d', 950: '#052e16' },
-        emerald: { 50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b', 950: '#022c22' },
-        teal: { 50: '#f0fdfa', 100: '#ccfbf1', 200: '#99f6e4', 300: '#5eead4', 400: '#2dd4bf', 500: '#14b8a6', 600: '#0d9488', 700: '#0f766e', 800: '#115e59', 900: '#134e4a', 950: '#042f2e' },
-        cyan: { 50: '#ecfeff', 100: '#cffafe', 200: '#a5f3fc', 300: '#67e8f9', 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2', 700: '#0e7490', 800: '#155e75', 900: '#164e63', 950: '#083344' },
-        sky: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e', 950: '#082f49' },
-        blue: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a', 950: '#172554' },
-        indigo: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81', 950: '#1e1b4b' },
-        violet: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95', 950: '#2e1065' },
-        purple: { 50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea', 700: '#7e22ce', 800: '#6b21a8', 900: '#581c87', 950: '#3b0764' },
-        fuchsia: { 50: '#fdf4ff', 100: '#fae8ff', 200: '#f5d0fe', 300: '#f0abfc', 400: '#e879f9', 500: '#d946ef', 600: '#c026d3', 700: '#a21caf', 800: '#86198f', 900: '#701a75', 950: '#4a044e' },
-        pink: { 50: '#fdf2f8', 100: '#fce7f3', 200: '#fbcfe8', 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777', 700: '#be185d', 800: '#9d174d', 900: '#831843', 950: '#500724' },
-        rose: { 50: '#fff1f2', 100: '#ffe4e6', 200: '#fecdd3', 300: '#fda4af', 400: '#fb7185', 500: '#f43f5e', 600: '#e11d48', 700: '#be123c', 800: '#9f1239', 900: '#881337', 950: '#4c0519' },
-        white: { DEFAULT: '#ffffff' },
-        black: { DEFAULT: '#000000' }
-      };
-
-      // Semantic tokens with Light/Dark mode values (references to primitives)
-      // Based on shadcn/ui default zinc theme
-      const semanticTokens = {
-        'background':           { light: 'white',  dark: 'zinc/950' },
-        'foreground':           { light: 'zinc/950',       dark: 'zinc/50' },
-        'card':                 { light: 'white',  dark: 'zinc/950' },
-        'card-foreground':      { light: 'zinc/950',       dark: 'zinc/50' },
-        'popover':              { light: 'white',  dark: 'zinc/950' },
-        'popover-foreground':   { light: 'zinc/950',       dark: 'zinc/50' },
-        'primary':              { light: 'zinc/900',       dark: 'zinc/50' },
-        'primary-foreground':   { light: 'zinc/50',        dark: 'zinc/900' },
-        'secondary':            { light: 'zinc/100',       dark: 'zinc/800' },
-        'secondary-foreground': { light: 'zinc/900',       dark: 'zinc/50' },
-        'muted':                { light: 'zinc/100',       dark: 'zinc/800' },
-        'muted-foreground':     { light: 'zinc/500',       dark: 'zinc/400' },
-        'accent':               { light: 'zinc/100',       dark: 'zinc/800' },
-        'accent-foreground':    { light: 'zinc/900',       dark: 'zinc/50' },
-        'destructive':          { light: 'red/500',        dark: 'red/900' },
-        'destructive-foreground': { light: 'zinc/50',      dark: 'zinc/50' },
-        'border':               { light: 'zinc/200',       dark: 'zinc/800' },
-        'input':                { light: 'zinc/200',       dark: 'zinc/800' },
-        'ring':                 { light: 'zinc/950',       dark: 'zinc/300' },
-        'chart-1':              { light: 'orange/500',     dark: 'blue/500' },
-        'chart-2':              { light: 'teal/500',       dark: 'emerald/500' },
-        'chart-3':              { light: 'blue/500',       dark: 'amber/500' },
-        'chart-4':              { light: 'amber/500',      dark: 'rose/500' },
-        'chart-5':              { light: 'rose/500',       dark: 'violet/500' },
-        'sidebar-background':   { light: 'zinc/50',        dark: 'zinc/950' },
-        'sidebar-foreground':   { light: 'zinc/900',       dark: 'zinc/50' },
-        'sidebar-primary':      { light: 'zinc/900',       dark: 'zinc/50' },
-        'sidebar-primary-foreground': { light: 'zinc/50', dark: 'zinc/900' },
-        'sidebar-accent':       { light: 'zinc/100',       dark: 'zinc/800' },
-        'sidebar-accent-foreground': { light: 'zinc/900', dark: 'zinc/50' },
-        'sidebar-border':       { light: 'zinc/200',       dark: 'zinc/800' },
-        'sidebar-ring':         { light: 'zinc/950',       dark: 'zinc/300' }
-      };
-
-      const code = `(async () => {
-const primitives = ${JSON.stringify(primitives)};
-const semanticTokens = ${JSON.stringify(semanticTokens)};
-
+    let spinner = ora('Creating OS/Colors (Light/Dark)...').start();
+    const colorsCode = `(async () => {
+const colors = ${JSON.stringify(osColors)};
 function hexToRgb(hex) {
   const r = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);
   return r ? { r: parseInt(r[1], 16) / 255, g: parseInt(r[2], 16) / 255, b: parseInt(r[3], 16) / 255 } : null;
 }
-
-// Step 1: Create primitives collection
 const cols = await figma.variables.getLocalVariableCollectionsAsync();
-let primCol = cols.find(c => c.name === 'shadcn/primitives');
-if (!primCol) primCol = figma.variables.createVariableCollection('shadcn/primitives');
-const primModeId = primCol.modes[0].modeId;
+let col = cols.find(c => c.name === 'OS/Colors');
+if (!col) col = figma.variables.createVariableCollection('OS/Colors');
 
-// Create primitive variables
-const existingVars = await figma.variables.getLocalVariablesAsync('COLOR');
-const primVarMap = {};
-let primCount = 0;
-
-for (const [colorName, shades] of Object.entries(primitives)) {
-  for (const [shade, hex] of Object.entries(shades)) {
-    const varName = shade === 'DEFAULT' ? colorName : colorName + '/' + shade;
-    let v = existingVars.find(ev => ev.name === varName && ev.variableCollectionId === primCol.id);
-    if (!v) {
-      v = figma.variables.createVariable(varName, primCol, 'COLOR');
-      v.setValueForMode(primModeId, hexToRgb(hex));
-      primCount++;
-    }
-    primVarMap[varName] = v;
-  }
-}
-
-// Step 2: Create semantic collection with Light/Dark modes
-let semCol = cols.find(c => c.name === 'shadcn/semantic');
-if (!semCol) semCol = figma.variables.createVariableCollection('shadcn/semantic');
-
-// Ensure we have Light and Dark modes
-let lightModeId = semCol.modes.find(m => m.name === 'Light')?.modeId;
-let darkModeId = semCol.modes.find(m => m.name === 'Dark')?.modeId;
-
+let lightModeId = col.modes.find(m => m.name === 'Light')?.modeId;
+let darkModeId = col.modes.find(m => m.name === 'Dark')?.modeId;
 if (!lightModeId) {
-  semCol.renameMode(semCol.modes[0].modeId, 'Light');
-  lightModeId = semCol.modes[0].modeId;
+  col.renameMode(col.modes[0].modeId, 'Light');
+  lightModeId = col.modes[0].modeId;
 }
 if (!darkModeId) {
-  darkModeId = semCol.addMode('Dark');
+  darkModeId = col.addMode('Dark');
 }
-
-// Create semantic variables with aliases
-let semCount = 0;
-for (const [name, refs] of Object.entries(semanticTokens)) {
-  let v = existingVars.find(ev => ev.name === name && ev.variableCollectionId === semCol.id);
-  if (!v) {
-    v = figma.variables.createVariable(name, semCol, 'COLOR');
-    semCount++;
-  }
-
-  // Set Light mode (alias to primitive)
-  const lightPrim = primVarMap[refs.light];
-  if (lightPrim) {
-    v.setValueForMode(lightModeId, { type: 'VARIABLE_ALIAS', id: lightPrim.id });
-  }
-
-  // Set Dark mode (alias to primitive)
-  const darkPrim = primVarMap[refs.dark];
-  if (darkPrim) {
-    v.setValueForMode(darkModeId, { type: 'VARIABLE_ALIAS', id: darkPrim.id });
-  }
-}
-
-return 'Created ' + primCount + ' primitives + ' + semCount + ' semantic tokens (Light/Dark)';
-})()`;
-
-      try {
-        const result = await fastEval(code);
-        spinner.succeed(result || 'Added shadcn colors');
-        console.log(chalk.gray('\n  Collections created:'));
-        console.log(chalk.gray('    • shadcn/primitives - 244 color primitives'));
-        console.log(chalk.gray('    • shadcn/semantic   - 32 semantic tokens (Light/Dark mode)\n'));
-        console.log(chalk.gray('  Usage: Apply "Light" or "Dark" mode to any frame'));
-      } catch (error) {
-        spinner.fail('Failed to add shadcn');
-        console.error(chalk.red(error.message));
-      }
-
-    } else if (presetLower === 'radix') {
-      // Radix UI Colors - 12 color families with 12 steps each
-      const spinner = ora('Adding Radix UI colors...').start();
-
-      const radixColors = {
-        gray: { 1: '#fcfcfc', 2: '#f9f9f9', 3: '#f0f0f0', 4: '#e8e8e8', 5: '#e0e0e0', 6: '#d9d9d9', 7: '#cecece', 8: '#bbbbbb', 9: '#8d8d8d', 10: '#838383', 11: '#646464', 12: '#202020' },
-        slate: { 1: '#fcfcfd', 2: '#f9f9fb', 3: '#f0f0f3', 4: '#e8e8ec', 5: '#e0e1e6', 6: '#d9d9e0', 7: '#cdced6', 8: '#b9bbc6', 9: '#8b8d98', 10: '#80838d', 11: '#60646c', 12: '#1c2024' },
-        red: { 1: '#fffcfc', 2: '#fff7f7', 3: '#feebec', 4: '#ffdbdc', 5: '#ffcdce', 6: '#fdbdbe', 7: '#f4a9aa', 8: '#eb8e90', 9: '#e5484d', 10: '#dc3e42', 11: '#ce2c31', 12: '#641723' },
-        orange: { 1: '#fefcfb', 2: '#fff7ed', 3: '#ffefd6', 4: '#ffdfb5', 5: '#ffd19a', 6: '#ffc182', 7: '#f5ae73', 8: '#ec9455', 9: '#f76b15', 10: '#ef5f00', 11: '#cc4e00', 12: '#582d1d' },
-        amber: { 1: '#fefdfb', 2: '#fefbe9', 3: '#fff7c2', 4: '#ffee9c', 5: '#fbe577', 6: '#f3d673', 7: '#e9c162', 8: '#e2a336', 9: '#ffc53d', 10: '#ffba18', 11: '#ab6400', 12: '#4f3422' },
-        yellow: { 1: '#fdfdf9', 2: '#fefce9', 3: '#fffab8', 4: '#fff394', 5: '#ffe770', 6: '#f3d768', 7: '#e4c767', 8: '#d5ae39', 9: '#ffe629', 10: '#ffdc00', 11: '#9e6c00', 12: '#473b1f' },
-        green: { 1: '#fbfefc', 2: '#f4fbf6', 3: '#e6f6eb', 4: '#d6f1df', 5: '#c4e8d1', 6: '#adddc0', 7: '#8eceaa', 8: '#5bb98b', 9: '#30a46c', 10: '#2b9a66', 11: '#218358', 12: '#193b2d' },
-        teal: { 1: '#fafefd', 2: '#f3fbf9', 3: '#e0f8f3', 4: '#ccf3ea', 5: '#b8eae0', 6: '#a1ded2', 7: '#83cdc1', 8: '#53b9ab', 9: '#12a594', 10: '#0d9b8a', 11: '#008573', 12: '#0d3d38' },
-        cyan: { 1: '#fafdfe', 2: '#f2fafb', 3: '#def7f9', 4: '#caf1f6', 5: '#b5e9f0', 6: '#9ddde7', 7: '#7dcedc', 8: '#3db9cf', 9: '#00a2c7', 10: '#0797b9', 11: '#107d98', 12: '#0d3c48' },
-        blue: { 1: '#fbfdff', 2: '#f4faff', 3: '#e6f4fe', 4: '#d5efff', 5: '#c2e5ff', 6: '#acd8fc', 7: '#8ec8f6', 8: '#5eb1ef', 9: '#0090ff', 10: '#0588f0', 11: '#0d74ce', 12: '#113264' },
-        indigo: { 1: '#fdfdfe', 2: '#f7f9ff', 3: '#edf2fe', 4: '#e1e9ff', 5: '#d2deff', 6: '#c1d0ff', 7: '#abbdf9', 8: '#8da4ef', 9: '#3e63dd', 10: '#3358d4', 11: '#3a5bc7', 12: '#1f2d5c' },
-        violet: { 1: '#fdfcfe', 2: '#faf8ff', 3: '#f4f0fe', 4: '#ebe4ff', 5: '#e1d9ff', 6: '#d4cafe', 7: '#c2b5f5', 8: '#aa99ec', 9: '#6e56cf', 10: '#654dc4', 11: '#6550b9', 12: '#2f265f' },
-        pink: { 1: '#fffcfe', 2: '#fef7fb', 3: '#fee9f5', 4: '#fbdcef', 5: '#f6cee7', 6: '#efbfdd', 7: '#e7acd0', 8: '#dd93c2', 9: '#d6409f', 10: '#cf3897', 11: '#c2298a', 12: '#651249' }
-      };
-
-      const code = `(async () => {
-const colors = ${JSON.stringify(radixColors)};
-
-function hexToRgb(hex) {
-  const r = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);
-  return r ? { r: parseInt(r[1], 16) / 255, g: parseInt(r[2], 16) / 255, b: parseInt(r[3], 16) / 255 } : null;
-}
-
-const cols = await figma.variables.getLocalVariableCollectionsAsync();
-let col = cols.find(c => c.name === 'radix/colors');
-if (!col) col = figma.variables.createVariableCollection('radix/colors');
-const modeId = col.modes[0].modeId;
 
 const existingVars = await figma.variables.getLocalVariablesAsync('COLOR');
 let count = 0;
-
-for (const [colorName, steps] of Object.entries(colors)) {
-  for (const [step, hex] of Object.entries(steps)) {
-    const varName = colorName + '/' + step;
-    let v = existingVars.find(ev => ev.name === varName && ev.variableCollectionId === col.id);
-    if (!v) {
-      v = figma.variables.createVariable(varName, col, 'COLOR');
-      v.setValueForMode(modeId, hexToRgb(hex));
-      count++;
-    }
+for (const [name, vals] of Object.entries(colors)) {
+  let v = existingVars.find(ev => ev.name === name && ev.variableCollectionId === col.id);
+  if (!v) {
+    v = figma.variables.createVariable(name, col, 'COLOR');
+    count++;
   }
+  v.setValueForMode(lightModeId, hexToRgb(vals.light));
+  v.setValueForMode(darkModeId, hexToRgb(vals.dark));
 }
-
-return 'Created ' + count + ' Radix color variables';
-})()`;
-
-      try {
-        const result = await fastEval(code);
-        spinner.succeed(result || 'Added Radix UI colors');
-        console.log(chalk.gray('\n  Collection created:'));
-        console.log(chalk.gray('    • radix/colors - 156 colors (13 families × 12 steps)\n'));
-        console.log(chalk.gray('  Colors: gray, slate, red, orange, amber, yellow,'));
-        console.log(chalk.gray('          green, teal, cyan, blue, indigo, violet, pink'));
-      } catch (error) {
-        spinner.fail('Failed to add Radix colors');
-        console.error(chalk.red(error.message));
-      }
-
-    } else if (presetLower === 'material') {
-      console.log(chalk.yellow('Material Design preset coming soon!'));
-      console.log(chalk.gray('Available now: shadcn, radix'));
-
-    } else {
-      console.log(chalk.red(`Unknown preset: ${preset}`));
-      console.log(chalk.gray('Available presets: shadcn, radix, material (coming soon)'));
-    }
-  });
-
-tokens
-  .command('shadcn')
-  .description('Create shadcn/ui color primitives (from v3.shadcn.com/colors)')
-  .option('-c, --collection <name>', 'Collection name', 'shadcn/primitives')
-  .action((options) => {
-    checkConnection();
-    const spinner = ora('Creating shadcn color primitives...').start();
-
-    // All colors from https://v3.shadcn.com/colors
-    const shadcnColors = {
-      slate: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' },
-      gray: { 50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db', 400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151', 800: '#1f2937', 900: '#111827', 950: '#030712' },
-      zinc: { 50: '#fafafa', 100: '#f4f4f5', 200: '#e4e4e7', 300: '#d4d4d8', 400: '#a1a1aa', 500: '#71717a', 600: '#52525b', 700: '#3f3f46', 800: '#27272a', 900: '#18181b', 950: '#09090b' },
-      neutral: { 50: '#fafafa', 100: '#f5f5f5', 200: '#e5e5e5', 300: '#d4d4d4', 400: '#a3a3a3', 500: '#737373', 600: '#525252', 700: '#404040', 800: '#262626', 900: '#171717', 950: '#0a0a0a' },
-      stone: { 50: '#fafaf9', 100: '#f5f5f4', 200: '#e7e5e4', 300: '#d6d3d1', 400: '#a8a29e', 500: '#78716c', 600: '#57534e', 700: '#44403c', 800: '#292524', 900: '#1c1917', 950: '#0c0a09' },
-      red: { 50: '#fef2f2', 100: '#fee2e2', 200: '#fecaca', 300: '#fca5a5', 400: '#f87171', 500: '#ef4444', 600: '#dc2626', 700: '#b91c1c', 800: '#991b1b', 900: '#7f1d1d', 950: '#450a0a' },
-      orange: { 50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa', 300: '#fdba74', 400: '#fb923c', 500: '#f97316', 600: '#ea580c', 700: '#c2410c', 800: '#9a3412', 900: '#7c2d12', 950: '#431407' },
-      amber: { 50: '#fffbeb', 100: '#fef3c7', 200: '#fde68a', 300: '#fcd34d', 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706', 700: '#b45309', 800: '#92400e', 900: '#78350f', 950: '#451a03' },
-      yellow: { 50: '#fefce8', 100: '#fef9c3', 200: '#fef08a', 300: '#fde047', 400: '#facc15', 500: '#eab308', 600: '#ca8a04', 700: '#a16207', 800: '#854d0e', 900: '#713f12', 950: '#422006' },
-      lime: { 50: '#f7fee7', 100: '#ecfccb', 200: '#d9f99d', 300: '#bef264', 400: '#a3e635', 500: '#84cc16', 600: '#65a30d', 700: '#4d7c0f', 800: '#3f6212', 900: '#365314', 950: '#1a2e05' },
-      green: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d', 950: '#052e16' },
-      emerald: { 50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b', 950: '#022c22' },
-      teal: { 50: '#f0fdfa', 100: '#ccfbf1', 200: '#99f6e4', 300: '#5eead4', 400: '#2dd4bf', 500: '#14b8a6', 600: '#0d9488', 700: '#0f766e', 800: '#115e59', 900: '#134e4a', 950: '#042f2e' },
-      cyan: { 50: '#ecfeff', 100: '#cffafe', 200: '#a5f3fc', 300: '#67e8f9', 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2', 700: '#0e7490', 800: '#155e75', 900: '#164e63', 950: '#083344' },
-      sky: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e', 950: '#082f49' },
-      blue: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a', 950: '#172554' },
-      indigo: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81', 950: '#1e1b4b' },
-      violet: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95', 950: '#2e1065' },
-      purple: { 50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea', 700: '#7e22ce', 800: '#6b21a8', 900: '#581c87', 950: '#3b0764' },
-      fuchsia: { 50: '#fdf4ff', 100: '#fae8ff', 200: '#f5d0fe', 300: '#f0abfc', 400: '#e879f9', 500: '#d946ef', 600: '#c026d3', 700: '#a21caf', 800: '#86198f', 900: '#701a75', 950: '#4a044e' },
-      pink: { 50: '#fdf2f8', 100: '#fce7f3', 200: '#fbcfe8', 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777', 700: '#be185d', 800: '#9d174d', 900: '#831843', 950: '#500724' },
-      rose: { 50: '#fff1f2', 100: '#ffe4e6', 200: '#fecdd3', 300: '#fda4af', 400: '#fb7185', 500: '#f43f5e', 600: '#e11d48', 700: '#be123c', 800: '#9f1239', 900: '#881337', 950: '#4c0519' }
-    };
-
-    const code = `(async () => {
-const colors = ${JSON.stringify(shadcnColors)};
-function hexToRgb(hex) {
-  const r = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);
-  return { r: parseInt(r[1], 16) / 255, g: parseInt(r[2], 16) / 255, b: parseInt(r[3], 16) / 255 };
-}
-const cols = await figma.variables.getLocalVariableCollectionsAsync();
-let col = cols.find(c => c.name === '${options.collection}');
-if (!col) col = figma.variables.createVariableCollection('${options.collection}');
-const modeId = col.modes[0].modeId;
-const existingVars = await figma.variables.getLocalVariablesAsync();
-let count = 0;
-for (const [colorName, shades] of Object.entries(colors)) {
-  for (const [shade, hex] of Object.entries(shades)) {
-    const existing = existingVars.find(v => v.name === colorName + '/' + shade);
-    if (!existing) {
-      const v = figma.variables.createVariable(colorName + '/' + shade, col, 'COLOR');
-      v.setValueForMode(modeId, hexToRgb(hex));
-      count++;
-    }
-  }
-}
-return 'Created ' + count + ' shadcn color variables in ${options.collection}';
+return count;
 })()`;
 
     try {
-      const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
-      spinner.succeed(result?.trim() || 'Created shadcn primitives (231 colors)');
+      const result = await fastEval(colorsCode);
+      spinner.succeed(`OS/Colors (${String(result ?? '21').trim()} variables, Light/Dark modes)`);
     } catch (error) {
-      spinner.fail('Failed to create shadcn colors');
-      console.error(error.message);
+      spinner.fail('OS/Colors failed');
+      console.error(chalk.red(error.message));
     }
+
+    // ── Typography ──
+    const osTypography = {
+      '--font-size-display': 36, '--font-size-h1': 32, '--font-size-h2': 28,
+      '--font-size-h3': 26, '--font-size-h4': 22, '--font-size-h5': 20,
+      '--font-size-h6': 18, '--font-size-base': 16, '--font-size-s': 14,
+      '--font-size-xs': 12,
+      '--font-light': 300, '--font-regular': 400,
+      '--font-semi-bold': 600, '--font-bold': 700
+    };
+
+    spinner = ora('Creating OS/Typography...').start();
+    const typographyCode = `(async () => {
+const typography = ${JSON.stringify(osTypography)};
+const cols = await figma.variables.getLocalVariableCollectionsAsync();
+let col = cols.find(c => c.name === 'OS/Typography');
+if (!col) col = figma.variables.createVariableCollection('OS/Typography');
+const modeId = col.modes[0].modeId;
+const existingVars = await figma.variables.getLocalVariablesAsync();
+let count = 0;
+for (const [name, value] of Object.entries(typography)) {
+  let v = existingVars.find(ev => ev.name === name && ev.variableCollectionId === col.id);
+  if (!v) {
+    v = figma.variables.createVariable(name, col, 'FLOAT');
+    count++;
+  }
+  v.setValueForMode(modeId, value);
+}
+return count;
+})()`;
+
+    try {
+      const result = await fastEval(typographyCode);
+      spinner.succeed(`OS/Typography (${String(result ?? '14').trim()} variables)`);
+    } catch { spinner.fail('OS/Typography failed'); }
+
+    // ── Spacing ──
+    const osSpacing = {
+      '--space-none': 0, '--space-xs': 4, '--space-s': 8,
+      '--space-base': 16, '--space-m': 24, '--space-l': 32,
+      '--space-xl': 40, '--space-xxl': 48
+    };
+
+    spinner = ora('Creating OS/Spacing...').start();
+    const spacingCode = `(async () => {
+const spacings = ${JSON.stringify(osSpacing)};
+const cols = await figma.variables.getLocalVariableCollectionsAsync();
+let col = cols.find(c => c.name === 'OS/Spacing');
+if (!col) col = figma.variables.createVariableCollection('OS/Spacing');
+const modeId = col.modes[0].modeId;
+const existingVars = await figma.variables.getLocalVariablesAsync();
+let count = 0;
+for (const [name, value] of Object.entries(spacings)) {
+  let v = existingVars.find(ev => ev.name === name && ev.variableCollectionId === col.id);
+  if (!v) {
+    v = figma.variables.createVariable(name, col, 'FLOAT');
+    count++;
+  }
+  v.setValueForMode(modeId, value);
+}
+return count;
+})()`;
+
+    try {
+      const result = await fastEval(spacingCode);
+      spinner.succeed(`OS/Spacing (${String(result ?? '8').trim()} variables)`);
+    } catch { spinner.fail('OS/Spacing failed'); }
+
+    // ── Border Radius ──
+    const osRadii = {
+      '--border-radius-none': 0, '--border-radius-soft': 4, '--border-radius-rounded': 100
+    };
+
+    spinner = ora('Creating OS/Border Radius...').start();
+    const radiiCode = `(async () => {
+const radii = ${JSON.stringify(osRadii)};
+const cols = await figma.variables.getLocalVariableCollectionsAsync();
+let col = cols.find(c => c.name === 'OS/Border Radius');
+if (!col) col = figma.variables.createVariableCollection('OS/Border Radius');
+const modeId = col.modes[0].modeId;
+const existingVars = await figma.variables.getLocalVariablesAsync();
+let count = 0;
+for (const [name, value] of Object.entries(radii)) {
+  let v = existingVars.find(ev => ev.name === name && ev.variableCollectionId === col.id);
+  if (!v) {
+    v = figma.variables.createVariable(name, col, 'FLOAT');
+    count++;
+  }
+  v.setValueForMode(modeId, value);
+}
+return count;
+})()`;
+
+    try {
+      const result = await fastEval(radiiCode);
+      spinner.succeed(`OS/Border Radius (${String(result ?? '3').trim()} variables)`);
+    } catch { spinner.fail('OS/Border Radius failed'); }
+
+    await new Promise(r => setTimeout(r, 100));
+
+    console.log(chalk.green('\n  OutSystems design tokens created!\n'));
+    console.log(chalk.white('  Collections:'));
+    console.log(chalk.gray('    OS/Colors        - 21 colors (Light/Dark modes)'));
+    console.log(chalk.gray('    OS/Typography    - 14 variables (font sizes + weights)'));
+    console.log(chalk.gray('    OS/Spacing       - 8 variables (none to xxl)'));
+    console.log(chalk.gray('    OS/Border Radius - 3 variables (none, soft, rounded)'));
+    console.log();
+    console.log(chalk.gray('  Total: ~46 variables across 4 collections\n'));
   });
 
 tokens
   .command('spacing')
-  .description('Create spacing scale (4px base)')
-  .option('-c, --collection <name>', 'Collection name', 'Spacing')
+  .description('Create OutSystems spacing scale')
+  .option('-c, --collection <name>', 'Collection name', 'OS/Spacing')
   .action((options) => {
     checkConnection();
-    const spinner = ora('Creating spacing scale...').start();
+    const spinner = ora('Creating OutSystems spacing scale...').start();
 
     const spacings = {
-      '0': 0, '0.5': 2, '1': 4, '1.5': 6, '2': 8, '2.5': 10,
-      '3': 12, '3.5': 14, '4': 16, '5': 20, '6': 24, '7': 28,
-      '8': 32, '9': 36, '10': 40, '11': 44, '12': 48,
-      '14': 56, '16': 64, '20': 80, '24': 96, '28': 112,
-      '32': 128, '36': 144, '40': 160, '44': 176, '48': 192
+      '--space-none': 0, '--space-xs': 4, '--space-s': 8,
+      '--space-base': 16, '--space-m': 24, '--space-l': 32,
+      '--space-xl': 40, '--space-xxl': 48
     };
 
     const code = `(async () => {
@@ -2125,9 +1934,9 @@ const modeId = col.modes[0].modeId;
 const existingVars = await figma.variables.getLocalVariablesAsync();
 let count = 0;
 for (const [name, value] of Object.entries(spacings)) {
-  const existing = existingVars.find(v => v.name === 'spacing/' + name);
+  const existing = existingVars.find(v => v.name === name && v.variableCollectionId === col.id);
   if (!existing) {
-    const v = figma.variables.createVariable('spacing/' + name, col, 'FLOAT');
+    const v = figma.variables.createVariable(name, col, 'FLOAT');
     v.setValueForMode(modeId, value);
     count++;
   }
@@ -2137,7 +1946,7 @@ return 'Created ' + count + ' spacing variables';
 
     try {
       const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
-      spinner.succeed(result?.trim() || 'Created spacing scale');
+      spinner.succeed(String(result ?? '').trim() || 'Created OutSystems spacing scale');
     } catch (error) {
       spinner.fail('Failed to create spacing scale');
     }
@@ -2145,15 +1954,14 @@ return 'Created ' + count + ' spacing variables';
 
 tokens
   .command('radii')
-  .description('Create border radius scale')
-  .option('-c, --collection <name>', 'Collection name', 'Radii')
+  .description('Create OutSystems border radius scale')
+  .option('-c, --collection <name>', 'Collection name', 'OS/Border Radius')
   .action((options) => {
     checkConnection();
-    const spinner = ora('Creating border radii...').start();
+    const spinner = ora('Creating OutSystems border radii...').start();
 
     const radii = {
-      'none': 0, 'sm': 2, 'default': 4, 'md': 6, 'lg': 8,
-      'xl': 12, '2xl': 16, '3xl': 24, 'full': 9999
+      '--border-radius-none': 0, '--border-radius-soft': 4, '--border-radius-rounded': 100
     };
 
     const code = `(async () => {
@@ -2165,9 +1973,9 @@ const modeId = col.modes[0].modeId;
 const existingVars = await figma.variables.getLocalVariablesAsync();
 let count = 0;
 for (const [name, value] of Object.entries(radii)) {
-  const existing = existingVars.find(v => v.name === 'radius/' + name);
+  const existing = existingVars.find(v => v.name === name && v.variableCollectionId === col.id);
   if (!existing) {
-    const v = figma.variables.createVariable('radius/' + name, col, 'FLOAT');
+    const v = figma.variables.createVariable(name, col, 'FLOAT');
     v.setValueForMode(modeId, value);
     count++;
   }
@@ -2178,7 +1986,7 @@ return 'Created ' + count + ' radius variables';
 
     try {
       const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
-      spinner.succeed(result?.trim() || 'Created border radii');
+      spinner.succeed(String(result ?? '').trim() || 'Created OutSystems border radii');
     } catch (error) {
       spinner.fail('Failed to create radii');
     }
@@ -4203,12 +4011,13 @@ set
       const varName = color.slice(4);
       code = `(async () => {
         const collections = await figma.variables.getLocalVariableCollectionsAsync();
-        const col = collections.find(c => c.name === 'shadcn');
-        if (!col) return 'shadcn collection not found';
         let variable = null;
-        for (const id of col.variableIds) {
-          const v = await figma.variables.getVariableByIdAsync(id);
-          if (v && v.name === '${varName}') { variable = v; break; }
+        for (const col of collections) {
+          for (const id of col.variableIds) {
+            const v = await figma.variables.getVariableByIdAsync(id);
+            if (v && v.name === '${varName}') { variable = v; break; }
+          }
+          if (variable) break;
         }
         if (!variable) return 'Variable ${varName} not found';
         ${nodeSelector}
@@ -4249,12 +4058,13 @@ set
       const varName = color.slice(4);
       code = `(async () => {
         const collections = await figma.variables.getLocalVariableCollectionsAsync();
-        const col = collections.find(c => c.name === 'shadcn');
-        if (!col) return 'shadcn collection not found';
         let variable = null;
-        for (const id of col.variableIds) {
-          const v = await figma.variables.getVariableByIdAsync(id);
-          if (v && v.name === '${varName}') { variable = v; break; }
+        for (const col of collections) {
+          for (const id of col.variableIds) {
+            const v = await figma.variables.getVariableByIdAsync(id);
+            if (v && v.name === '${varName}') { variable = v; break; }
+          }
+          if (variable) break;
         }
         if (!variable) return 'Variable ${varName} not found';
         ${nodeSelector}

@@ -11,7 +11,7 @@ CLI that controls Figma Desktop directly for designing OutSystems apps. No API k
 | "connect to figma" | `node src/index.js connect` |
 | "create mobile screen" | `node src/index.js render '<Frame name="OS/Screen/Mobile" w={390} h={844} ...'` |
 | "create web screen" | `node src/index.js render '<Frame name="OS/Screen/Web" w={1440} h={900} ...'` |
-| "add OutSystems tokens" | `node src/index.js tokens preset outsystems` |
+| "add OutSystems tokens" | `node src/index.js tokens preset` |
 | "show colors on canvas" | `node src/index.js var visualize` |
 | "list variables" | `node src/index.js var list` |
 | "find nodes named X" | `node src/index.js find "X"` |
