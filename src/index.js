@@ -926,8 +926,8 @@ program
   .option('--safe', 'Use Safe Mode (plugin-based, no patching required)')
   .action(async (options) => {
     // Fun welcome message
-    console.log(chalk.hex('#FF6B35')('\n  ✨ Hey designer! ') + chalk.white("Don't be afraid of the terminal!"));
-    console.log(chalk.hex('#4ECDC4')('  🎨 Happy vibe coding! ') + chalk.gray('— Sil · ') + chalk.hex('#FF6B35')('intodesignsystems.com\n'));
+    console.log(chalk.hex('#FF6B35')('\n  ✨ Welcome to the OutSystems Figma CLI! '));
+    console.log(chalk.hex('#4ECDC4')('  🎨 Go ahead and build something great for OutSystems! '));
 
     const config = loadConfig();
 
