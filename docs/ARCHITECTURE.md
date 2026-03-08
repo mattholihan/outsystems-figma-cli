@@ -58,6 +58,7 @@ This CLI is purpose-built for OutSystems app design. It is aware of:
 - **Platform targets** — ODC (OutSystems Developer Cloud) and O11 (OutSystems 11)
 - **Screen sizes** — correct frame dimensions for mobile (390×844), tablet (768×1024), and web (1440×900)
 - **Layer naming** — enforces `OS/{Component}/{Variant}/{State}` convention throughout
+- **Slots** — support for Figma Slots (CHILDREN component properties) to create flexible content areas in components
 
 ### Limitations
 

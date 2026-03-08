@@ -184,6 +184,36 @@ os-figma fj sticky "Note" -p "My Board" -x 100 -y 100
 
 ---
 
+## Slots
+
+Slots are component properties that create flexible content areas within components. Designers can add, remove, and rearrange content in instances without detaching.
+
+```bash
+# Convert a frame inside a component to a slot
+os-figma slot create "COMP_ID" "FRAME_ID" "Content"
+os-figma slot create "COMP_ID" "FRAME_ID" "Actions" --description "Action buttons area"
+
+# List all slots on a component or instance
+os-figma slot list "COMP_ID"
+
+# Add content to a slot in an instance
+os-figma slot add "INSTANCE_ID" "SLOT_FRAME_ID" "CONTENT_NODE_ID"
+
+# Reset slot to its default content from the main component
+os-figma slot reset "INSTANCE_ID" "SLOT_FRAME_ID"
+
+# Clear all content from a slot (empty it)
+os-figma slot clear "INSTANCE_ID" "SLOT_FRAME_ID"
+```
+
+### Slot Workflow
+1. Create a component with frames designated as content areas
+2. Convert content frames to slots: `os-figma slot create ...`
+3. Create instances of the component
+4. Add different content to each instance's slot: `os-figma slot add ...`
+
+---
+
 ## Raw Commands
 
 ```bash

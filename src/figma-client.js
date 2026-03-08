@@ -1335,6 +1335,160 @@ export class FigmaClient {
     `);
   }
 
+  // ============ Slots ============
+
+  /**
+   * Convert a frame inside a component to a slot
+   * @param {string} componentId - The component containing the frame
+   * @param {string} frameId - The frame to convert to a slot
+   * @param {string} name - Name for the slot property
+   * @param {object} options - Optional: description, preferredInstances (array of component keys)
+   */
+  async createSlot(componentId, frameId, name, options = {}) {
+    const { description = '', preferredInstances = [] } = options;
+    return await this.eval(`
+      (function() {
+        const comp = figma.getNodeById(${JSON.stringify(componentId)});
+        if (!comp || comp.type !== 'COMPONENT') return { error: 'Component not found' };
+        const frame = figma.getNodeById(${JSON.stringify(frameId)});
+        if (!frame) return { error: 'Frame not found' };
+        if (frame.parent?.id !== comp.id && !isDescendant(frame, comp)) return { error: 'Frame is not inside the component' };
+
+        function isDescendant(node, ancestor) {
+          let current = node.parent;
+          while (current) {
+            if (current.id === ancestor.id) return true;
+            current = current.parent;
+          }
+          return false;
+        }
+
+        // Add slot component property
+        const propName = ${JSON.stringify(name)};
+        comp.addComponentProperty(propName, 'CHILDREN', '');
+
+        // Find the property key that was just created
+        const props = comp.componentPropertyDefinitions;
+        let slotKey = null;
+        for (const [key, def] of Object.entries(props)) {
+          if (def.type === 'CHILDREN' && key.startsWith(propName)) {
+            slotKey = key;
+            break;
+          }
+        }
+
+        if (slotKey) {
+          // Assign the frame as the slot target
+          frame.componentPropertyReferences = { ...frame.componentPropertyReferences, children: slotKey };
+        }
+
+        return {
+          success: true,
+          componentId: comp.id,
+          frameId: frame.id,
+          slotProperty: slotKey || propName,
+          name: propName
+        };
+      })()
+    `);
+  }
+
+  /**
+   * List slot properties on a component
+   * @param {string} nodeId - Component or instance ID
+   */
+  async listSlots(nodeId) {
+    return await this.eval(`
+      (function() {
+        const node = figma.getNodeById(${JSON.stringify(nodeId)});
+        if (!node) return { error: 'Node not found' };
+
+        const props = node.type === 'COMPONENT'
+          ? node.componentPropertyDefinitions
+          : (node.type === 'INSTANCE' ? node.componentProperties : null);
+
+        if (!props) return { error: 'Node is not a component or instance' };
+
+        const slots = [];
+        for (const [key, def] of Object.entries(props)) {
+          if (def.type === 'CHILDREN') {
+            slots.push({
+              key: key,
+              name: key.split('#')[0],
+              type: 'CHILDREN',
+              preferredValues: def.preferredValues || []
+            });
+          }
+        }
+        return { nodeId: node.id, name: node.name, slots };
+      })()
+    `);
+  }
+
+  /**
+   * Add content to a slot in a component instance
+   * @param {string} instanceId - The instance ID
+   * @param {string} slotFrameId - The slot frame ID inside the instance
+   * @param {string} contentNodeId - The node ID to move into the slot
+   */
+  async addToSlot(instanceId, slotFrameId, contentNodeId) {
+    return await this.eval(`
+      (function() {
+        const instance = figma.getNodeById(${JSON.stringify(instanceId)});
+        if (!instance || instance.type !== 'INSTANCE') return { error: 'Instance not found' };
+        const slot = figma.getNodeById(${JSON.stringify(slotFrameId)});
+        if (!slot) return { error: 'Slot frame not found' };
+        const content = figma.getNodeById(${JSON.stringify(contentNodeId)});
+        if (!content) return { error: 'Content node not found' };
+
+        slot.appendChild(content);
+        return { success: true, instanceId: instance.id, slotId: slot.id, contentId: content.id };
+      })()
+    `);
+  }
+
+  /**
+   * Reset a slot in an instance to its default content
+   * @param {string} instanceId - The instance ID
+   * @param {string} slotFrameId - The slot frame ID to reset
+   */
+  async resetSlot(instanceId, slotFrameId) {
+    return await this.eval(`
+      (function() {
+        const instance = figma.getNodeById(${JSON.stringify(instanceId)});
+        if (!instance || instance.type !== 'INSTANCE') return { error: 'Instance not found' };
+        const slot = figma.getNodeById(${JSON.stringify(slotFrameId)});
+        if (!slot) return { error: 'Slot frame not found' };
+
+        // Reset overrides on the slot
+        slot.resetOverrides && slot.resetOverrides();
+        return { success: true, instanceId: instance.id, slotId: slot.id };
+      })()
+    `);
+  }
+
+  /**
+   * Clear all content from a slot in an instance
+   * @param {string} instanceId - The instance ID
+   * @param {string} slotFrameId - The slot frame ID to clear
+   */
+  async clearSlot(instanceId, slotFrameId) {
+    return await this.eval(`
+      (function() {
+        const instance = figma.getNodeById(${JSON.stringify(instanceId)});
+        if (!instance || instance.type !== 'INSTANCE') return { error: 'Instance not found' };
+        const slot = figma.getNodeById(${JSON.stringify(slotFrameId)});
+        if (!slot) return { error: 'Slot frame not found' };
+
+        // Remove all children from the slot
+        while (slot.children && slot.children.length > 0) {
+          slot.children[0].remove();
+        }
+        return { success: true, instanceId: instance.id, slotId: slot.id };
+      })()
+    `);
+  }
+
   // ============ Export ============
 
   /**

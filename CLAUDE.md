@@ -18,6 +18,8 @@ CLI that controls Figma Desktop directly for designing OutSystems apps. No API k
 | "what's on canvas" | `node src/index.js canvas info` |
 | "export as PNG/SVG" | `node src/index.js export png` |
 | "convert to component" | `node src/index.js node to-component "ID"` |
+| "add slot to component" | `node src/index.js slot create "compID" "frameID" "SlotName"` |
+| "list slots" | `node src/index.js slot list "compID"` |
 
 **Full command reference:** See REFERENCE.md
 
@@ -283,6 +285,7 @@ When user asks to "create cards", "design buttons", or any OutSystems pattern:
 2. **Convert to component** after creation
 3. **Use OutSystems token variables** for all colors, spacing, and radius
 4. **Follow OS layer naming** (`OS/{Component}/{Variant}/{State}`)
+5. **Add slots** for flexible content areas (e.g., card body, modal content, list items)
 
 ```bash
 # Step 1: Create
@@ -293,6 +296,73 @@ node src/index.js node to-component "ID1" "ID2"
 
 # Step 3: Bind OutSystems variables
 node src/index.js bind fill "--color-primary" -n "ID1"
+
+# Step 4 (optional): Add slots for flexible content areas
+node src/index.js slot create "COMP_ID" "FRAME_ID" "Content"
+```
+
+---
+
+## Slots (Flexible Component Content)
+
+Slots are component properties that create flexible areas within components. Designers can add, remove, and rearrange content in instances without detaching from the main component.
+
+### When to Use Slots
+
+- **Repeating elements** — Task lists, forms, playlists without fixed occurrences
+- **Freeform layouts** — Modals, cards with varying content, flexible content areas
+- **Any component where child content varies** between instances
+
+### Slot Commands
+
+```bash
+# Convert a frame inside a component to a slot
+os-figma slot create "COMP_ID" "FRAME_ID" "SlotName"
+
+# List all slots on a component or instance
+os-figma slot list "COMP_ID"
+
+# Add content to a slot in an instance
+os-figma slot add "INSTANCE_ID" "SLOT_FRAME_ID" "CONTENT_NODE_ID"
+
+# Reset slot to default content
+os-figma slot reset "INSTANCE_ID" "SLOT_FRAME_ID"
+
+# Clear all content from a slot
+os-figma slot clear "INSTANCE_ID" "SLOT_FRAME_ID"
+```
+
+### Slot Workflow Example
+
+```bash
+# 1. Create a card component with a content area
+os-figma render '<Frame name="OS/Card/Slotted" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" overflow="hidden" stroke="var:--color-neutral-5" strokeWidth={1}>
+  <Frame name="OS/Card/Header" w="fill" p={16}>
+    <Text size={18} weight="bold" color="var:--color-neutral-10" w="fill">Card Title</Text>
+  </Frame>
+  <Frame name="OS/Card/Content" flex="col" gap={8} p={16} w="fill" />
+  <Frame name="OS/Card/Footer" flex="row" p={16} gap={8} w="fill" />
+</Frame>'
+
+# 2. Convert to component
+os-figma node to-component "FRAME_ID"
+
+# 3. Make the Content frame a slot
+os-figma slot create "COMP_ID" "CONTENT_FRAME_ID" "Content"
+
+# 4. Make the Footer frame a slot
+os-figma slot create "COMP_ID" "FOOTER_FRAME_ID" "Actions"
+
+# 5. Now instances can have different content in each slot
+```
+
+### Slot Naming Convention
+Follow the OS layer naming pattern for slot frames:
+```
+OS/{Component}/Content     — main content slot
+OS/{Component}/Actions     — action buttons slot
+OS/{Component}/Header      — header content slot
+OS/{Component}/Footer      — footer content slot
 ```
 
 ---

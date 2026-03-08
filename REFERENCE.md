@@ -96,6 +96,20 @@ os-figma render-batch '[
 
 Options: `-d row|col` (direction), `-g <n>` (gap)
 
+## Slots (Flexible Component Content)
+
+```bash
+os-figma slot create "COMP_ID" "FRAME_ID" "SlotName"   # Convert frame to slot
+os-figma slot create "COMP_ID" "FRAME_ID" "Content" --description "Main content area"
+os-figma slot list "COMP_ID"                            # List slots on component
+os-figma slot list "INSTANCE_ID"                        # List slots on instance
+os-figma slot add "INST_ID" "SLOT_ID" "CONTENT_ID"      # Add content to slot
+os-figma slot reset "INST_ID" "SLOT_ID"                 # Reset slot to default
+os-figma slot clear "INST_ID" "SLOT_ID"                 # Clear all slot content
+```
+
+Slots create flexible areas in components where instance content can vary. Use for card bodies, modal content, list items, and any area where child content differs between instances.
+
 ## Modify Elements
 
 ```bash

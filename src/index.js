@@ -4943,6 +4943,190 @@ node
     runFigmaUse(cmd);
   });
 
+// ============ SLOT OPERATIONS ============
+
+const slot = program
+  .command('slot')
+  .description('Slot operations (create, list, add, reset, clear)');
+
+slot
+  .command('create <componentId> <frameId> <name>')
+  .description('Convert a frame inside a component to a slot')
+  .option('--description <text>', 'Slot description')
+  .action(async (componentId, frameId, name, options) => {
+    checkConnection();
+    const code = `
+(function() {
+  const comp = figma.getNodeById(${JSON.stringify(componentId)});
+  if (!comp || comp.type !== 'COMPONENT') return JSON.stringify({ error: 'Component not found' });
+  const frame = figma.getNodeById(${JSON.stringify(frameId)});
+  if (!frame) return JSON.stringify({ error: 'Frame not found' });
+
+  function isDescendant(node, ancestor) {
+    let current = node.parent;
+    while (current) {
+      if (current.id === ancestor.id) return true;
+      current = current.parent;
+    }
+    return false;
+  }
+  if (frame.parent?.id !== comp.id && !isDescendant(frame, comp)) return JSON.stringify({ error: 'Frame is not inside the component' });
+
+  const propName = ${JSON.stringify(name)};
+  comp.addComponentProperty(propName, 'CHILDREN', '');
+
+  const props = comp.componentPropertyDefinitions;
+  let slotKey = null;
+  for (const [key, def] of Object.entries(props)) {
+    if (def.type === 'CHILDREN' && key.startsWith(propName)) {
+      slotKey = key;
+      break;
+    }
+  }
+
+  if (slotKey) {
+    frame.componentPropertyReferences = { ...frame.componentPropertyReferences, children: slotKey };
+  }
+
+  return JSON.stringify({ success: true, slotProperty: slotKey || propName });
+})()`;
+    const raw = await daemonExec('eval', { code });
+    const result = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (result?.error) {
+      console.log(chalk.red('\n\u2717 ' + result.error + '\n'));
+    } else {
+      console.log(chalk.green('\n\u2713 Slot "' + name + '" created'));
+      console.log(chalk.gray('  Component: ' + componentId));
+      console.log(chalk.gray('  Slot frame: ' + frameId));
+      console.log(chalk.gray('  Property: ' + (result?.slotProperty || name) + '\n'));
+    }
+  });
+
+slot
+  .command('list <nodeId>')
+  .description('List slot properties on a component or instance')
+  .action(async (nodeId) => {
+    checkConnection();
+    const code = `
+(function() {
+  const node = figma.getNodeById(${JSON.stringify(nodeId)});
+  if (!node) return JSON.stringify({ error: 'Node not found' });
+
+  const props = node.type === 'COMPONENT'
+    ? node.componentPropertyDefinitions
+    : (node.type === 'INSTANCE' ? node.componentProperties : null);
+
+  if (!props) return JSON.stringify({ error: 'Node is not a component or instance' });
+
+  const slots = [];
+  for (const [key, def] of Object.entries(props)) {
+    if (def.type === 'CHILDREN') {
+      slots.push({
+        key: key,
+        name: key.split('#')[0],
+        type: 'CHILDREN',
+        preferredValues: def.preferredValues || []
+      });
+    }
+  }
+  return JSON.stringify({ name: node.name, slots });
+})()`;
+    const raw = await daemonExec('eval', { code });
+    const result = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (result?.error) {
+      console.log(chalk.red('\n\u2717 ' + result.error + '\n'));
+    } else if (result?.slots?.length === 0) {
+      console.log(chalk.yellow('\n  No slots found on ' + (result?.name || nodeId) + '\n'));
+    } else {
+      console.log(chalk.cyan('\n  Slots on ' + (result?.name || nodeId) + ':'));
+      for (const s of result.slots) {
+        console.log(chalk.white('    \u2022 ' + s.name) + chalk.gray(' (' + s.key + ')'));
+        if (s.preferredValues?.length > 0) {
+          console.log(chalk.gray('      Preferred: ' + s.preferredValues.map(v => v.key || v).join(', ')));
+        }
+      }
+      console.log();
+    }
+  });
+
+slot
+  .command('add <instanceId> <slotFrameId> <contentNodeId>')
+  .description('Add content to a slot in an instance')
+  .action(async (instanceId, slotFrameId, contentNodeId) => {
+    checkConnection();
+    const code = `
+(function() {
+  const instance = figma.getNodeById(${JSON.stringify(instanceId)});
+  if (!instance || instance.type !== 'INSTANCE') return JSON.stringify({ error: 'Instance not found' });
+  const slot = figma.getNodeById(${JSON.stringify(slotFrameId)});
+  if (!slot) return JSON.stringify({ error: 'Slot frame not found' });
+  const content = figma.getNodeById(${JSON.stringify(contentNodeId)});
+  if (!content) return JSON.stringify({ error: 'Content node not found' });
+
+  slot.appendChild(content);
+  return JSON.stringify({ success: true });
+})()`;
+    const raw = await daemonExec('eval', { code });
+    const result = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (result?.error) {
+      console.log(chalk.red('\n\u2717 ' + result.error + '\n'));
+    } else {
+      console.log(chalk.green('\n\u2713 Content added to slot'));
+      console.log(chalk.gray('  Instance: ' + instanceId));
+      console.log(chalk.gray('  Slot: ' + slotFrameId + '\n'));
+    }
+  });
+
+slot
+  .command('reset <instanceId> <slotFrameId>')
+  .description('Reset a slot to default content')
+  .action(async (instanceId, slotFrameId) => {
+    checkConnection();
+    const code = `
+(function() {
+  const instance = figma.getNodeById(${JSON.stringify(instanceId)});
+  if (!instance || instance.type !== 'INSTANCE') return JSON.stringify({ error: 'Instance not found' });
+  const slot = figma.getNodeById(${JSON.stringify(slotFrameId)});
+  if (!slot) return JSON.stringify({ error: 'Slot frame not found' });
+
+  if (slot.resetOverrides) slot.resetOverrides();
+  return JSON.stringify({ success: true });
+})()`;
+    const raw = await daemonExec('eval', { code });
+    const result = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (result?.error) {
+      console.log(chalk.red('\n\u2717 ' + result.error + '\n'));
+    } else {
+      console.log(chalk.green('\n\u2713 Slot reset to default\n'));
+    }
+  });
+
+slot
+  .command('clear <instanceId> <slotFrameId>')
+  .description('Clear all content from a slot')
+  .action(async (instanceId, slotFrameId) => {
+    checkConnection();
+    const code = `
+(function() {
+  const instance = figma.getNodeById(${JSON.stringify(instanceId)});
+  if (!instance || instance.type !== 'INSTANCE') return JSON.stringify({ error: 'Instance not found' });
+  const slot = figma.getNodeById(${JSON.stringify(slotFrameId)});
+  if (!slot) return JSON.stringify({ error: 'Slot frame not found' });
+
+  while (slot.children && slot.children.length > 0) {
+    slot.children[0].remove();
+  }
+  return JSON.stringify({ success: true });
+})()`;
+    const raw = await daemonExec('eval', { code });
+    const result = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (result?.error) {
+      console.log(chalk.red('\n\u2717 ' + result.error + '\n'));
+    } else {
+      console.log(chalk.green('\n\u2713 Slot cleared\n'));
+    }
+  });
+
 // ============ EXPORT (figma-use) ============
 
 program

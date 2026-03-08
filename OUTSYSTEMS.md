@@ -64,8 +64,26 @@ Always specify platform when relevant:
   --target odc-studio          (for ODC Theme CSS)
   --target service-studio      (for O11 Service Studio theme)
 
+## Slots (Flexible Component Content)
+Slots are component properties (type: CHILDREN) that create flexible areas within components.
+Use slots for card bodies, modal content, list items, and any area where child content varies.
+
+Slot commands:
+  os-figma slot create "COMP_ID" "FRAME_ID" "SlotName"
+  os-figma slot list "COMP_ID"
+  os-figma slot add "INST_ID" "SLOT_FRAME_ID" "CONTENT_ID"
+  os-figma slot reset "INST_ID" "SLOT_FRAME_ID"
+  os-figma slot clear "INST_ID" "SLOT_FRAME_ID"
+
+Slot naming convention for OutSystems:
+  OS/{Component}/Content     — main content slot
+  OS/{Component}/Actions     — action buttons slot
+  OS/{Component}/Header      — header content slot
+  OS/{Component}/Footer      — footer content slot
+
 ## Key Rules
 1. Always use OutSystems UI token names, not raw hex values, when creating variables
 2. Mobile frames are 390x844 (iPhone 14 base)
 3. Web frames are 1440x900 (desktop) or 768x1024 (tablet)
 4. Components should be built with Auto-Layout enabled
+5. Use slots for components with variable child content (cards, modals, lists)

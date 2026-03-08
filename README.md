@@ -22,6 +22,7 @@ A CLI that connects directly to Figma Desktop for designing OutSystems apps. No 
 - **OutSystems Patterns** — Scaffold Accordion, Card, Modal, Tabs, and 40+ other OS UI patterns
 - **Screen Templates** — Generate mobile (390×844) and web (1440×900) screens ready for OutSystems
 - **Theme Export** — Export design tokens as CSS variables for ODC or O11 Service Studio
+- **Slots** — Create flexible content areas in components using Figma Slots
 - **Create Anything** — Frames, text, shapes, icons (150k+ from Iconify), components
 - **Team Libraries** — Import and use components, styles, variables from any library
 - **Analyze Designs** — Colors, typography, spacing, find repeated patterns
@@ -268,6 +269,7 @@ Connects to Figma Desktop via Chrome DevTools Protocol (CDP). No API key needed 
 - Text with custom fonts, sizes, weights
 - Icons (150,000+ from Iconify: Lucide, Material Design, Heroicons, etc.)
 - Components from frames, component instances, component sets with variants
+- Slots — flexible content areas in components (add, reset, clear slot content in instances)
 
 ### Export
 
