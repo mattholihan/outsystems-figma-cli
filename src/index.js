@@ -1877,21 +1877,22 @@ return count;
       spinner.succeed(`OS/Spacing (${String(result ?? '8').trim()} variables)`);
     } catch { spinner.fail('OS/Spacing failed'); }
 
-    // ── Border Radius ──
-    const osRadii = {
-      '--border-radius-none': 0, '--border-radius-soft': 4, '--border-radius-rounded': 100
+    // ── Border (Radius + Size) ──
+    const osBorder = {
+      '--border-radius-none': 0, '--border-radius-soft': 4, '--border-radius-rounded': 100,
+      '--border-size-none': 0, '--border-size-s': 1, '--border-size-m': 2, '--border-size-l': 3
     };
 
-    spinner = ora('Creating OS/Border Radius...').start();
-    const radiiCode = `(async () => {
-const radii = ${JSON.stringify(osRadii)};
+    spinner = ora('Creating OS/Border...').start();
+    const borderCode = `(async () => {
+const borders = ${JSON.stringify(osBorder)};
 const cols = await figma.variables.getLocalVariableCollectionsAsync();
-let col = cols.find(c => c.name === 'OS/Border Radius');
-if (!col) col = figma.variables.createVariableCollection('OS/Border Radius');
+let col = cols.find(c => c.name === 'OS/Border');
+if (!col) col = figma.variables.createVariableCollection('OS/Border');
 const modeId = col.modes[0].modeId;
 const existingVars = await figma.variables.getLocalVariablesAsync();
 let count = 0;
-for (const [name, value] of Object.entries(radii)) {
+for (const [name, value] of Object.entries(borders)) {
   let v = existingVars.find(ev => ev.name === name && ev.variableCollectionId === col.id);
   if (!v) {
     v = figma.variables.createVariable(name, col, 'FLOAT');
@@ -1903,20 +1904,20 @@ return count;
 })()`;
 
     try {
-      const result = await fastEval(radiiCode);
-      spinner.succeed(`OS/Border Radius (${String(result ?? '3').trim()} variables)`);
-    } catch { spinner.fail('OS/Border Radius failed'); }
+      const result = await fastEval(borderCode);
+      spinner.succeed(`OS/Border (${String(result ?? '7').trim()} variables)`);
+    } catch { spinner.fail('OS/Border failed'); }
 
     await new Promise(r => setTimeout(r, 100));
 
     console.log(chalk.green('\n  OutSystems design tokens created!\n'));
     console.log(chalk.white('  Collections:'));
-    console.log(chalk.gray('    OS/Colors        - 21 colors (Light/Dark modes)'));
-    console.log(chalk.gray('    OS/Typography    - 14 variables (font sizes + weights)'));
-    console.log(chalk.gray('    OS/Spacing       - 8 variables (none to xxl)'));
-    console.log(chalk.gray('    OS/Border Radius - 3 variables (none, soft, rounded)'));
+    console.log(chalk.gray('    OS/Colors     - 21 colors (Light/Dark modes)'));
+    console.log(chalk.gray('    OS/Typography - 14 variables (font sizes + weights)'));
+    console.log(chalk.gray('    OS/Spacing    - 8 variables (none to xxl)'));
+    console.log(chalk.gray('    OS/Border     - 7 variables (radius: none/soft/rounded + size: none/s/m/l)'));
     console.log();
-    console.log(chalk.gray('  Total: ~46 variables across 4 collections\n'));
+    console.log(chalk.gray('  Total: ~50 variables across 4 collections\n'));
   });
 
 tokens
