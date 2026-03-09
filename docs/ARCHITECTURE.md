@@ -2,43 +2,88 @@
 
 ## How outsystems-figma-cli Works
 
+**Yolo Mode (CDP):**
 ```
-┌─────────────────────┐      Chrome DevTools      ┌─────────────────┐
-│ outsystems-figma-cli│ ◄────── Protocol ───────► │  Figma Desktop  │
-│        (CLI)        │      (localhost:9222)      │                 │
-└─────────────────────┘                            └─────────────────┘
+┌──────────────────────┐      WebSocket (CDP)      ┌─────────────────┐
+│ outsystems-figma-cli │ ◄───────────────────────► │  Figma Desktop  │
+│       (CLI)          │    localhost:9222-9322     │                 │
+└──────────────────────┘      (random port)         └─────────────────┘
+```
+
+**Safe Mode (Plugin):**
+```
+┌──────────────────────┐      WebSocket      ┌─────────────┐    Plugin API    ┌─────────────┐
+│ outsystems-figma-cli │ ◄─────────────────► │   Daemon    │ ◄─────────────► │   Plugin    │
+│       (CLI)          │    localhost:3456   └─────────────┘                  └─────────────┘
+└──────────────────────┘
 ```
 
 ### Technology Stack
 
-1. **Chrome DevTools Protocol (CDP)**: Figma Desktop is an Electron app with a Chromium runtime. We connect via CDP on port 9222.
+1. **Chrome DevTools Protocol (CDP)**: Figma Desktop is an Electron app with a Chromium runtime. We connect via CDP on a random port in the 9222–9322 range (Yolo Mode).
 
-2. **figma-use**: The underlying library that handles CDP connection and JavaScript execution. Our CLI wraps this.
+2. **Speed Daemon**: A local HTTP server (`localhost:3456`) that maintains a persistent connection to Figma, making subsequent commands significantly faster. Started automatically by `os-figma connect`.
 
 3. **Figma Plugin API**: We execute JavaScript against the global `figma` object, which provides full access to the Figma Plugin API.
 
 ### Connection Flow
 
-1. User runs `node src/index.js connect`
-2. CLI patches Figma to enable remote debugging (adds `--remote-debugging-port=9222` flag)
-3. Figma restarts with debugging enabled
-4. CLI connects via WebSocket to `localhost:9222`
-5. Commands are executed as JavaScript in Figma's context
+1. User runs `os-figma connect`
+2. **Yolo Mode**: CLI patches Figma to enable remote debugging, Figma restarts, CLI connects via WebSocket to the CDP port
+3. **Safe Mode**: User starts the FigCli plugin manually; daemon connects via Plugin API over WebSocket on `localhost:3456`
+4. Commands are executed as JavaScript in Figma's context
 
 ### Key Files
 
 ```
-outsystems-figma-cli/
+outsystems-figma-cli/          ← Global CLI tool (installed via npm install -g .)
 ├── src/
-│   ├── index.js          # Main CLI entry point, all commands
-│   └── outsystems.js     # OutSystems-specific constants and helpers
-├── package.json          # npm package config
-├── CLAUDE.md             # AI agent knowledge base (OutSystems conventions)
-├── OUTSYSTEMS.md         # OutSystems design system reference
-├── ARCHITECTURE.md       # This file
-├── README.md             # User documentation
-└── docs/                 # Technical documentation
+│   ├── index.js               # Main CLI entry point, all commands
+│   ├── outsystems-tokens.js   # OutSystems token definitions
+│   └── daemon.js              # Speed daemon for faster command execution
+├── bin/
+│   ├── fig-start              # Figma launcher script
+│   └── setup-alias.sh         # One-time alias setup
+├── package.json               # npm package config (bin: os-figma)
+├── CLAUDE.md                  # AI agent knowledge base (global, all projects)
+├── ARCHITECTURE.md            # This file
+├── README.md                  # User documentation
+└── docs/
+    ├── COMMANDS.md            # Full command reference
+    ├── TECHNIQUES.md          # Advanced patterns
+    ├── FIGJAM.md              # FigJam support
+    └── CLAUDE-SESSION.md      # Session quick reference
+
+project-directory/             ← Per-project files (one per client/project)
+├── tokens.json                # Project-specific token values, synced with Figma
+└── library-config.json        # Figma library connections (Foundations + Components)
 ```
+
+## Project Architecture
+
+The CLI follows a global tool / local project model:
+
+- **Global CLI** — installed once, used across all projects via `os-figma` command
+- **Project config** — each project has its own `tokens.json` and `library-config.json`
+
+### Setting up a new project
+1. Create a project directory
+2. Run `os-figma init` — generates `tokens.json` and `library-config.json`
+3. Run `os-figma tokens pull` — syncs token values from Figma into `tokens.json`
+
+### Token sync flow
+```
+tokens.json  ──── os-figma tokens push ────►  Figma Variables
+tokens.json  ◄─── os-figma tokens pull ────   Figma Variables
+             ◄─── os-figma tokens status ───►  (compare only)
+```
+
+### Two Figma library files
+Each project connects to two separate Figma Team Library files:
+- **Foundations** — colors, typography, spacing, border tokens
+- **Components** — UI patterns (Button, Card, Input, etc.)
+
+Library file names are configured per-project in `library-config.json`.
 
 ### No API Key Required
 
@@ -53,7 +98,8 @@ Unlike the Figma REST API which requires authentication, we use the Plugin API d
 
 This CLI is purpose-built for OutSystems app design. It is aware of:
 
-- **OutSystems UI Kit v2.0** — component and pattern naming conventions
+- **Custom component library** — two-file setup (Foundations + Components) linked as Figma Team Libraries
+- **Project-specific tokens** — token values stored in `tokens.json`, synced bidirectionally with Figma
 - **Design tokens** — OutSystems CSS custom property naming (`--color-primary`, `--space-m`, etc.)
 - **Platform targets** — ODC (OutSystems Developer Cloud) and O11 (OutSystems 11)
 - **Screen sizes** — correct frame dimensions for mobile (390×844), tablet (768×1024), and web (1440×900)
@@ -66,3 +112,5 @@ This CLI is purpose-built for OutSystems app design. It is aware of:
 - Requires Figma Desktop (not web)
 - One Figma instance at a time
 - Some eval commands don't return output (but still execute)
+- Project commands (`tokens pull`, `tokens push`, `tokens status`) must be run from a project directory containing `tokens.json` and `library-config.json`
+- Token values are project-specific — always run `os-figma tokens pull` when switching between projects
