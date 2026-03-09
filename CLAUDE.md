@@ -8,20 +8,48 @@ CLI that controls Figma Desktop directly for designing OutSystems apps. No API k
 
 | User says | Command |
 |-----------|---------|
-| "connect to figma" | `node src/index.js connect` |
-| "create mobile screen" | `node src/index.js render '<Frame name="OS/Screen/Mobile" w={390} h={844} ...'` |
-| "create web screen" | `node src/index.js render '<Frame name="OS/Screen/Web" w={1440} h={900} ...'` |
-| "add OutSystems tokens" | `node src/index.js tokens preset` |
-| "show colors on canvas" | `node src/index.js var visualize` |
-| "list variables" | `node src/index.js var list` |
-| "find nodes named X" | `node src/index.js find "X"` |
-| "what's on canvas" | `node src/index.js canvas info` |
-| "export as PNG/SVG" | `node src/index.js export png` |
-| "convert to component" | `node src/index.js node to-component "ID"` |
-| "add slot to component" | `node src/index.js slot create "compID" "frameID" "SlotName"` |
-| "list slots" | `node src/index.js slot list "compID"` |
+| "start a new project" | `os-figma init` |
+| "connect to figma" | `os-figma connect` |
+| "sync tokens from figma" | `os-figma tokens pull` |
+| "push tokens to figma" | `os-figma tokens push` |
+| "check token sync status" | `os-figma tokens status` |
+| "add outsystems tokens" | `os-figma tokens preset` |
+| "create mobile screen" | `os-figma render '<Frame name="OS/Screen/Mobile" w={390} h={844} ...'` |
+| "create web screen" | `os-figma render '<Frame name="OS/Screen/Web" w={1440} h={900} ...'` |
+| "show colors on canvas" | `os-figma var visualize` |
+| "list variables" | `os-figma var list` |
+| "find nodes named X" | `os-figma find "X"` |
+| "what's on canvas" | `os-figma canvas info` |
+| "export as PNG/SVG" | `os-figma export png` |
+| "convert to component" | `os-figma node to-component "ID"` |
+| "add slot to component" | `os-figma slot create "compID" "frameID" "SlotName"` |
+| "list slots" | `os-figma slot list "compID"` |
 
 **Full command reference:** See REFERENCE.md
+
+---
+
+## Project Setup
+
+Each project has its own configuration. Always run os-figma commands from the project directory.
+
+### New project
+```bash
+os-figma init                  # creates tokens.json and library-config.json
+os-figma tokens pull           # syncs token values from Figma
+```
+
+### Project files
+- `tokens.json` — project-specific token values, synced with Figma
+- `library-config.json` — Figma library connections (Foundations + Components)
+
+### Token workflow
+```bash
+os-figma tokens pull           # Figma → tokens.json (after manual Figma edits)
+os-figma tokens push           # tokens.json → Figma (after local edits)
+os-figma tokens status         # check for drift between tokens.json and Figma
+os-figma tokens preset         # first-time setup only — creates token collections in Figma
+```
 
 ---
 
@@ -30,97 +58,101 @@ CLI that controls Figma Desktop directly for designing OutSystems apps. No API k
 OutSystems uses CSS custom properties as design tokens. Always use these variable names
 (not raw hex values) when creating variables or binding to nodes.
 
+Token values are project-specific and stored in `tokens.json` in each project directory.
+Run `os-figma tokens pull` to sync current values from Figma.
+Run `os-figma tokens status` to check if tokens are in sync.
+
 ### Color
 
 #### Brand Palette
 ```
---color-primary						Main brand color (default: #1068EB)
---color-secondary					Secondary brand color (default: #303D60)
+--color-primary						Main brand color
+--color-secondary					Secondary brand color
 ```
 #### Neutral Palette
 ```
---color-neutral-0					White (#FFFFFF)
---color-neutral-1					(#F8F9FA)
---color-neutral-2					(#F1F3F5)
---color-neutral-3					(#E9ECEF)
---color-neutral-4					(#DEE2E6)
---color-neutral-5					(#CED4DA)
---color-neutral-6					(#ADB5BD)
---color-neutral-7					(#6A7178)
---color-neutral-8					(#4F575E)
---color-neutral-9					(#272B30)
---color-neutral-10				Black (#101213)
+--color-neutral-0					White
+--color-neutral-1
+--color-neutral-2
+--color-neutral-3
+--color-neutral-4
+--color-neutral-5
+--color-neutral-6
+--color-neutral-7
+--color-neutral-8
+--color-neutral-9
+--color-neutral-10				Black
 ```
 #### Semantic Palette
 ```
---color-info							(#017AAD)
---color-info-light				(#E5F5FC)
---color-success						(#29823B)
---color-success-light			(#EAF3EB)
---color-warning						(#E9A100)
---color-warning-light			(#FDF6E5)
---color-error							(#DC2020)
---color-error-light				(#FCEAEA)
+--color-info
+--color-info-light
+--color-success
+--color-success-light
+--color-warning
+--color-warning-light
+--color-error
+--color-error-light
 ```
 
 ### Typography
 
 #### Font Size
 ```
---font-size-display		36px
---font-size-h1				32px
---font-size-h2				28px
---font-size-h3				26px
---font-size-h4				22px
---font-size-h5				20px
---font-size-h6				18px
---font-size-base			16px
---font-size-s					14px
---font-size-xs				12px
+--font-size-display
+--font-size-h1
+--font-size-h2
+--font-size-h3
+--font-size-h4
+--font-size-h5
+--font-size-h6
+--font-size-base
+--font-size-s
+--font-size-xs
 ```
 #### Font Weight
 ```
---font-light					300
---font-regular				400
---font-semi-bold			600
---font-bold						700
+--font-light
+--font-regular
+--font-semi-bold
+--font-bold
 ```
 
 ### Border
 
 #### Border Radius
 ```
---border-radius-none			0px
---border-radius-soft			4px
---border-radius-rounded		100px
+--border-radius-none
+--border-radius-soft
+--border-radius-rounded
 ```
 #### Border Sizes
 ```
---border-size-none		0px
---border-size-s				1px
---border-size-m				2px
---border-size-l				3px
+--border-size-none
+--border-size-s
+--border-size-m
+--border-size-l
 ```
 
 ### Spacing
 ```
---space-none		0px
---space-xs			4px
---space-s				8px
---space-base		16px
---space-m				24px
---space-l				32px
---space-xl			40px
---space-xxl			48px
+--space-none
+--space-xs
+--space-s
+--space-base
+--space-m
+--space-l
+--space-xl
+--space-xxl
 ```
 
 ### Fast Variable Binding (var: syntax)
 Use `var:name` syntax to bind OutSystems tokens directly at creation time:
 
 ```bash
-node src/index.js create rect "Card" --fill "var:--color-neutral-0" --stroke "var:--color-neutral-4"
-node src/index.js create frame "Section" --fill "var:--color-primary"
-node src/index.js create text "Label" -c "var:--color-neutral-10"
+os-figma create rect "Card" --fill "var:--color-neutral-0" --stroke "var:--color-neutral-4"
+os-figma create frame "Section" --fill "var:--color-primary"
+os-figma create text "Label" -c "var:--color-neutral-10"
 ```
 
 ```jsx
@@ -130,27 +162,6 @@ node src/index.js create text "Label" -c "var:--color-neutral-10"
     <Text color="var:--color-neutral-0">Button</Text>
   </Frame>
 </Frame>
-```
-
----
-
-## OutSystems Fallback Colors (when no variables present)
-
-Use these defaults if no variable collections exist in the file:
-
-```javascript
-const colors = {
-  primary:				{ r: 0.06, g: 0.41, b: 0.92 },	// #1068EB
-  secondary:			{ r: 0.19, g: 0.24, b: 0.38 },	// #303D60
-  neutral0:				{ r: 1.00, g: 1.00, b: 1.00 },	// #FFFFFF
-  neutral1:				{ r: 0.97, g: 0.98, b: 0.98 },	// #F8F9FA
-  neutral5:				{ r: 0.81, g: 0.83, b: 0.85 },	// #CED4DA
-  neutral10:			{ r: 0.06, g: 0.07, b: 0.07 },	// #101213
-  info:						{ r: 0.00, g: 0.48, b: 0.68 },	// #017AAD
-  success:				{ r: 0.16, g: 0.51, b: 0.23 },	// #29823B
-  warning:				{ r: 0.91, g: 0.63, b: 0.00 },	// #E9A100
-  error:					{ r: 0.86, g: 0.13, b: 0.13 },	// #DC2020
-};
 ```
 
 ---
@@ -208,7 +219,7 @@ Each pattern should be built as a component using OutSystems token variables.
 
 ### Example — OutSystems Card pattern
 ```bash
-node src/index.js render '<Frame name="OS/Card/Default" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" overflow="hidden" stroke="var:--color-neutral-5" strokeWidth={1}>
+os-figma render '<Frame name="OS/Card/Default" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" overflow="hidden" stroke="var:--color-neutral-5" strokeWidth={1}>
   <Frame name="OS/Card/Image" w="fill" h={160} bg="var:--color-neutral-1" />
   <Frame name="OS/Card/Content" flex="col" gap={8} p={16} w="fill">
     <Text name="OS/Card/Title" size={18} weight="bold" color="var:--color-neutral-10" w="fill">Card Title</Text>
@@ -231,15 +242,6 @@ Always ask or check which platform the user is designing for:
 ```
 --platform odc        OutSystems Developer Cloud (modern, recommended)
 --platform o11        OutSystems 11 / Service Studio (classic)
-```
-
-CSS export targets:
-```bash
-# ODC Theme CSS
-node src/index.js tokens export --target odc-studio
-
-# O11 Service Studio theme
-node src/index.js tokens export --target service-studio
 ```
 
 ---
@@ -265,13 +267,13 @@ Always ask for platform (ODC or O11) and device (mobile or web) first if not spe
 ### Yolo Mode (Recommended)
 Patches Figma once, then connects directly. Fully automatic.
 ```bash
-node src/index.js connect
+os-figma connect
 ```
 
 ### Safe Mode
 Uses plugin, no Figma modification. Start plugin each session.
 ```bash
-node src/index.js connect --safe
+os-figma connect --safe
 ```
 Then: Plugins → Development → FigCli
 
@@ -283,22 +285,22 @@ When user asks to "create cards", "design buttons", or any OutSystems pattern:
 
 1. **Each component = separate frame** (NOT inside parent gallery)
 2. **Convert to component** after creation
-3. **Use OutSystems token variables** for all colors, spacing, and radius
+3. **Use OutSystems token variables** for all colors, spacing, and radius — variable names come from `tokens.json`
 4. **Follow OS layer naming** (`OS/{Component}/{Variant}/{State}`)
 5. **Add slots** for flexible content areas (e.g., card body, modal content, list items)
 
 ```bash
 # Step 1: Create
-node src/index.js render-batch '[...]'
+os-figma render-batch '[...]'
 
 # Step 2: Convert to component
-node src/index.js node to-component "ID1" "ID2"
+os-figma node to-component "ID1" "ID2"
 
 # Step 3: Bind OutSystems variables
-node src/index.js bind fill "--color-primary" -n "ID1"
+os-figma bind fill "--color-primary" -n "ID1"
 
 # Step 4 (optional): Add slots for flexible content areas
-node src/index.js slot create "COMP_ID" "FRAME_ID" "Content"
+os-figma slot create "COMP_ID" "FRAME_ID" "Content"
 ```
 
 ---
@@ -448,7 +450,7 @@ fontWeight="bold"    →  weight="bold"
 
 1. **Always use OutSystems token variable names**, not raw hex values
 2. **Always follow OS layer naming** — `OS/{Component}/{Variant}/{State}`
-3. **Always confirm platform** (ODC or O11) before exporting CSS
+3. **Always confirm platform** (ODC or O11) — affects screen sizes, component structure, and future CSS export
 4. **Always use `render` for frames** — has smart positioning
 5. **Never use `eval` to create** — no positioning, overlaps at (0,0)
 6. **For multiple frames:** Use `render-batch`
@@ -460,9 +462,9 @@ fontWeight="bold"    →  weight="bold"
 
 **Never show terminal commands to users.** Run silently, give friendly feedback.
 
-1. Run `npm install` silently
-2. Ask connection mode (Yolo or Safe)
-3. Run `node src/index.js connect` (or `--safe`)
+1. Run `os-figma connect` (Yolo or Safe mode)
+2. Run `os-figma init` to set up project files
+3. Run `os-figma tokens pull` to sync tokens from Figma
 4. Ask: ODC or O11? Mobile or Web?
 5. When connected, say: "Connected! What OutSystems screen or component would you like to design?"
 
@@ -475,6 +477,6 @@ If permission error (macOS): System Settings → Privacy → Full Disk Access �
 `connect` auto-starts daemon for faster commands.
 
 ```bash
-node src/index.js daemon status
-node src/index.js daemon restart
+os-figma daemon status
+os-figma daemon restart
 ```
