@@ -51,6 +51,36 @@ os-figma tokens status
 
 ---
 
+## Pattern Components
+
+```bash
+# Scan the current Figma document for component keys and save to library-config.json
+# Run once after opening a file that contains your library components
+# Re-run if the library is updated
+os-figma pattern scan
+
+# List all components saved in library-config.json (no Figma connection required)
+os-figma pattern list
+
+# Add a component instance to the canvas (placed at viewport centre by default)
+os-figma pattern add Button
+
+# Add with a specific variant
+os-figma pattern add Button --variant Primary
+
+# Add with variant and state
+os-figma pattern add Button --variant Primary --state Hover
+
+# Add at a specific position
+os-figma pattern add Card --x 100 --y 200
+```
+
+> **First-time setup:** Run `os-figma pattern scan` once with your component library
+> file open in Figma. This saves component keys to `library-config.json`. Re-run
+> after any library updates.
+
+---
+
 ## Variables
 
 ```bash

@@ -6025,4 +6025,224 @@ program
     console.log();
   });
 
+// ============ PATTERN ============
+
+const pattern = program
+  .command('pattern')
+  .description('OutSystems UI pattern operations (scan, list, add)');
+
+// Helper: load library-config.json from cwd
+function loadLibraryConfig() {
+  const configPath = join(process.cwd(), 'library-config.json');
+  if (!existsSync(configPath)) {
+    console.log(chalk.red('\n✗ No library-config.json found. Run ') + chalk.cyan('os-figma init') + chalk.red(' first.\n'));
+    process.exit(1);
+  }
+  try {
+    return JSON.parse(readFileSync(configPath, 'utf8'));
+  } catch {
+    console.log(chalk.red('\n✗ Could not parse library-config.json — run ') + chalk.cyan('os-figma init') + chalk.red(' to recreate it.\n'));
+    process.exit(1);
+  }
+}
+
+pattern
+  .command('scan')
+  .description('Scan the current Figma document for components and save keys to library-config.json')
+  .action(async () => {
+    loadLibraryConfig(); // validates library-config.json exists
+
+    await checkConnection();
+
+    const spinner = ora('Scanning document for components...').start();
+
+    const code = `(function() {
+  var sets = figma.root.findAllWithCriteria({ types: ['COMPONENT_SET'] });
+  var standalone = figma.root.findAllWithCriteria({ types: ['COMPONENT'] })
+    .filter(function(n) { return !n.parent || n.parent.type !== 'COMPONENT_SET'; });
+  var results = {};
+  sets.forEach(function(s) { results[s.name] = s.key; });
+  standalone.forEach(function(c) { results[c.name] = c.key; });
+  return JSON.stringify(results);
+})()`;
+
+    let raw;
+    try {
+      raw = await fastEval(code);
+    } catch (err) {
+      spinner.fail('Failed to scan components from Figma');
+      console.error(chalk.red(err.message));
+      process.exit(1);
+    }
+
+    const scanned = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const count = Object.keys(scanned || {}).length;
+
+    if (!count) {
+      spinner.warn('No components found — open a file that contains the library components and try again.');
+      process.exit(0);
+    }
+
+    // Merge into library-config.json
+    const configPath = join(process.cwd(), 'library-config.json');
+    const libConfig = JSON.parse(readFileSync(configPath, 'utf8'));
+    libConfig.components = scanned;
+    writeFileSync(configPath, JSON.stringify(libConfig, null, 2) + '\n');
+
+    spinner.succeed(`Scanned ${count} component${count !== 1 ? 's' : ''} — saved to library-config.json`);
+  });
+
+pattern
+  .command('list')
+  .description('List all scanned components from library-config.json')
+  .action(() => {
+    const libConfig = loadLibraryConfig();
+
+    if (!libConfig.components || Object.keys(libConfig.components).length === 0) {
+      console.log(chalk.yellow('\n  No components indexed yet.\n'));
+      console.log(chalk.white('  Run ') + chalk.cyan('os-figma pattern scan') + chalk.white(' to index components from the current Figma document.\n'));
+      process.exit(0);
+    }
+
+    const names = Object.keys(libConfig.components).sort();
+    console.log(chalk.white(`\nComponents (${names.length}):\n`));
+    for (const name of names) {
+      console.log(chalk.cyan(`  ${name}`));
+    }
+    console.log();
+  });
+
+pattern
+  .command('add <PatternName>')
+  .description('Insert a component instance by name using keys from library-config.json')
+  .option('--variant <name>', 'Component variant (e.g. Primary)')
+  .option('--state <name>', 'Component state (e.g. Default, Hover, Disabled)')
+  .option('--x <number>', 'X position on canvas', parseFloat)
+  .option('--y <number>', 'Y position on canvas', parseFloat)
+  .action(async (patternName, options) => {
+    const libConfig = loadLibraryConfig();
+    const componentsLib = libConfig?.libraries?.components;
+
+    if (!libConfig.components || Object.keys(libConfig.components).length === 0) {
+      console.log(chalk.red('\n✗ No components indexed.\n'));
+      console.log(chalk.white('  Run ') + chalk.cyan('os-figma pattern scan') + chalk.white(' to index components from the current Figma document.\n'));
+      process.exit(1);
+    }
+
+    // Case-insensitive lookup
+    const target = patternName.toLowerCase();
+    const matchedName = Object.keys(libConfig.components).find(k => k.toLowerCase() === target);
+
+    if (!matchedName) {
+      console.log(chalk.red(`\n✗ Component "${patternName}" not found.\n`));
+      console.log(chalk.white('  Run ') + chalk.cyan('os-figma pattern scan') + chalk.white(' to update your component index.\n'));
+      process.exit(1);
+    }
+
+    const componentKey = libConfig.components[matchedName];
+
+    await checkConnection();
+
+    const spinner = ora(`Adding ${matchedName}...`).start();
+
+    const wantVariant = options.variant || null;
+    const wantState = options.state || null;
+
+    const code = `(async function() {
+  var key = ${JSON.stringify(componentKey)};
+  var wantVariant = ${JSON.stringify(wantVariant)};
+  var wantState = ${JSON.stringify(wantState)};
+
+  async function loadInstanceFonts(inst) {
+    var fontNodes = inst.findAll(function(n) { return n.type === 'TEXT'; });
+    var seen = new Set();
+    var uniqueFonts = [];
+    fontNodes.forEach(function(n) {
+      var key = n.fontName.family + '|' + n.fontName.style;
+      if (!seen.has(key)) { seen.add(key); uniqueFonts.push(n.fontName); }
+    });
+    await Promise.all(uniqueFonts.map(function(f) { return figma.loadFontAsync(f); }));
+  }
+
+  var componentSet;
+  try {
+    componentSet = await figma.importComponentSetByKeyAsync(key);
+  } catch (e) {
+    // May be a standalone component, not a set
+    try {
+      var comp = await figma.importComponentByKeyAsync(key);
+      var inst = comp.createInstance();
+      await loadInstanceFonts(inst);
+      var hasX = ${options.x !== undefined};
+      var hasY = ${options.y !== undefined};
+      if (hasX) { inst.x = ${options.x !== undefined ? options.x : 0}; }
+      else { var vb = figma.viewport.bounds; inst.x = vb.x + vb.width / 2 - inst.width / 2; }
+      if (hasY) { inst.y = ${options.y !== undefined ? options.y : 0}; }
+      else { var vb2 = figma.viewport.bounds; inst.y = vb2.y + vb2.height / 2 - inst.height / 2; }
+      figma.currentPage.appendChild(inst);
+      figma.currentPage.selection = [inst];
+      figma.viewport.scrollAndZoomIntoView([inst]);
+      return { componentName: comp.name, variantName: null };
+    } catch (e2) {
+      return { error: e2.message };
+    }
+  }
+
+  // Pick the right variant from the component set
+  var variant;
+  if (wantVariant || wantState) {
+    variant = componentSet.children.find(function(v) {
+      var vname = v.name.toLowerCase();
+      var hasVariant = wantVariant ? vname.indexOf(wantVariant.toLowerCase()) !== -1 : true;
+      var hasState = wantState ? vname.indexOf(wantState.toLowerCase()) !== -1 : true;
+      return hasVariant && hasState;
+    });
+    if (!variant) return { error: 'variant_not_found', setName: componentSet.name };
+  } else {
+    variant = componentSet.defaultVariant || componentSet.children[0];
+  }
+
+  var instance = variant.createInstance();
+  await loadInstanceFonts(instance);
+  var hasX = ${options.x !== undefined};
+  var hasY = ${options.y !== undefined};
+  if (hasX) { instance.x = ${options.x !== undefined ? options.x : 0}; }
+  else { var b = figma.viewport.bounds; instance.x = b.x + b.width / 2 - instance.width / 2; }
+  if (hasY) { instance.y = ${options.y !== undefined ? options.y : 0}; }
+  else { var b2 = figma.viewport.bounds; instance.y = b2.y + b2.height / 2 - instance.height / 2; }
+
+  figma.currentPage.appendChild(instance);
+  figma.currentPage.selection = [instance];
+  figma.viewport.scrollAndZoomIntoView([instance]);
+  return { componentName: componentSet.name, variantName: variant.name };
+})()`;
+
+    let result;
+    try {
+      result = await fastEval(code);
+    } catch (err) {
+      spinner.fail('Failed to add component');
+      console.error(chalk.red(err.message));
+      process.exit(1);
+    }
+
+    if (result?.error === 'variant_not_found') {
+      const variantDesc = [wantVariant, wantState].filter(Boolean).join(', ');
+      spinner.fail(`Variant not found: "${variantDesc}" in component "${result.setName}"`);
+      console.log(chalk.gray('  Run ') + chalk.cyan('os-figma pattern list') + chalk.gray(' to see available patterns.\n'));
+      process.exit(1);
+    }
+
+    if (result?.error) {
+      spinner.fail(`Failed to import component: ${result.error}`);
+      process.exit(1);
+    }
+
+    const displayName = result.variantName
+      ? `${result.componentName} (${result.variantName})`
+      : result.componentName;
+    const fromLib = componentsLib ? ` from ${componentsLib}` : '';
+    spinner.succeed(`Added ${displayName}${fromLib}`);
+  });
+
 program.parse();
