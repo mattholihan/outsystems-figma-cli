@@ -10,6 +10,9 @@ Full command reference. For quick start, see CLAUDE.md.
 os-figma tokens preset                   # Create all OutSystems token collections
 os-figma tokens spacing                  # OutSystems spacing tokens only
 os-figma tokens radii                    # OutSystems border radius tokens only
+os-figma tokens pull                     # Pull token values from Figma → tokens.json
+os-figma tokens push                     # Push tokens.json values → Figma variables
+os-figma tokens status                   # Compare tokens.json against Figma (read-only)
 ```
 
 ### Manage Variables
@@ -251,6 +254,7 @@ Shape types: `ROUNDED_RECTANGLE`, `RECTANGLE`, `ELLIPSE`, `DIAMOND`, `TRIANGLE_U
 ## Daemon & Connection
 
 ```bash
+os-figma init                            # Initialise project (tokens.json + library-config.json)
 os-figma connect                         # Connect (Yolo Mode)
 os-figma connect --safe                  # Connect (Safe Mode, plugin)
 os-figma daemon status                   # Check daemon status
