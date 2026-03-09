@@ -1,5 +1,7 @@
 # Advanced Techniques
 
+> 💡 Token values (colors, spacing, screen dimensions) are project-specific. Always check `tokens.json` in your project directory, or run `os-figma tokens pull` to sync before a session.
+
 ## Variable Mode Switching (Library Variables)
 
 The biggest challenge: switching variable modes (Light/Dark) when variables come from an external library.
@@ -92,6 +94,7 @@ node.y = oldTop;
 ### Scale and Center in an OutSystems Screen Frame
 
 ```javascript
+// Screen dimensions are OutSystems standards — confirm against your tokens.json if overridden
 // Mobile (390×844)
 const frameW = 390, frameH = 844;
 
