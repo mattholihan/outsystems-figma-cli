@@ -2221,52 +2221,6 @@ return result;
     };
     writeFileSync(tokensPath, JSON.stringify(updatedTokens, null, 2) + '\n');
 
-    // Update CLAUDE.md in CLI root
-    const claudeMdPath = join(__dirname, '..', 'CLAUDE.md');
-    let claudeUpdated = false;
-    if (existsSync(claudeMdPath)) {
-      try {
-        // Build flat token map: tokenName -> { type, value }
-        const flatTokens = new Map();
-        for (const groups of Object.values(newCollections)) {
-          for (const tokens of Object.values(groups)) {
-            for (const [name, data] of Object.entries(tokens)) {
-              flatTokens.set(name, data);
-            }
-          }
-        }
-
-        let claudeContent = readFileSync(claudeMdPath, 'utf8');
-        const updatedLines = claudeContent.split('\n').map(line => {
-          const trimmed = line.trimStart();
-          if (!trimmed.startsWith('--')) return line;
-          const nameMatch = trimmed.match(/^(--[\w-]+)/);
-          if (!nameMatch) return line;
-          const tokenName = nameMatch[1];
-          const token = flatTokens.get(tokenName);
-          if (!token || token.value === null) return line;
-
-          if (token.type === 'COLOR') {
-            return line.replace(/#[0-9A-Fa-f]{6}/g, token.value);
-          } else if (token.type === 'FLOAT') {
-            return line.replace(/(\d+(?:\.\d+)?)(px)?(\s*)$/, (_, _n, px, ws) => {
-              const num = Number.isInteger(token.value) ? token.value : parseFloat(token.value.toFixed(2));
-              return `${num}${px || ''}${ws}`;
-            });
-          }
-          return line;
-        });
-
-        const newClaudeContent = updatedLines.join('\n');
-        if (newClaudeContent !== claudeContent) {
-          writeFileSync(claudeMdPath, newClaudeContent);
-          claudeUpdated = true;
-        }
-      } catch {
-        // CLAUDE.md update is best-effort; don't abort
-      }
-    }
-
     spinner.succeed('Tokens pulled from Figma');
 
     console.log(chalk.green('\n  ✔ Tokens pulled from Figma\n'));
@@ -2275,11 +2229,151 @@ return result;
     console.log(`  Last sync:          ${chalk.gray(now)}`);
     console.log();
     console.log(`  ${chalk.cyan('tokens.json')} updated`);
-    if (claudeUpdated) console.log(`  ${chalk.cyan('CLAUDE.md')} updated`);
 
     if (newTokens.length > 0) {
       console.log(chalk.yellow(`\n  ⚠ New tokens found in Figma (not in tokens.json):`));
       for (const t of newTokens) {
+        console.log(chalk.gray(`    - ${t}`));
+      }
+    }
+
+    console.log();
+  });
+
+tokens
+  .command('push')
+  .description('Push local token values from tokens.json to Figma variables')
+  .action(async () => {
+    const cwd = process.cwd();
+    const libraryConfigPath = join(cwd, 'library-config.json');
+    const tokensPath = join(cwd, 'tokens.json');
+
+    // Guard: require project files
+    if (!existsSync(libraryConfigPath) || !existsSync(tokensPath)) {
+      console.log(chalk.red('\n✗ Project files not found.\n'));
+      console.log(chalk.white('  Run ') + chalk.cyan('os-figma init') + chalk.white(' first to set up this project.\n'));
+      process.exit(1);
+    }
+
+    // Read tokens.json
+    let tokensData;
+    try {
+      tokensData = JSON.parse(readFileSync(tokensPath, 'utf8'));
+    } catch {
+      console.log(chalk.red('✗ Could not parse tokens.json — run os-figma init to recreate it.'));
+      process.exit(1);
+    }
+
+    // Guard: require non-empty collections
+    const collectionEntries = Object.entries(tokensData.collections || {});
+    if (collectionEntries.length === 0) {
+      console.log(chalk.red('\n✗ No tokens found in tokens.json.\n'));
+      console.log(chalk.white('  Run ') + chalk.cyan('os-figma tokens pull') + chalk.white(' first.\n'));
+      process.exit(1);
+    }
+
+    // Check Figma connection
+    const spinner = ora('Connecting to Figma...').start();
+    try {
+      await checkConnection();
+      spinner.text = 'Pushing tokens to Figma...';
+    } catch {
+      spinner.fail('Not connected to Figma — run os-figma connect first');
+      process.exit(1);
+    }
+
+    // Flatten tokens.json into a push list
+    const pushTokens = [];
+    for (const [colName, groups] of collectionEntries) {
+      for (const [groupName, tokens] of Object.entries(groups)) {
+        for (const [tokenName, tokenData] of Object.entries(tokens)) {
+          if (tokenData.value === null || tokenData.value === undefined) continue;
+          pushTokens.push({
+            colName,
+            varName: `${groupName}/${tokenName}`,
+            tokenName,
+            type: tokenData.type,
+            value: tokenData.value,
+          });
+        }
+      }
+    }
+
+    // Figma eval: find variables by suffix match and update values
+    const pushCode = `(async () => {
+function hexToRgb(hex) {
+  const r = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);
+  return r ? { r: parseInt(r[1], 16) / 255, g: parseInt(r[2], 16) / 255, b: parseInt(r[3], 16) / 255, a: 1 } : null;
+}
+const pushTokens = ${JSON.stringify(pushTokens)};
+const collections = await figma.variables.getLocalVariableCollectionsAsync();
+if (!collections || collections.length === 0) return { updated: 0, notFound: [], error: 'no_collections' };
+const allVars = await figma.variables.getLocalVariablesAsync();
+if (!allVars || allVars.length === 0) return { updated: 0, notFound: [], error: 'no_variables' };
+const colMap = {};
+for (const col of collections) colMap[col.id] = col;
+
+let updated = 0;
+const notFound = [];
+for (const t of pushTokens) {
+  const variable = allVars.find(v =>
+    v.name === t.varName ||
+    v.name.endsWith('/' + t.tokenName) ||
+    v.name === t.tokenName
+  );
+  if (!variable) {
+    notFound.push(t.colName + ' / ' + t.varName);
+    continue;
+  }
+  const col = colMap[variable.variableCollectionId];
+  if (!col) continue;
+  const modeId = col.modes[0].modeId;
+  try {
+    const figmaValue = t.type === 'COLOR' ? hexToRgb(t.value) : t.value;
+    if (figmaValue !== null && figmaValue !== undefined) {
+      variable.setValueForMode(modeId, figmaValue);
+      updated++;
+    }
+  } catch (e) {
+    notFound.push(t.colName + ' / ' + t.varName + ' (error: ' + e.message + ')');
+  }
+}
+return { updated, notFound };
+})()`;
+
+    let figmaResult;
+    try {
+      figmaResult = await fastEval(pushCode);
+    } catch (err) {
+      spinner.fail('Failed to push tokens to Figma');
+      console.error(chalk.red(err.message));
+      process.exit(1);
+    }
+
+    if (figmaResult?.error === 'no_collections' || figmaResult?.error === 'no_variables') {
+      spinner.fail('No variables found in Figma — run os-figma tokens preset first');
+      process.exit(1);
+    }
+
+    const { updated = 0, notFound = [] } = figmaResult || {};
+    const now = new Date().toISOString();
+
+    // Update tokens.json lastSync + source
+    tokensData.lastSync = now;
+    tokensData.source = 'local';
+    writeFileSync(tokensPath, JSON.stringify(tokensData, null, 2) + '\n');
+
+    spinner.succeed('Tokens pushed to Figma');
+
+    console.log(chalk.green('\n  ✔ Tokens pushed to Figma\n'));
+    console.log(`  Tokens updated: ${chalk.bold(updated)}`);
+    console.log(`  Last sync:      ${chalk.gray(now)}`);
+    console.log();
+    console.log(`  ${chalk.cyan('tokens.json')} updated`);
+
+    if (notFound.length > 0) {
+      console.log(chalk.yellow(`\n  ⚠ Tokens in tokens.json not found in Figma:`));
+      for (const t of notFound) {
         console.log(chalk.gray(`    - ${t}`));
       }
     }
