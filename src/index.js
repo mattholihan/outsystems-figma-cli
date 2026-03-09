@@ -754,11 +754,11 @@ function showBanner() {
   console.log(chalk.gray(`  OutSystems app design tools for Figma\n`));
 }
 
-// ============ INIT (Interactive Onboarding) ============
+// ============ WIZARD (Interactive Onboarding) ============
 
 program
-  .command('init')
-  .description('Interactive setup wizard')
+  .command('wizard')
+  .description('Interactive setup wizard (connect CLI to Figma Desktop)')
   .action(async () => {
     showBanner();
 
@@ -851,14 +851,13 @@ program
     console.log();
   });
 
-// ============ SETUP (alias for init) ============
+// ============ SETUP (alias for wizard) ============
 
 program
   .command('setup')
-  .description('Setup Figma for CLI access (alias for init)')
+  .description('Setup Figma for CLI access (alias for wizard)')
   .action(() => {
-    // Redirect to init
-    execSync('outsystems-figma-cli init', { stdio: 'inherit' });
+    execSync('outsystems-figma-cli wizard', { stdio: 'inherit' });
   });
 
 // ============ STATUS ============
@@ -5444,6 +5443,84 @@ program
       console.error(JSON.stringify({ error: error.message }));
       process.exit(1);
     }
+  });
+
+// ============ INIT (Project Initialisation) ============
+
+program
+  .command('init')
+  .description('Initialise a new OutSystems Figma project in the current directory')
+  .action(async () => {
+    const cwd = process.cwd();
+    const defaultProjectName = cwd.split('/').pop() || cwd.split('\\').pop() || 'my-project';
+
+    console.log(chalk.bold('\n  Initialise OutSystems Figma Project\n'));
+
+    // Prompt: project name
+    const rawName = await prompt(chalk.white(`  Project name `) + chalk.gray(`(${defaultProjectName}): `));
+    const projectName = rawName.trim() || defaultProjectName;
+
+    // Prompt: foundations library
+    const rawFoundations = await prompt(chalk.white('  Foundations library name: '));
+    const foundationsLib = rawFoundations.trim();
+
+    // Prompt: components library
+    const rawComponents = await prompt(chalk.white('  Components library name: '));
+    const componentsLib = rawComponents.trim();
+
+    // Prompt: platform
+    console.log(chalk.white('\n  Platform:'));
+    console.log(chalk.gray('    1) ODC  — OutSystems Developer Cloud (default)'));
+    console.log(chalk.gray('    2) O11  — OutSystems 11 / Service Studio'));
+    const rawPlatform = await prompt(chalk.white('  Select [1/2]: '));
+    const platform = rawPlatform.trim() === '2' ? 'O11' : 'ODC';
+
+    // Check for existing files
+    const libraryConfigPath = join(cwd, 'library-config.json');
+    const tokensPath = join(cwd, 'tokens.json');
+
+    for (const [label, filePath] of [['library-config.json', libraryConfigPath], ['tokens.json', tokensPath]]) {
+      if (existsSync(filePath)) {
+        const rawOverwrite = await prompt(chalk.yellow(`\n  ${label} already exists. Overwrite? `) + chalk.gray('(y/N): '));
+        if (rawOverwrite.trim().toLowerCase() !== 'y') {
+          console.log(chalk.gray(`  Skipping ${label}`));
+          return;
+        }
+      }
+    }
+
+    // Write library-config.json
+    const libraryConfig = {
+      project: projectName,
+      platform,
+      libraries: {
+        foundations: foundationsLib,
+        components: componentsLib,
+      },
+      createdAt: new Date().toISOString(),
+    };
+    writeFileSync(libraryConfigPath, JSON.stringify(libraryConfig, null, 2) + '\n');
+
+    // Write tokens.json
+    const tokens = {
+      version: '1.0.0',
+      project: projectName,
+      lastSync: null,
+      source: null,
+      collections: {},
+    };
+    writeFileSync(tokensPath, JSON.stringify(tokens, null, 2) + '\n');
+
+    // Summary
+    console.log(chalk.green(`\n  ✔ Project initialised: ${projectName}\n`));
+    console.log(chalk.white('  Files created:'));
+    console.log(`    ${chalk.cyan('library-config.json')}  — Figma library connections`);
+    console.log(`    ${chalk.cyan('tokens.json')}          — Design token values`);
+    console.log(chalk.white('\n  Next steps:'));
+    console.log(chalk.gray('    1. Make sure your Figma libraries are enabled in your working file'));
+    console.log(chalk.gray('    2. Run: ') + chalk.cyan('os-figma tokens pull') + chalk.gray('   — to sync tokens from Figma'));
+    console.log(chalk.gray('    3. Run: ') + chalk.cyan('os-figma tokens push') + chalk.gray('   — to push token values into Figma'));
+    console.log();
   });
 
 program.parse();
