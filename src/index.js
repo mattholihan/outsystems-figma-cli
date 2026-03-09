@@ -5446,4 +5446,201 @@ program
     }
   });
 
+// ============ PATTERN OPERATIONS ============
+
+const OUTSYSTEMS_PATTERNS = [
+  'Accordion', 'Alert', 'Badge', 'Blank Slate', 'Breadcrumbs', 'Button', 'Button Group',
+  'Card', 'Card Background', 'Card Item', 'Card Sectioned', 'Carousel', 'Checkbox',
+  'Chat Message', 'Counter', 'Date Picker', 'Dropdown', 'Dropdown Search', 'Dropdown Tags',
+  'Feedback Message', 'Flip Content', 'Floating Actions', 'Floating Content', 'Form',
+  'Input', 'Input With Icon', 'Link', 'List', 'List Item Content', 'Notification',
+  'Pagination', 'Popover', 'Popup', 'Progress Bar', 'Progress Circle', 'Radio Group',
+  'Range Slider', 'Search', 'Section', 'Section Group', 'SectionIndex', 'Sidebar',
+  'Switch', 'Table', 'Tabs', 'Tag', 'Text Area', 'Tooltip', 'Upload', 'User Avatar', 'Wizard'
+];
+
+function buildPatternButtonCode() {
+  return `
+(async function() {
+  const collections = await figma.variables.getLocalVariableCollectionsAsync();
+  const vars = {};
+  for (const col of collections) {
+    for (const id of col.variableIds) {
+      const v = await figma.variables.getVariableByIdAsync(id);
+      if (v) { const key = v.name.split('/').pop(); vars[key] = v; vars[v.name] = v; }
+    }
+  }
+
+  const required = ['--color-primary', '--color-neutral-0', '--border-radius-soft', '--space-s', '--space-base'];
+  const missing = required.filter(t => !vars[t]);
+  if (missing.length > 0) {
+    return JSON.stringify({ error: 'Missing tokens: ' + missing.join(', ') + '. Run: os-figma tokens preset' });
+  }
+
+  const boundFill = (v) => figma.variables.setBoundVariableForPaint(
+    { type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5 } }, 'color', v
+  );
+  const tryBind = (node, prop, variable, fallback) => {
+    if (variable) { try { node.setBoundVariable(prop, variable); return; } catch {} }
+    node[prop] = fallback;
+  };
+
+  const children = figma.currentPage.children;
+  let posX = 0;
+  children.forEach(n => { posX = Math.max(posX, n.x + n.width); });
+  if (children.length > 0) posX += 100;
+
+  await figma.loadFontAsync({ family: 'Inter', style: 'Semi Bold' });
+
+  const comp = figma.createComponent();
+  comp.name = 'OS/Button/Primary/Default';
+  comp.layoutMode = 'HORIZONTAL';
+  comp.primaryAxisAlignItems = 'CENTER';
+  comp.counterAxisAlignItems = 'CENTER';
+  comp.primaryAxisSizingMode = 'AUTO';
+  comp.counterAxisSizingMode = 'FIXED';
+  comp.resize(100, 48);
+
+  comp.fills = [boundFill(vars['--color-primary'])];
+
+  tryBind(comp, 'paddingTop', vars['--space-s'], 8);
+  tryBind(comp, 'paddingBottom', vars['--space-s'], 8);
+  tryBind(comp, 'paddingLeft', vars['--space-base'], 16);
+  tryBind(comp, 'paddingRight', vars['--space-base'], 16);
+  tryBind(comp, 'cornerRadius', vars['--border-radius-soft'], 4);
+
+  const text = figma.createText();
+  text.fontName = { family: 'Inter', style: 'Semi Bold' };
+  text.characters = 'Button';
+  tryBind(text, 'fontSize', vars['--font-size-base'], 16);
+  text.fills = [boundFill(vars['--color-neutral-0'])];
+
+  comp.appendChild(text);
+  comp.x = posX;
+  comp.y = 100;
+  figma.currentPage.appendChild(comp);
+
+  return JSON.stringify({ id: comp.id, name: comp.name });
+})()`;
+}
+
+function buildPatternInputCode() {
+  return `
+(async function() {
+  const collections = await figma.variables.getLocalVariableCollectionsAsync();
+  const vars = {};
+  for (const col of collections) {
+    for (const id of col.variableIds) {
+      const v = await figma.variables.getVariableByIdAsync(id);
+      if (v) { const key = v.name.split('/').pop(); vars[key] = v; vars[v.name] = v; }
+    }
+  }
+
+  const required = ['--color-neutral-0', '--color-neutral-5', '--color-neutral-7', '--border-radius-soft', '--border-size-s', '--space-s', '--space-base'];
+  const missing = required.filter(t => !vars[t]);
+  if (missing.length > 0) {
+    return JSON.stringify({ error: 'Missing tokens: ' + missing.join(', ') + '. Run: os-figma tokens preset' });
+  }
+
+  const boundFill = (v) => figma.variables.setBoundVariableForPaint(
+    { type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5 } }, 'color', v
+  );
+  const tryBind = (node, prop, variable, fallback) => {
+    if (variable) { try { node.setBoundVariable(prop, variable); return; } catch {} }
+    node[prop] = fallback;
+  };
+
+  const children = figma.currentPage.children;
+  let posX = 0;
+  children.forEach(n => { posX = Math.max(posX, n.x + n.width); });
+  if (children.length > 0) posX += 100;
+
+  await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
+
+  const comp = figma.createComponent();
+  comp.name = 'OS/Input/Text/Default';
+  comp.layoutMode = 'HORIZONTAL';
+  comp.primaryAxisAlignItems = 'MIN';
+  comp.counterAxisAlignItems = 'CENTER';
+  comp.primaryAxisSizingMode = 'FIXED';
+  comp.counterAxisSizingMode = 'FIXED';
+  comp.resize(320, 48);
+
+  comp.fills = [boundFill(vars['--color-neutral-0'])];
+  comp.strokes = [boundFill(vars['--color-neutral-5'])];
+  tryBind(comp, 'strokeWeight', vars['--border-size-s'], 1);
+  comp.strokeAlign = 'INSIDE';
+
+  tryBind(comp, 'paddingTop', vars['--space-s'], 8);
+  tryBind(comp, 'paddingBottom', vars['--space-s'], 8);
+  tryBind(comp, 'paddingLeft', vars['--space-base'], 16);
+  tryBind(comp, 'paddingRight', vars['--space-base'], 16);
+  tryBind(comp, 'cornerRadius', vars['--border-radius-soft'], 4);
+
+  const text = figma.createText();
+  text.fontName = { family: 'Inter', style: 'Regular' };
+  text.characters = 'Placeholder';
+  tryBind(text, 'fontSize', vars['--font-size-base'], 16);
+  text.fills = [boundFill(vars['--color-neutral-7'])];
+  try { text.layoutGrow = 1; } catch {}
+
+  comp.appendChild(text);
+  comp.x = posX;
+  comp.y = 100;
+  figma.currentPage.appendChild(comp);
+
+  return JSON.stringify({ id: comp.id, name: comp.name });
+})()`;
+}
+
+const pattern = program
+  .command('pattern')
+  .description('OutSystems UI pattern commands (add, list)');
+
+pattern
+  .command('list')
+  .description('List all available OutSystems UI patterns')
+  .action(() => {
+    console.log(chalk.cyan('\n  OutSystems UI Patterns:\n'));
+    OUTSYSTEMS_PATTERNS.forEach(p => console.log(chalk.white('    \u2022 ' + p)));
+    console.log(chalk.gray('\n  Usage: os-figma pattern add <PatternName>\n'));
+  });
+
+pattern
+  .command('add <patternName>')
+  .description('Create an OutSystems UI pattern component in Figma')
+  .action(async (patternName) => {
+    await checkConnection();
+    const matched = OUTSYSTEMS_PATTERNS.find(p => p.toLowerCase() === patternName.trim().toLowerCase());
+    if (!matched) {
+      console.log(chalk.red(`\n\u2717 Unknown pattern: "${patternName}"`));
+      console.log(chalk.gray('  Run: os-figma pattern list\n'));
+      process.exit(1);
+    }
+
+    const patternBuilders = { 'Button': buildPatternButtonCode, 'Input': buildPatternInputCode };
+    const builder = patternBuilders[matched];
+    if (!builder) {
+      console.log(chalk.yellow(`\n  Pattern "${matched}" is not yet implemented.\n`));
+      console.log(chalk.gray('  Implemented patterns: ' + Object.keys(patternBuilders).join(', ') + '\n'));
+      process.exit(1);
+    }
+
+    const spinner = ora(`Creating ${matched} component...`).start();
+    try {
+      const raw = await daemonExec('eval', { code: builder() });
+      const result = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (result?.error) {
+        spinner.fail(result.error);
+        process.exit(1);
+      }
+      spinner.succeed(`${matched} component created`);
+      console.log(chalk.gray('  Name: ' + result.name));
+      console.log(chalk.gray('  ID:   ' + result.id + '\n'));
+    } catch (e) {
+      spinner.fail('Failed: ' + e.message);
+      process.exit(1);
+    }
+  });
+
 program.parse();
