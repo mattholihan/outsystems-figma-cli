@@ -1744,30 +1744,30 @@ tokens
 
     // ── Colors (Light/Dark modes) ──
     const osColors = {
-      '--color-primary':       { light: '#1068EB', dark: '#5A9BF5' },
-      '--color-secondary':     { light: '#303D60', dark: '#8D9BB5' },
-      '--color-neutral-0':     { light: '#FFFFFF', dark: '#101213' },
-      '--color-neutral-1':     { light: '#F8F9FA', dark: '#1A1D1F' },
-      '--color-neutral-2':     { light: '#F1F3F5', dark: '#222628' },
-      '--color-neutral-3':     { light: '#E9ECEF', dark: '#2C3033' },
-      '--color-neutral-4':     { light: '#DEE2E6', dark: '#3A3F44' },
-      '--color-neutral-5':     { light: '#CED4DA', dark: '#4F575E' },
-      '--color-neutral-6':     { light: '#ADB5BD', dark: '#6A7178' },
-      '--color-neutral-7':     { light: '#6A7178', dark: '#ADB5BD' },
-      '--color-neutral-8':     { light: '#4F575E', dark: '#CED4DA' },
-      '--color-neutral-9':     { light: '#272B30', dark: '#E9ECEF' },
-      '--color-neutral-10':    { light: '#101213', dark: '#FFFFFF' },
-      '--color-info':          { light: '#017AAD', dark: '#33A3D4' },
-      '--color-info-light':    { light: '#E5F5FC', dark: '#0A2E3D' },
-      '--color-success':       { light: '#29823B', dark: '#4CAF5E' },
-      '--color-success-light': { light: '#EAF3EB', dark: '#0F2E14' },
-      '--color-warning':       { light: '#E9A100', dark: '#FFB82E' },
-      '--color-warning-light': { light: '#FDF6E5', dark: '#3D2A00' },
-      '--color-error':         { light: '#DC2020', dark: '#F25050' },
-      '--color-error-light':   { light: '#FCEAEA', dark: '#3D0A0A' }
+      'Brand Palette/--color-primary':       { light: '#1068EB', dark: '#5A9BF5' },
+      'Brand Palette/--color-secondary':     { light: '#303D60', dark: '#8D9BB5' },
+      'Neutral Palette/--color-neutral-0':   { light: '#FFFFFF', dark: '#101213' },
+      'Neutral Palette/--color-neutral-1':   { light: '#F8F9FA', dark: '#1A1D1F' },
+      'Neutral Palette/--color-neutral-2':   { light: '#F1F3F5', dark: '#222628' },
+      'Neutral Palette/--color-neutral-3':   { light: '#E9ECEF', dark: '#2C3033' },
+      'Neutral Palette/--color-neutral-4':   { light: '#DEE2E6', dark: '#3A3F44' },
+      'Neutral Palette/--color-neutral-5':   { light: '#CED4DA', dark: '#4F575E' },
+      'Neutral Palette/--color-neutral-6':   { light: '#ADB5BD', dark: '#6A7178' },
+      'Neutral Palette/--color-neutral-7':   { light: '#6A7178', dark: '#ADB5BD' },
+      'Neutral Palette/--color-neutral-8':   { light: '#4F575E', dark: '#CED4DA' },
+      'Neutral Palette/--color-neutral-9':   { light: '#272B30', dark: '#E9ECEF' },
+      'Neutral Palette/--color-neutral-10':  { light: '#101213', dark: '#FFFFFF' },
+      'Semantic Palette/--color-info':          { light: '#017AAD', dark: '#33A3D4' },
+      'Semantic Palette/--color-info-light':    { light: '#E5F5FC', dark: '#0A2E3D' },
+      'Semantic Palette/--color-success':       { light: '#29823B', dark: '#4CAF5E' },
+      'Semantic Palette/--color-success-light': { light: '#EAF3EB', dark: '#0F2E14' },
+      'Semantic Palette/--color-warning':       { light: '#E9A100', dark: '#FFB82E' },
+      'Semantic Palette/--color-warning-light': { light: '#FDF6E5', dark: '#3D2A00' },
+      'Semantic Palette/--color-error':         { light: '#DC2020', dark: '#F25050' },
+      'Semantic Palette/--color-error-light':   { light: '#FCEAEA', dark: '#3D0A0A' }
     };
 
-    let spinner = ora('Creating OS/Colors (Light/Dark)...').start();
+    let spinner = ora('Creating Colors (Light/Dark)...').start();
     const colorsCode = `(async () => {
 const colors = ${JSON.stringify(osColors)};
 function hexToRgb(hex) {
@@ -1775,8 +1775,8 @@ function hexToRgb(hex) {
   return r ? { r: parseInt(r[1], 16) / 255, g: parseInt(r[2], 16) / 255, b: parseInt(r[3], 16) / 255 } : null;
 }
 const cols = await figma.variables.getLocalVariableCollectionsAsync();
-let col = cols.find(c => c.name === 'OS/Colors');
-if (!col) col = figma.variables.createVariableCollection('OS/Colors');
+let col = cols.find(c => c.name === 'Colors');
+if (!col) col = figma.variables.createVariableCollection('Colors');
 
 let lightModeId = col.modes.find(m => m.name === 'Light')?.modeId;
 let darkModeId = col.modes.find(m => m.name === 'Dark')?.modeId;
@@ -1804,28 +1804,28 @@ return count;
 
     try {
       const result = await fastEval(colorsCode);
-      spinner.succeed(`OS/Colors (${String(result ?? '21').trim()} variables, Light/Dark modes)`);
+      spinner.succeed(`Colors (${String(result ?? '21').trim()} variables, Light/Dark modes)`);
     } catch (error) {
-      spinner.fail('OS/Colors failed');
+      spinner.fail('Colors failed');
       console.error(chalk.red(error.message));
     }
 
     // ── Typography ──
     const osTypography = {
-      '--font-size-display': 36, '--font-size-h1': 32, '--font-size-h2': 28,
-      '--font-size-h3': 26, '--font-size-h4': 22, '--font-size-h5': 20,
-      '--font-size-h6': 18, '--font-size-base': 16, '--font-size-s': 14,
-      '--font-size-xs': 12,
-      '--font-light': 300, '--font-regular': 400,
-      '--font-semi-bold': 600, '--font-bold': 700
+      'Font Size/--font-size-display': 36, 'Font Size/--font-size-h1': 32, 'Font Size/--font-size-h2': 28,
+      'Font Size/--font-size-h3': 26, 'Font Size/--font-size-h4': 22, 'Font Size/--font-size-h5': 20,
+      'Font Size/--font-size-h6': 18, 'Font Size/--font-size-base': 16, 'Font Size/--font-size-s': 14,
+      'Font Size/--font-size-xs': 12,
+      'Font Weight/--font-light': 300, 'Font Weight/--font-regular': 400,
+      'Font Weight/--font-semi-bold': 600, 'Font Weight/--font-bold': 700
     };
 
-    spinner = ora('Creating OS/Typography...').start();
+    spinner = ora('Creating Typography...').start();
     const typographyCode = `(async () => {
 const typography = ${JSON.stringify(osTypography)};
 const cols = await figma.variables.getLocalVariableCollectionsAsync();
-let col = cols.find(c => c.name === 'OS/Typography');
-if (!col) col = figma.variables.createVariableCollection('OS/Typography');
+let col = cols.find(c => c.name === 'Typography');
+if (!col) col = figma.variables.createVariableCollection('Typography');
 const modeId = col.modes[0].modeId;
 const existingVars = await figma.variables.getLocalVariablesAsync();
 let count = 0;
@@ -1842,22 +1842,22 @@ return count;
 
     try {
       const result = await fastEval(typographyCode);
-      spinner.succeed(`OS/Typography (${String(result ?? '14').trim()} variables)`);
-    } catch { spinner.fail('OS/Typography failed'); }
+      spinner.succeed(`Typography (${String(result ?? '14').trim()} variables)`);
+    } catch { spinner.fail('Typography failed'); }
 
     // ── Spacing ──
     const osSpacing = {
-      '--space-none': 0, '--space-xs': 4, '--space-s': 8,
-      '--space-base': 16, '--space-m': 24, '--space-l': 32,
-      '--space-xl': 40, '--space-xxl': 48
+      'Spacing/--space-none': 0, 'Spacing/--space-xs': 4, 'Spacing/--space-s': 8,
+      'Spacing/--space-base': 16, 'Spacing/--space-m': 24, 'Spacing/--space-l': 32,
+      'Spacing/--space-xl': 40, 'Spacing/--space-xxl': 48
     };
 
-    spinner = ora('Creating OS/Spacing...').start();
+    spinner = ora('Creating Spacing...').start();
     const spacingCode = `(async () => {
 const spacings = ${JSON.stringify(osSpacing)};
 const cols = await figma.variables.getLocalVariableCollectionsAsync();
-let col = cols.find(c => c.name === 'OS/Spacing');
-if (!col) col = figma.variables.createVariableCollection('OS/Spacing');
+let col = cols.find(c => c.name === 'Spacing');
+if (!col) col = figma.variables.createVariableCollection('Spacing');
 const modeId = col.modes[0].modeId;
 const existingVars = await figma.variables.getLocalVariablesAsync();
 let count = 0;
@@ -1874,21 +1874,21 @@ return count;
 
     try {
       const result = await fastEval(spacingCode);
-      spinner.succeed(`OS/Spacing (${String(result ?? '8').trim()} variables)`);
-    } catch { spinner.fail('OS/Spacing failed'); }
+      spinner.succeed(`Spacing (${String(result ?? '8').trim()} variables)`);
+    } catch { spinner.fail('Spacing failed'); }
 
     // ── Border (Radius + Size) ──
     const osBorder = {
-      '--border-radius-none': 0, '--border-radius-soft': 4, '--border-radius-rounded': 100,
-      '--border-size-none': 0, '--border-size-s': 1, '--border-size-m': 2, '--border-size-l': 3
+      'Border Radius/--border-radius-none': 0, 'Border Radius/--border-radius-soft': 4, 'Border Radius/--border-radius-rounded': 100,
+      'Border Sizes/--border-size-none': 0, 'Border Sizes/--border-size-s': 1, 'Border Sizes/--border-size-m': 2, 'Border Sizes/--border-size-l': 3
     };
 
-    spinner = ora('Creating OS/Border...').start();
+    spinner = ora('Creating Border...').start();
     const borderCode = `(async () => {
 const borders = ${JSON.stringify(osBorder)};
 const cols = await figma.variables.getLocalVariableCollectionsAsync();
-let col = cols.find(c => c.name === 'OS/Border');
-if (!col) col = figma.variables.createVariableCollection('OS/Border');
+let col = cols.find(c => c.name === 'Border');
+if (!col) col = figma.variables.createVariableCollection('Border');
 const modeId = col.modes[0].modeId;
 const existingVars = await figma.variables.getLocalVariablesAsync();
 let count = 0;
@@ -1905,17 +1905,17 @@ return count;
 
     try {
       const result = await fastEval(borderCode);
-      spinner.succeed(`OS/Border (${String(result ?? '7').trim()} variables)`);
-    } catch { spinner.fail('OS/Border failed'); }
+      spinner.succeed(`Border (${String(result ?? '7').trim()} variables)`);
+    } catch { spinner.fail('Border failed'); }
 
     await new Promise(r => setTimeout(r, 100));
 
     console.log(chalk.green('\n  OutSystems design tokens created!\n'));
     console.log(chalk.white('  Collections:'));
-    console.log(chalk.gray('    OS/Colors     - 21 colors (Light/Dark modes)'));
-    console.log(chalk.gray('    OS/Typography - 14 variables (font sizes + weights)'));
-    console.log(chalk.gray('    OS/Spacing    - 8 variables (none to xxl)'));
-    console.log(chalk.gray('    OS/Border     - 7 variables (radius: none/soft/rounded + size: none/s/m/l)'));
+    console.log(chalk.gray('    Colors     - 21 colors (Light/Dark modes)'));
+    console.log(chalk.gray('    Typography - 14 variables (font sizes + weights)'));
+    console.log(chalk.gray('    Spacing    - 8 variables (none to xxl)'));
+    console.log(chalk.gray('    Border     - 7 variables (radius: none/soft/rounded + size: none/s/m/l)'));
     console.log();
     console.log(chalk.gray('  Total: ~50 variables across 4 collections\n'));
   });
