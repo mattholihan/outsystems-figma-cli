@@ -316,7 +316,8 @@ function figmaEvalSync(code) {
   const resultFile = join('/tmp', `figma-result-${Date.now()}.json`);
 
   const script = `
-    import { FigmaClient } from '${join(process.cwd(), 'src/figma-client.js').replace(/\\/g, '/')}';
+    import { FigmaClient } from '${join(__dirname, 'figma-client.js').replace(/\\/g, '/')}';
+
     import { writeFileSync } from 'fs';
 
     (async () => {
@@ -6049,14 +6050,24 @@ function loadLibraryConfig() {
 pattern
   .command('scan')
   .description('Scan the current Figma document for components and save keys to library-config.json')
-  .action(async () => {
+  .option('--icons', 'Scan standalone components as icons (saved to library-config.json → icons)')
+  .action(async (options) => {
     loadLibraryConfig(); // validates library-config.json exists
 
     await checkConnection();
 
-    const spinner = ora('Scanning document for components...').start();
+    const isIcons = !!options.icons;
+    const spinner = ora(`Scanning document for ${isIcons ? 'icons' : 'components'}...`).start();
 
-    const code = `(function() {
+    const code = isIcons
+      ? `(function() {
+  var icons = figma.root.findAllWithCriteria({ types: ['COMPONENT'] })
+    .filter(function(n) { return !n.parent || n.parent.type !== 'COMPONENT_SET'; });
+  var results = {};
+  icons.forEach(function(c) { results[c.name] = c.key; });
+  return JSON.stringify(results);
+})()`
+      : `(function() {
   var sets = figma.root.findAllWithCriteria({ types: ['COMPONENT_SET'] });
   var standalone = figma.root.findAllWithCriteria({ types: ['COMPONENT'] })
     .filter(function(n) { return !n.parent || n.parent.type !== 'COMPONENT_SET'; });
@@ -6070,7 +6081,7 @@ pattern
     try {
       raw = await fastEval(code);
     } catch (err) {
-      spinner.fail('Failed to scan components from Figma');
+      spinner.fail(`Failed to scan ${isIcons ? 'icons' : 'components'} from Figma`);
       console.error(chalk.red(err.message));
       process.exit(1);
     }
@@ -6079,17 +6090,22 @@ pattern
     const count = Object.keys(scanned || {}).length;
 
     if (!count) {
-      spinner.warn('No components found — open a file that contains the library components and try again.');
+      spinner.warn(`No ${isIcons ? 'icons' : 'components'} found — open a file that contains the library ${isIcons ? 'icons' : 'components'} and try again.`);
       process.exit(0);
     }
 
     // Merge into library-config.json
     const configPath = join(process.cwd(), 'library-config.json');
     const libConfig = JSON.parse(readFileSync(configPath, 'utf8'));
-    libConfig.components = scanned;
+    if (isIcons) {
+      libConfig.icons = scanned;
+    } else {
+      libConfig.components = scanned;
+    }
     writeFileSync(configPath, JSON.stringify(libConfig, null, 2) + '\n');
 
-    spinner.succeed(`Scanned ${count} component${count !== 1 ? 's' : ''} — saved to library-config.json`);
+    const label = isIcons ? 'icon' : 'component';
+    spinner.succeed(`Scanned ${count} ${label}${count !== 1 ? 's' : ''} — saved to library-config.json`);
   });
 
 pattern
@@ -6119,6 +6135,7 @@ pattern
   .option('--state <name>', 'Component state (e.g. Default, Hover, Disabled)')
   .option('--x <number>', 'X position on canvas', parseFloat)
   .option('--y <number>', 'Y position on canvas', parseFloat)
+  .option('--prop <key=value>', 'Set a component property — repeatable (e.g. --prop "Text=Sign In")', (val, acc) => { acc.push(val); return acc; }, [])
   .action(async (patternName, options) => {
     const libConfig = loadLibraryConfig();
     const componentsLib = libConfig?.libraries?.components;
@@ -6141,6 +6158,31 @@ pattern
 
     const componentKey = libConfig.components[matchedName];
 
+    // Parse and classify --prop values before connecting to Figma
+    const icons = libConfig.icons || {};
+    const iconLibName = libConfig?.libraries?.icons || 'the icons library';
+    const resolvedProps = [];
+    for (const p of (options.prop || [])) {
+      const eqIdx = p.indexOf('=');
+      if (eqIdx === -1) {
+        console.log(chalk.red(`\n✗ Invalid --prop value: "${p}" — expected format: Key=Value\n`));
+        process.exit(1);
+      }
+      const propKey = p.slice(0, eqIdx);
+      const propValue = p.slice(eqIdx + 1);
+
+      if (propValue === 'true' || propValue === 'false') {
+        resolvedProps.push({ key: propKey, type: 'boolean', value: propValue });
+      } else {
+        const iconName = Object.keys(icons).find(k => k.toLowerCase() === propValue.toLowerCase());
+        if (iconName) {
+          resolvedProps.push({ key: propKey, type: 'icon', value: propValue, iconKey: icons[iconName] });
+        } else {
+          resolvedProps.push({ key: propKey, type: 'text', value: propValue });
+        }
+      }
+    }
+
     await checkConnection();
 
     const spinner = ora(`Adding ${matchedName}...`).start();
@@ -6152,16 +6194,64 @@ pattern
   var key = ${JSON.stringify(componentKey)};
   var wantVariant = ${JSON.stringify(wantVariant)};
   var wantState = ${JSON.stringify(wantState)};
+  var resolvedProps = ${JSON.stringify(resolvedProps)};
 
   async function loadInstanceFonts(inst) {
     var fontNodes = inst.findAll(function(n) { return n.type === 'TEXT'; });
     var seen = new Set();
     var uniqueFonts = [];
     fontNodes.forEach(function(n) {
-      var key = n.fontName.family + '|' + n.fontName.style;
-      if (!seen.has(key)) { seen.add(key); uniqueFonts.push(n.fontName); }
+      var fkey = n.fontName.family + '|' + n.fontName.style;
+      if (!seen.has(fkey)) { seen.add(fkey); uniqueFonts.push(n.fontName); }
     });
     await Promise.all(uniqueFonts.map(function(f) { return figma.loadFontAsync(f); }));
+  }
+
+  function resolvePropertyKey(inst, userKey) {
+    var target = userKey.toLowerCase();
+    return Object.keys(inst.componentProperties).find(function(k) {
+      var base = k.split('#')[0].replace(/^\u21b3/, '').trim();
+      return base.toLowerCase() === target;
+    });
+  }
+
+  async function applyProps(inst, props) {
+    var warnings = [];
+    for (var i = 0; i < props.length; i++) {
+      var p = props[i];
+      try {
+        var resolvedKey = resolvePropertyKey(inst, p.key);
+        if (p.type === 'boolean') {
+          if (resolvedKey) {
+            inst.setProperties({ [resolvedKey]: p.value === 'true' });
+          } else {
+            warnings.push('Property "' + p.key + '" not found on instance');
+          }
+        } else if (p.type === 'icon') {
+          if (resolvedKey) {
+            var iconComp = await figma.importComponentByKeyAsync(p.iconKey);
+            inst.setProperties({ [resolvedKey]: iconComp.id });
+          } else {
+            warnings.push('Property "' + p.key + '" not found on instance');
+          }
+        } else {
+          // text: try component property first, then TEXT node by name
+          var cp = inst.componentProperties;
+          if (resolvedKey && cp[resolvedKey].type === 'TEXT') {
+            inst.setProperties({ [resolvedKey]: p.value });
+          } else if (resolvedKey && cp[resolvedKey].type === 'INSTANCE_SWAP') {
+            warnings.push('Property "' + p.key + '" is an instance swap — pass the icon name as the value and ensure icons are scanned first');
+          } else {
+            var textNode = inst.findOne(function(n) { return n.type === 'TEXT' && n.name === p.key; });
+            if (textNode) { textNode.characters = p.value; }
+            else { warnings.push('Property "' + p.key + '" not found on instance'); }
+          }
+        }
+      } catch(e) {
+        warnings.push('Property "' + p.key + '" could not be set: ' + e.message);
+      }
+    }
+    return warnings;
   }
 
   var componentSet;
@@ -6173,6 +6263,7 @@ pattern
       var comp = await figma.importComponentByKeyAsync(key);
       var inst = comp.createInstance();
       await loadInstanceFonts(inst);
+      var propWarnings = await applyProps(inst, resolvedProps);
       var hasX = ${options.x !== undefined};
       var hasY = ${options.y !== undefined};
       if (hasX) { inst.x = ${options.x !== undefined ? options.x : 0}; }
@@ -6182,7 +6273,7 @@ pattern
       figma.currentPage.appendChild(inst);
       figma.currentPage.selection = [inst];
       figma.viewport.scrollAndZoomIntoView([inst]);
-      return { componentName: comp.name, variantName: null };
+      return { componentName: comp.name, variantName: null, propWarnings };
     } catch (e2) {
       return { error: e2.message };
     }
@@ -6204,6 +6295,7 @@ pattern
 
   var instance = variant.createInstance();
   await loadInstanceFonts(instance);
+  var propWarnings = await applyProps(instance, resolvedProps);
   var hasX = ${options.x !== undefined};
   var hasY = ${options.y !== undefined};
   if (hasX) { instance.x = ${options.x !== undefined ? options.x : 0}; }
@@ -6214,7 +6306,7 @@ pattern
   figma.currentPage.appendChild(instance);
   figma.currentPage.selection = [instance];
   figma.viewport.scrollAndZoomIntoView([instance]);
-  return { componentName: componentSet.name, variantName: variant.name };
+  return { componentName: componentSet.name, variantName: variant.name, propWarnings };
 })()`;
 
     let result;
@@ -6243,6 +6335,10 @@ pattern
       : result.componentName;
     const fromLib = componentsLib ? ` from ${componentsLib}` : '';
     spinner.succeed(`Added ${displayName}${fromLib}`);
+
+    for (const w of (result.propWarnings || [])) {
+      console.log(chalk.yellow(`  ⚠ ${w}`));
+    }
   });
 
 program.parse();
