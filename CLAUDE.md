@@ -55,7 +55,7 @@ OutSystems uses CSS custom properties as design tokens. Always use these variabl
 ```
 --color-info							(#017AAD)
 --color-info-light				(#E5F5FC)
---color-success						(#29323B)
+--color-success						(#29823B)
 --color-success-light			(#EAF3EB)
 --color-warning						(#E9A100)
 --color-warning-light			(#FDF6E5)

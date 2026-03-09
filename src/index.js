@@ -2093,6 +2093,201 @@ return 'Imported ' + count + ' tokens into ' + collectionName;
   });
 
 tokens
+  .command('pull')
+  .description('Pull variable values from Figma and sync to local tokens.json')
+  .action(async () => {
+    const cwd = process.cwd();
+    const libraryConfigPath = join(cwd, 'library-config.json');
+    const tokensPath = join(cwd, 'tokens.json');
+
+    // Guard: require project files
+    if (!existsSync(libraryConfigPath) || !existsSync(tokensPath)) {
+      console.log(chalk.red('\n✗ Project files not found.\n'));
+      console.log(chalk.white('  Run ') + chalk.cyan('os-figma init') + chalk.white(' first to set up this project.\n'));
+      process.exit(1);
+    }
+
+    // Read existing tokens.json
+    let existing;
+    try {
+      existing = JSON.parse(readFileSync(tokensPath, 'utf8'));
+    } catch {
+      console.log(chalk.red('✗ Could not parse tokens.json — run os-figma init to recreate it.'));
+      process.exit(1);
+    }
+
+    // Check Figma connection
+    const spinner = ora('Connecting to Figma...').start();
+    try {
+      await checkConnection();
+      spinner.text = 'Reading variables from Figma...';
+    } catch {
+      spinner.fail('Not connected to Figma — run os-figma connect first');
+      process.exit(1);
+    }
+
+    // Figma eval: extract all collections → groups → tokens
+    const pullCode = `(async () => {
+function rgbToHex(r, g, b) {
+  const h = n => Math.round(n * 255).toString(16).padStart(2, '0').toUpperCase();
+  return '#' + h(r) + h(g) + h(b);
+}
+const collections = await figma.variables.getLocalVariableCollectionsAsync();
+if (!collections || collections.length === 0) return null;
+const allVars = await figma.variables.getLocalVariablesAsync();
+const result = {};
+for (const col of collections) {
+  const colVars = allVars.filter(v => v.variableCollectionId === col.id);
+  if (colVars.length === 0) continue;
+  const modeId = col.modes[0].modeId;
+  result[col.name] = {};
+  for (const v of colVars) {
+    const raw = v.valuesByMode[modeId];
+    let value;
+    if (v.resolvedType === 'COLOR') {
+      value = (raw && raw.r !== undefined) ? rgbToHex(raw.r, raw.g, raw.b) : null;
+    } else {
+      value = (typeof raw === 'number') ? raw : null;
+    }
+    const parts = v.name.split('/');
+    const tokenName = parts.pop();
+    const groupName = parts.length ? parts.join('/') : 'Default';
+    if (!result[col.name][groupName]) result[col.name][groupName] = {};
+    result[col.name][groupName][tokenName] = { type: v.resolvedType, value };
+  }
+}
+return result;
+})()`;
+
+    let figmaData;
+    try {
+      figmaData = await fastEval(pullCode);
+    } catch (err) {
+      spinner.fail('Failed to read variables from Figma');
+      console.error(chalk.red(err.message));
+      process.exit(1);
+    }
+
+    if (!figmaData || Object.keys(figmaData).length === 0) {
+      spinner.fail('No variables found — run os-figma tokens preset first');
+      process.exit(1);
+    }
+
+    spinner.text = 'Processing tokens...';
+
+    // Count and detect new tokens
+    let totalTokens = 0;
+    const newTokens = [];
+
+    // Build flat map of existing tokens for comparison: "ColName/GroupName/--token" -> true
+    const existingFlat = new Set();
+    for (const [colName, groups] of Object.entries(existing.collections || {})) {
+      for (const [groupName, tokens] of Object.entries(groups)) {
+        for (const tokenName of Object.keys(tokens)) {
+          existingFlat.add(`${colName}/${groupName}/${tokenName}`);
+        }
+      }
+    }
+
+    // Build new collections object and detect new tokens
+    const newCollections = {};
+    for (const [colName, groups] of Object.entries(figmaData)) {
+      newCollections[colName] = {};
+      for (const [groupName, tokens] of Object.entries(groups)) {
+        newCollections[colName][groupName] = {};
+        for (const [tokenName, tokenData] of Object.entries(tokens)) {
+          if (tokenData.value !== null && tokenData.value !== undefined) {
+            newCollections[colName][groupName][tokenName] = tokenData;
+            totalTokens++;
+            const key = `${colName}/${groupName}/${tokenName}`;
+            if (!existingFlat.has(key)) {
+              newTokens.push(`${colName} / ${groupName} / ${tokenName}`);
+            }
+          }
+        }
+      }
+    }
+
+    const totalCollections = Object.keys(newCollections).length;
+    const now = new Date().toISOString();
+
+    // Write tokens.json
+    const updatedTokens = {
+      version: existing.version || '1.0.0',
+      project: existing.project,
+      lastSync: now,
+      source: 'figma',
+      collections: newCollections,
+    };
+    writeFileSync(tokensPath, JSON.stringify(updatedTokens, null, 2) + '\n');
+
+    // Update CLAUDE.md in CLI root
+    const claudeMdPath = join(__dirname, '..', 'CLAUDE.md');
+    let claudeUpdated = false;
+    if (existsSync(claudeMdPath)) {
+      try {
+        // Build flat token map: tokenName -> { type, value }
+        const flatTokens = new Map();
+        for (const groups of Object.values(newCollections)) {
+          for (const tokens of Object.values(groups)) {
+            for (const [name, data] of Object.entries(tokens)) {
+              flatTokens.set(name, data);
+            }
+          }
+        }
+
+        let claudeContent = readFileSync(claudeMdPath, 'utf8');
+        const updatedLines = claudeContent.split('\n').map(line => {
+          const trimmed = line.trimStart();
+          if (!trimmed.startsWith('--')) return line;
+          const nameMatch = trimmed.match(/^(--[\w-]+)/);
+          if (!nameMatch) return line;
+          const tokenName = nameMatch[1];
+          const token = flatTokens.get(tokenName);
+          if (!token || token.value === null) return line;
+
+          if (token.type === 'COLOR') {
+            return line.replace(/#[0-9A-Fa-f]{6}/g, token.value);
+          } else if (token.type === 'FLOAT') {
+            return line.replace(/(\d+(?:\.\d+)?)(px)?(\s*)$/, (_, _n, px, ws) => {
+              const num = Number.isInteger(token.value) ? token.value : parseFloat(token.value.toFixed(2));
+              return `${num}${px || ''}${ws}`;
+            });
+          }
+          return line;
+        });
+
+        const newClaudeContent = updatedLines.join('\n');
+        if (newClaudeContent !== claudeContent) {
+          writeFileSync(claudeMdPath, newClaudeContent);
+          claudeUpdated = true;
+        }
+      } catch {
+        // CLAUDE.md update is best-effort; don't abort
+      }
+    }
+
+    spinner.succeed('Tokens pulled from Figma');
+
+    console.log(chalk.green('\n  ✔ Tokens pulled from Figma\n'));
+    console.log(`  Collections synced: ${chalk.bold(totalCollections)}`);
+    console.log(`  Tokens synced:      ${chalk.bold(totalTokens)}`);
+    console.log(`  Last sync:          ${chalk.gray(now)}`);
+    console.log();
+    console.log(`  ${chalk.cyan('tokens.json')} updated`);
+    if (claudeUpdated) console.log(`  ${chalk.cyan('CLAUDE.md')} updated`);
+
+    if (newTokens.length > 0) {
+      console.log(chalk.yellow(`\n  ⚠ New tokens found in Figma (not in tokens.json):`));
+      for (const t of newTokens) {
+        console.log(chalk.gray(`    - ${t}`));
+      }
+    }
+
+    console.log();
+  });
+
+tokens
   .command('ds')
   .description('Create IDS Base Design System (complete starter kit)')
   .action(async () => {
