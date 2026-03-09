@@ -10,28 +10,17 @@ It understands OutSystems UI patterns, tokens, and component naming conventions.
 - Supports both ODC (OutSystems Developer Cloud) and O11 (OutSystems 11)
 
 ## Design Token Naming Conventions
-Color:
-  --color-primary         (main brand color)
-  --color-secondary       (secondary brand color)
-  --color-neutral-0       (white)
-  --color-neutral-1     (lightest gray) through --color-neutral-10 (darkest)
-  --color-info / info-light/ success / success-light / -warning / warning-light / -error / -error-light
 
-Typography:
-  --font-size-xs / -s / -base (16px default)
-  --font-size-h1 through --font-size-h6
-  --font-light / -regular / -semi-bold / -bold
-  --line-height-base
+Token values (colors, typography, spacing, border, shadow) are project-specific and stored in `tokens.json` in the project directory.
 
-Border:
-  --border-radius-soft / -rounded / -circle
-  --border-size- s / -m / -l
+Run `os-figma tokens pull` to sync the latest values from your active Figma file.
 
-Spacing:
-  --space-xs / -s / -base / -m / -l / -xl / -xxl
-
-Shadow:
-  --shadow-xs / -s / -m / -l / -xl
+Token names follow CSS custom property conventions:
+- Colors: `--color-primary`, `--color-neutral-0` through `--color-neutral-10`, `--color-info`, `--color-success`, `--color-warning`, `--color-error` (each with a `-light` variant)
+- Typography: `--font-size-*`, `--font-light/regular/semi-bold/bold`, `--line-height-base`
+- Spacing: `--space-xs/s/base/m/l/xl/xxl`
+- Border: `--border-radius-*`, `--border-size-*`
+- Shadow: `--shadow-xs/s/m/l/xl`
 
 ## OutSystems UI Pattern Names (for use in commands)
 Accordion, Alert, Badge, Blank Slate, Breadcrumbs, Button, Button Group, Card, Card Background, Card Item, Card Sectioned, Carousel, Checkbox, Chat Message, Counter, Date Picker, Dropdown, Dropdown Search, Dropdown Tags, Feedback Message, Flip Content, Floating Actions, Floating Content, Form, Input, Input With Icon, Link, List, List Item Content, Notification, Pagination, Popover, Popup, Progress Bar, Progress Circle, Radio Group, Range Slider, Search, Section, Section Group, SectionIndex, Sidebar, Switch, Table, Tabs, Tag, Text Area, Tooltip, Upload, User Avatar, Wizard
@@ -82,7 +71,7 @@ Slot naming convention for OutSystems:
   OS/{Component}/Footer      — footer content slot
 
 ## Key Rules
-1. Always use OutSystems UI token names, not raw hex values, when creating variables
+1. Always use OutSystems token variable names from tokens.json — never raw hex values
 2. Mobile frames are 390x844 (iPhone 14 base)
 3. Web frames are 1440x900 (desktop) or 768x1024 (tablet)
 4. Components should be built with Auto-Layout enabled
