@@ -4,7 +4,6 @@
 
 `outsystems-figma-cli` is a CLI tool for designing OutSystems apps in Figma. It connects to Figma Desktop via Chrome DevTools Protocol and executes JavaScript against the Figma Plugin API.
 
-**Location:** `~/projects/outsystems-figma-cli`
 **npm package:** `outsystems-figma-cli`
 **GitHub:** https://github.com/mattholihan/outsystems-figma-cli
 
@@ -12,41 +11,59 @@
 
 ### Connect to Figma
 ```bash
-node src/index.js connect
+# Connect to Figma Desktop
+os-figma connect
+
+# Initialise a new project (run from project directory)
+os-figma init
 ```
+
+### Token Sync Commands
+```bash
+# Pull token values from active Figma file into local tokens.json
+os-figma tokens pull
+
+# Push local tokens.json to the connected Figma file
+os-figma tokens push
+
+# Check diff between local tokens.json and Figma
+os-figma tokens status
+```
+
+> Token values are project-specific — always run `os-figma tokens pull` after switching projects or starting a new session.
 
 ### Execute JavaScript in Figma
 ```bash
-node src/index.js eval "YOUR_JAVASCRIPT_HERE"
+os-figma eval "YOUR_JAVASCRIPT_HERE"
 ```
 
 ### Query Nodes
 ```bash
-node src/index.js raw query "//FRAME"
-node src/index.js raw query "//GROUP[@name='content']"
-node src/index.js raw query "//*[@name^='OS/']"
+os-figma raw query "//FRAME"
+os-figma raw query "//GROUP[@name='content']"
+os-figma raw query "//*[@name^='OS/']"
 ```
 
 ### Export
 ```bash
-node src/index.js raw export "NODE_ID" --scale 2 --suffix "_export"
+os-figma raw export "NODE_ID" --scale 2 --suffix "_export"
 ```
 
 ## Common OutSystems Operations
 
 ### Create an OutSystems Mobile Screen Frame
 ```bash
-node src/index.js render '<Frame name="OS/Screen/Mobile" w={390} h={844} bg="var:--color-neutral-0" flex="col" />'
+os-figma render '<Frame name="OS/Screen/Mobile" w={390} h={844} bg="var:--color-neutral-0" flex="col" />'
 ```
 
 ### Create an OutSystems Web Screen Frame
 ```bash
-node src/index.js render '<Frame name="OS/Screen/Web" w={1440} h={900} bg="var:--color-neutral-0" flex="col" />'
+os-figma render '<Frame name="OS/Screen/Web" w={1440} h={900} bg="var:--color-neutral-0" flex="col" />'
 ```
 
 ### Switch Variable Mode (Light/Dark)
 ```bash
-node src/index.js eval "
+os-figma eval "
 const node = figma.getNodeById('NODE_ID');
 
 function findModeCollection(n) {
@@ -85,7 +102,7 @@ if (found) {
 
 ### Rename Nodes to OutSystems Convention
 ```bash
-node src/index.js eval "
+os-figma eval "
 const page = figma.currentPage;
 page.children.filter(n => n.name.startsWith('Frame')).forEach((f, i) => {
   f.name = 'OS/Screen/Mobile/' + (i + 1);
@@ -95,7 +112,7 @@ page.children.filter(n => n.name.startsWith('Frame')).forEach((f, i) => {
 
 ### Scale and Center Content
 ```bash
-node src/index.js eval "
+os-figma eval "
 const ids = ['1:92', '1:112'];  // replace with your node IDs
 const frameW = 390, frameH = 844;  // adjust for mobile or web
 
@@ -113,22 +130,22 @@ ids.forEach(id => {
 ## FigJam Commands
 ```bash
 # List pages
-node src/index.js fj list
+os-figma fj list
 
 # Create sticky
-node src/index.js fj sticky "Text" -x 100 -y 100
+os-figma fj sticky "Text" -x 100 -y 100
 
 # Create shape
-node src/index.js fj shape "Label" -x 200 -y 100
+os-figma fj shape "Label" -x 200 -y 100
 
 # Connect nodes
-node src/index.js fj connect "2:30" "2:34"
+os-figma fj connect "2:30" "2:34"
 
 # List elements
-node src/index.js fj nodes
+os-figma fj nodes
 
 # Execute JS
-node src/index.js fj eval "figma.currentPage.children.length"
+os-figma fj eval "figma.currentPage.children.length"
 ```
 
 ## Important Notes
@@ -141,7 +158,7 @@ node src/index.js fj eval "figma.currentPage.children.length"
 
 4. **Node IDs** are in format `PAGE:NODE` like `1:92`. Get them from query output.
 
-5. **Working directory** must be `~/projects/outsystems-figma-cli` to run commands.
+5. **Token commands** (`pull`/`push`/`status`) and `init` must be run from the project directory, not the CLI root.
 
 6. **Always follow OutSystems layer naming** — `OS/{Component}/{Variant}/{State}`.
 
@@ -150,33 +167,29 @@ node src/index.js fj eval "figma.currentPage.children.length"
 ## File Structure
 
 ```
-outsystems-figma-cli/
+outsystems-figma-cli/        ← Global CLI (installed globally via npm)
 ├── src/
-│   ├── index.js          # Main CLI, all commands
-│   └── outsystems.js     # OutSystems constants and helpers
-├── package.json          # npm config
-├── CLAUDE.md             # AI agent knowledge base (OutSystems conventions)
-├── OUTSYSTEMS.md         # OutSystems design system reference
-├── README.md             # User docs
+│   ├── index.js             # Main CLI, all commands
+│   └── outsystems-tokens.js # OutSystems token definitions
+├── CLAUDE.md                # AI agent knowledge base
 └── docs/
-    ├── ARCHITECTURE.md   # How it works
-    ├── COMMANDS.md       # All commands
-    ├── TECHNIQUES.md     # Advanced patterns
-    └── CLAUDE-SESSION.md # This file
+    └── ...
+
+project-directory/           ← Per-project config (one per client/design)
+├── tokens.json              # Project-specific token values
+└── library-config.json      # Figma library connections
 ```
 
 ## Current Session Context
 
-> 💡 Update this section at the start of each working session with the relevant
-> node IDs from your active Figma file. Run `node src/index.js canvas info` to
-> get the current node IDs.
+> 💡 At the start of each session:
+> 1. `os-figma connect`
+> 2. `cd` to your project directory
+> 3. `os-figma tokens pull`
+> 4. Paste active node IDs below
 
 Active file node IDs:
-```
 (paste your node IDs here)
-```
 
 OutSystems token collection in use:
-```
-(note your variable collection name here, e.g. "OutSystems UI / Light")
-```
+(e.g. "OutSystems UI / Light")
