@@ -198,40 +198,17 @@ OS/Navigation/Sidebar/Web
 When a user asks to create an OutSystems UI pattern, use these exact names.
 Each pattern should be built as a component using OutSystems token variables.
 
-| | | | |
-|---|---|---|---|
-| Accordion | Carousel | Floating Actions | Radio Group |
-| Alert | Checkbox | Floating Content | Range Slider |
-| Badge | Chat Message | Form | Search |
-| Blank Slate | Counter | Input | Section |
-| Breadcrumbs | Date Picker | Input With Icon | Section Group |
-| Button | Dropdown | Link | SectionIndex |
-| Button Group | Dropdown Search | List | Sidebar |
-| Card | Dropdown Tags | List Item Content | Switch |
-| Card Background | Feedback Message | Notification | Table |
-| Card Item | Flip Content | Pagination | Tabs |
-| Card Sectioned | Floating Actions | Popover | Tag |
-| Carousel | Floating Content | Popup | Text Area |
-| | | Progress Bar | Tooltip |
-| | | Progress Circle | Upload |
-| | | | User Avatar |
-| | | | Wizard |
-
-### Example — OutSystems Card pattern
-```bash
-os-figma render '<Frame name="OS/Card/Default" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" overflow="hidden" stroke="var:--color-neutral-5" strokeWidth={1}>
-  <Frame name="OS/Card/Image" w="fill" h={160} bg="var:--color-neutral-1" />
-  <Frame name="OS/Card/Content" flex="col" gap={8} p={16} w="fill">
-    <Text name="OS/Card/Title" size={18} weight="bold" color="var:--color-neutral-10" w="fill">Card Title</Text>
-    <Text name="OS/Card/Description" size={14} color="var:--color-neutral-5" w="fill">Card description text goes here.</Text>
-  </Frame>
-  <Frame name="OS/Card/Footer" flex="row" p={16} gap={8} w="fill">
-    <Frame name="OS/Button/Primary" bg="var:--color-primary" px={16} py={8} rounded={4} flex="row" justify="center" items="center" grow={1}>
-      <Text size={14} weight="medium" color="var:--color-neutral-0">Action</Text>
-    </Frame>
-  </Frame>
-</Frame>'
-```
+- Accordion
+- Alert
+- Button
+- Checkbox
+- Chip
+- Date Picker
+- Dropdown
+- Input
+- Radio Button
+- Search
+- Tags
 
 ---
 
@@ -243,22 +220,6 @@ Always ask or check which platform the user is designing for:
 --platform odc        OutSystems Developer Cloud (modern, recommended)
 --platform o11        OutSystems 11 / Service Studio (classic)
 ```
-
----
-
-## Screen Templates
-
-When a user asks to create an OutSystems screen, use these templates as a starting point.
-Always ask for platform (ODC or O11) and device (mobile or web) first if not specified.
-
-| Template | Mobile size | Web size |
-|----------|-------------|----------|
-| Dashboard | 390×844 | 1440×900 |
-| Detail | 390×844 | 1440×900 |
-| Form | 390×844 | 1440×900 |
-| Gallery | 390×844 | 1440×900 |
-| List | 390×844 | 1440×900 |
-| Onboarding | 390×844 | 1440×900 |
 
 ---
 
@@ -287,7 +248,6 @@ When user asks to "create cards", "design buttons", or any OutSystems pattern:
 2. **Convert to component** after creation
 3. **Use OutSystems token variables** for all colors, spacing, and radius — variable names come from `tokens.json`
 4. **Follow OS layer naming** (`OS/{Component}/{Variant}/{State}`)
-5. **Add slots** for flexible content areas (e.g., card body, modal content, list items)
 
 ```bash
 # Step 1: Create
@@ -298,73 +258,6 @@ os-figma node to-component "ID1" "ID2"
 
 # Step 3: Bind OutSystems variables
 os-figma bind fill "--color-primary" -n "ID1"
-
-# Step 4 (optional): Add slots for flexible content areas
-os-figma slot create "COMP_ID" "FRAME_ID" "Content"
-```
-
----
-
-## Slots (Flexible Component Content)
-
-Slots are component properties that create flexible areas within components. Designers can add, remove, and rearrange content in instances without detaching from the main component.
-
-### When to Use Slots
-
-- **Repeating elements** — Task lists, forms, playlists without fixed occurrences
-- **Freeform layouts** — Modals, cards with varying content, flexible content areas
-- **Any component where child content varies** between instances
-
-### Slot Commands
-
-```bash
-# Convert a frame inside a component to a slot
-os-figma slot create "COMP_ID" "FRAME_ID" "SlotName"
-
-# List all slots on a component or instance
-os-figma slot list "COMP_ID"
-
-# Add content to a slot in an instance
-os-figma slot add "INSTANCE_ID" "SLOT_FRAME_ID" "CONTENT_NODE_ID"
-
-# Reset slot to default content
-os-figma slot reset "INSTANCE_ID" "SLOT_FRAME_ID"
-
-# Clear all content from a slot
-os-figma slot clear "INSTANCE_ID" "SLOT_FRAME_ID"
-```
-
-### Slot Workflow Example
-
-```bash
-# 1. Create a card component with a content area
-os-figma render '<Frame name="OS/Card/Slotted" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" overflow="hidden" stroke="var:--color-neutral-5" strokeWidth={1}>
-  <Frame name="OS/Card/Header" w="fill" p={16}>
-    <Text size={18} weight="bold" color="var:--color-neutral-10" w="fill">Card Title</Text>
-  </Frame>
-  <Frame name="OS/Card/Content" flex="col" gap={8} p={16} w="fill" />
-  <Frame name="OS/Card/Footer" flex="row" p={16} gap={8} w="fill" />
-</Frame>'
-
-# 2. Convert to component
-os-figma node to-component "FRAME_ID"
-
-# 3. Make the Content frame a slot
-os-figma slot create "COMP_ID" "CONTENT_FRAME_ID" "Content"
-
-# 4. Make the Footer frame a slot
-os-figma slot create "COMP_ID" "FOOTER_FRAME_ID" "Actions"
-
-# 5. Now instances can have different content in each slot
-```
-
-### Slot Naming Convention
-Follow the OS layer naming pattern for slot frames:
-```
-OS/{Component}/Content     — main content slot
-OS/{Component}/Actions     — action buttons slot
-OS/{Component}/Header      — header content slot
-OS/{Component}/Footer      — footer content slot
 ```
 
 ---
