@@ -2382,6 +2382,219 @@ return { updated, notFound };
   });
 
 tokens
+  .command('status')
+  .description('Compare local tokens.json against current Figma variable values')
+  .action(async () => {
+    const cwd = process.cwd();
+    const libraryConfigPath = join(cwd, 'library-config.json');
+    const tokensPath = join(cwd, 'tokens.json');
+
+    // Guard: require project files
+    if (!existsSync(libraryConfigPath) || !existsSync(tokensPath)) {
+      console.log(chalk.red('\n✗ Project files not found.\n'));
+      console.log(chalk.white('  Run ') + chalk.cyan('os-figma init') + chalk.white(' first to set up this project.\n'));
+      process.exit(1);
+    }
+
+    // Read tokens.json
+    let tokensData;
+    try {
+      tokensData = JSON.parse(readFileSync(tokensPath, 'utf8'));
+    } catch {
+      console.log(chalk.red('✗ Could not parse tokens.json — run os-figma init to recreate it.'));
+      process.exit(1);
+    }
+
+    // Check Figma connection
+    const spinner = ora('Connecting to Figma...').start();
+    try {
+      await checkConnection();
+      spinner.text = 'Reading variables from Figma...';
+    } catch {
+      spinner.fail('Not connected to Figma — run os-figma connect first');
+      process.exit(1);
+    }
+
+    // Figma eval: read all variables (same shape as tokens pull)
+    const readCode = `(async () => {
+function rgbToHex(r, g, b) {
+  const h = n => Math.round(n * 255).toString(16).padStart(2, '0').toUpperCase();
+  return '#' + h(r) + h(g) + h(b);
+}
+const collections = await figma.variables.getLocalVariableCollectionsAsync();
+if (!collections || collections.length === 0) return null;
+const allVars = await figma.variables.getLocalVariablesAsync();
+const result = {};
+for (const col of collections) {
+  const colVars = allVars.filter(v => v.variableCollectionId === col.id);
+  if (colVars.length === 0) continue;
+  const modeId = col.modes[0].modeId;
+  result[col.name] = {};
+  for (const v of colVars) {
+    const raw = v.valuesByMode[modeId];
+    let value;
+    if (v.resolvedType === 'COLOR') {
+      value = (raw && raw.r !== undefined) ? rgbToHex(raw.r, raw.g, raw.b) : null;
+    } else {
+      value = (typeof raw === 'number') ? raw : null;
+    }
+    const parts = v.name.split('/');
+    const tokenName = parts.pop();
+    const groupName = parts.length ? parts.join('/') : 'Default';
+    if (!result[col.name][groupName]) result[col.name][groupName] = {};
+    result[col.name][groupName][tokenName] = { type: v.resolvedType, value };
+  }
+}
+return result;
+})()`;
+
+    let figmaData;
+    try {
+      figmaData = await fastEval(readCode);
+    } catch (err) {
+      spinner.fail('Failed to read variables from Figma');
+      console.error(chalk.red(err.message));
+      process.exit(1);
+    }
+
+    if (!figmaData || Object.keys(figmaData).length === 0) {
+      spinner.fail('No variables found in Figma — run os-figma tokens preset first');
+      process.exit(1);
+    }
+
+    spinner.stop();
+
+    // Build a flat map of Figma tokens keyed by tokenName for suffix lookup
+    // Key: tokenName (e.g. "--color-primary"), Value: { colName, groupName, type, value }
+    const figmaFlat = new Map();
+    for (const [colName, groups] of Object.entries(figmaData)) {
+      for (const [groupName, tokens] of Object.entries(groups)) {
+        for (const [tokenName, data] of Object.entries(tokens)) {
+          // Store by full path and by suffix so we can match either way
+          figmaFlat.set(`${colName}/${groupName}/${tokenName}`, { colName, groupName, tokenName, ...data });
+          // suffix key (tokenName alone) — only set if not already present to avoid ambiguity
+          if (!figmaFlat.has(`__suffix__${tokenName}`)) {
+            figmaFlat.set(`__suffix__${tokenName}`, { colName, groupName, tokenName, ...data });
+          }
+        }
+      }
+    }
+
+    // Compare tokens.json against Figma
+    const modified = [];   // in tokens.json, differs from Figma
+    const missingInFigma = []; // in tokens.json, not found in Figma
+    let inSync = 0;
+
+    for (const [colName, groups] of Object.entries(tokensData.collections || {})) {
+      for (const [groupName, tokens] of Object.entries(groups)) {
+        for (const [tokenName, tokenData] of Object.entries(tokens)) {
+          if (tokenData.value === null || tokenData.value === undefined) continue;
+
+          // Look up in Figma: exact path first, then suffix
+          const fullKey = `${colName}/${groupName}/${tokenName}`;
+          const figmaToken = figmaFlat.get(fullKey) || figmaFlat.get(`__suffix__${tokenName}`);
+
+          if (!figmaToken) {
+            missingInFigma.push({ colName, groupName, tokenName });
+            continue;
+          }
+
+          // Compare values
+          let localVal = tokenData.value;
+          let figmaVal = figmaToken.value;
+          let match;
+
+          if (tokenData.type === 'COLOR') {
+            // Normalise to uppercase hex
+            match = String(localVal).toUpperCase() === String(figmaVal).toUpperCase();
+          } else {
+            // FLOAT: round to 2dp before comparing
+            match = parseFloat(Number(localVal).toFixed(2)) === parseFloat(Number(figmaVal).toFixed(2));
+          }
+
+          if (match) {
+            inSync++;
+          } else {
+            modified.push({ colName, groupName, tokenName, localVal, figmaVal });
+          }
+        }
+      }
+    }
+
+    // Find tokens in Figma not present in tokens.json
+    const localFlat = new Set();
+    for (const [colName, groups] of Object.entries(tokensData.collections || {})) {
+      for (const [groupName, tokens] of Object.entries(groups)) {
+        for (const tokenName of Object.keys(tokens)) {
+          localFlat.add(`${colName}/${groupName}/${tokenName}`);
+          localFlat.add(`__suffix__${tokenName}`);
+        }
+      }
+    }
+
+    const newInFigma = [];
+    for (const [colName, groups] of Object.entries(figmaData)) {
+      for (const [groupName, tokens] of Object.entries(groups)) {
+        for (const tokenName of Object.keys(tokens)) {
+          const fullKey = `${colName}/${groupName}/${tokenName}`;
+          if (!localFlat.has(fullKey) && !localFlat.has(`__suffix__${tokenName}`)) {
+            newInFigma.push({ colName, groupName, tokenName });
+          }
+        }
+      }
+    }
+
+    const totalLocal = inSync + modified.length + missingInFigma.length;
+    const totalCollections = Object.keys(tokensData.collections || {}).length;
+    const hasDrift = modified.length > 0 || missingInFigma.length > 0 || newInFigma.length > 0;
+
+    if (!hasDrift) {
+      console.log(chalk.green('\n  ✔ Tokens in sync\n'));
+      console.log(`  Collections: ${chalk.bold(totalCollections)}`);
+      console.log(`  Tokens:      ${chalk.bold(totalLocal)}`);
+      if (tokensData.lastSync) {
+        console.log(`  Last sync:   ${chalk.gray(tokensData.lastSync)}`);
+      }
+      console.log();
+      return;
+    }
+
+    console.log(chalk.yellow('\n  ⚠ Token drift detected\n'));
+    console.log(`  In sync:            ${chalk.bold(inSync)}`);
+    console.log(`  Modified in Figma:  ${chalk.bold(modified.length)}`);
+    console.log(`  Missing in Figma:   ${chalk.bold(missingInFigma.length)}`);
+    console.log(`  New in Figma:       ${chalk.bold(newInFigma.length)}`);
+
+    if (modified.length > 0) {
+      console.log(chalk.white('\n  Modified in Figma:'));
+      for (const { colName, groupName, tokenName, localVal, figmaVal } of modified) {
+        console.log(chalk.gray(`    ${colName} / ${groupName} / ${tokenName}`));
+        console.log(chalk.gray(`      tokens.json:  `) + chalk.white(localVal));
+        console.log(chalk.gray(`      Figma:        `) + chalk.yellow(figmaVal));
+      }
+    }
+
+    if (missingInFigma.length > 0) {
+      console.log(chalk.white('\n  Missing in Figma:'));
+      for (const { colName, groupName, tokenName } of missingInFigma) {
+        console.log(chalk.gray(`    ${colName} / ${groupName} / ${tokenName}`));
+      }
+    }
+
+    if (newInFigma.length > 0) {
+      console.log(chalk.white('\n  New in Figma (not in tokens.json):'));
+      for (const { colName, groupName, tokenName } of newInFigma) {
+        console.log(chalk.gray(`    ${colName} / ${groupName} / ${tokenName}`));
+      }
+    }
+
+    console.log();
+    console.log(`  Run ${chalk.cyan('os-figma tokens pull')}   to update tokens.json from Figma`);
+    console.log(`  Run ${chalk.cyan('os-figma tokens push')}   to update Figma from tokens.json`);
+    console.log();
+  });
+
+tokens
   .command('ds')
   .description('Create IDS Base Design System (complete starter kit)')
   .action(async () => {
