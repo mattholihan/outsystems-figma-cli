@@ -56,7 +56,7 @@ outsystems-figma-cli/          ← Global CLI tool (installed via npm install -g
 
 project-directory/             ← Per-project files (one per client/project)
 ├── tokens.json                # Project-specific token values, synced with Figma
-└── library-config.json        # Figma library connections (Foundations + Components)
+└── library-config.json        # Figma library connections, component keys, and icon keys
 ```
 
 ## Project Architecture
@@ -70,6 +70,10 @@ The CLI follows a global tool / local project model:
 1. Create a project directory
 2. Run `os-figma init` — generates `tokens.json` and `library-config.json`
 3. Run `os-figma tokens pull` — syncs token values from Figma into `tokens.json`
+4. Run `os-figma pattern scan` — open component library file in Figma first;
+   indexes component keys into library-config.json (one-time setup)
+5. Run `os-figma pattern scan --icons` — open foundations/icon library file in
+   Figma first; indexes icon keys into library-config.json (one-time setup)
 
 ### Token sync flow
 ```
@@ -105,6 +109,9 @@ This CLI is purpose-built for OutSystems app design. It is aware of:
 - **Screen sizes** — correct frame dimensions for mobile (390×844), tablet (768×1024), and web (1440×900)
 - **Layer naming** — enforces `OS/{Component}/{Variant}/{State}` convention throughout
 - **Slots** — support for Figma Slots (CHILDREN component properties) to create flexible content areas in components
+- **Pattern index** — component and icon keys stored in `library-config.json`,
+  populated by `os-figma pattern scan`. Enables `pattern list` and `pattern add`
+  without requiring a live library enumeration API.
 
 ### Limitations
 
@@ -114,3 +121,5 @@ This CLI is purpose-built for OutSystems app design. It is aware of:
 - Some eval commands don't return output (but still execute)
 - Project commands (`tokens pull`, `tokens push`, `tokens status`) must be run from a project directory containing `tokens.json` and `library-config.json`
 - Token values are project-specific — always run `os-figma tokens pull` when switching between projects
+- `pattern scan` and `pattern scan --icons` must be run with the relevant Figma
+  library file open in Figma Desktop

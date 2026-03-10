@@ -26,6 +26,9 @@ Based on OutSystems UI v2.0.0 (Figma Community). Supports both ODC and O11.
 | "convert to component" | `os-figma node to-component "ID"` |
 | "add slot to component" | `os-figma slot create "compID" "frameID" "SlotName"` |
 | "list slots" | `os-figma slot list "compID"` |
+| "add content to slot" | `os-figma slot add "INST_ID" "SLOT_FRAME_ID" "CONTENT_ID"` |
+| "reset slot" | `os-figma slot reset "INST_ID" "SLOT_FRAME_ID"` |
+| "clear slot" | `os-figma slot clear "INST_ID" "SLOT_FRAME_ID"` |
 | "scan components from library" | `os-figma pattern scan` |
 | "scan icons from library" | `os-figma pattern scan --icons` |
 | "list available patterns" | `os-figma pattern list` |
@@ -124,6 +127,47 @@ Property types are detected automatically:
 
 Property names are matched case-insensitively and do not require Figma's internal
 `#id` suffix or `↳` prefix.
+
+---
+
+## Slots
+
+Slots are Figma component properties (type: CHILDREN) that create flexible content
+areas within components. Use slots for card bodies, modal content, list items, and
+any area where child content varies between instances.
+
+### Commands
+```bash
+# Convert a frame inside a component to a slot
+os-figma slot create "COMP_ID" "FRAME_ID" "Content"
+os-figma slot create "COMP_ID" "FRAME_ID" "Actions" --description "Action buttons area"
+
+# List all slots on a component or instance
+os-figma slot list "COMP_ID"
+
+# Add content to a slot in an instance
+os-figma slot add "INSTANCE_ID" "SLOT_FRAME_ID" "CONTENT_NODE_ID"
+
+# Reset slot to default content from the main component
+os-figma slot reset "INSTANCE_ID" "SLOT_FRAME_ID"
+
+# Clear all content from a slot
+os-figma slot clear "INSTANCE_ID" "SLOT_FRAME_ID"
+```
+
+### Slot naming convention
+```
+OS/{Component}/Content     — main content slot
+OS/{Component}/Actions     — action buttons slot
+OS/{Component}/Header      — header content slot
+OS/{Component}/Footer      — footer content slot
+```
+
+### Workflow
+1. Create a component with frames designated as content areas
+2. Convert content frames to slots: `os-figma slot create ...`
+3. Create instances of the component
+4. Add different content to each instance's slot: `os-figma slot add ...`
 
 ---
 

@@ -32,6 +32,23 @@ os-figma tokens status
 
 > Token values are project-specific — always run `os-figma tokens pull` after switching projects or starting a new session.
 
+### Pattern Commands
+```bash
+# One-time: index components (open component library file in Figma first)
+os-figma pattern scan
+
+# One-time: index icons (open icon/foundations library file in Figma first)
+os-figma pattern scan --icons
+
+# List available components (no Figma connection required)
+os-figma pattern list
+
+# Add a component to canvas
+os-figma pattern add Button
+os-figma pattern add Button --variant Primary --state Default
+os-figma pattern add Button --variant Primary --prop "Text=Sign In" --prop "Show icon (L)=true" --prop "Icon (L)=arrow-left"
+```
+
 ### Execute JavaScript in Figma
 ```bash
 os-figma eval "YOUR_JAVASCRIPT_HERE"
@@ -164,6 +181,10 @@ os-figma fj eval "figma.currentPage.children.length"
 
 7. **Always use OutSystems token variables** — not raw hex values. See `CLAUDE.md` for full token list.
 
+8. **Pattern scan is one-time setup** — run `os-figma pattern scan` and
+   `os-figma pattern scan --icons` once per library. Re-run only if the library
+   is updated. Component and icon keys are stored in `library-config.json`.
+
 ## File Structure
 
 ```
@@ -177,7 +198,7 @@ outsystems-figma-cli/        ← Global CLI (installed globally via npm)
 
 project-directory/           ← Per-project config (one per client/design)
 ├── tokens.json              # Project-specific token values
-└── library-config.json      # Figma library connections
+└── library-config.json      # Figma library connections, component keys, and icon keys
 ```
 
 ## Current Session Context
@@ -186,7 +207,8 @@ project-directory/           ← Per-project config (one per client/design)
 > 1. `os-figma connect`
 > 2. `cd` to your project directory
 > 3. `os-figma tokens pull`
-> 4. Paste active node IDs below
+> 4. First time only: `os-figma pattern scan` and `os-figma pattern scan --icons`
+> 5. Paste active node IDs below
 
 Active file node IDs:
 (paste your node IDs here)

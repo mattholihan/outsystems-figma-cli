@@ -95,6 +95,27 @@ os-figma connect
 
 Open a design file in Figma and start designing.
 
+### Set up a project
+
+Each project has its own config. Run these once from your project directory:
+```bash
+# Initialise project files
+os-figma init
+
+# Sync token values from Figma
+os-figma tokens pull
+
+# Index components from your component library (open it in Figma first)
+os-figma pattern scan
+
+# Index icons from your foundations library (open it in Figma first)
+os-figma pattern scan --icons
+```
+
+After setup, `pattern list` and `pattern add` work offline using the indexed keys
+in `library-config.json`. Re-run `pattern scan` and `pattern scan --icons` if your
+libraries are updated.
+
 ### Using with Claude Code
 
 From your project folder, start Claude Code:
@@ -103,7 +124,7 @@ cd ~/projects/outsystems-figma-cli
 claude
 ```
 
-Claude will automatically read `CLAUDE.md` and `OUTSYSTEMS.md` and understand all OutSystems conventions. Try asking:
+Claude will automatically read `CLAUDE.md` and understand all OutSystems conventions. Try asking:
 
 > "Create a mobile login screen using OutSystems UI conventions"
 
@@ -251,6 +272,10 @@ Connects to Figma Desktop via Chrome DevTools Protocol (CDP). No API key needed 
 - **OutSystems UI Tokens** — colors, typography, spacing, radius using OS CSS variable naming
 - **Platform-aware** — ODC and O11 support with correct CSS export targets
 - **OS UI Patterns** — 40+ patterns including Card, Modal, Tabs, Accordion, Gallery, Wizard
+- **Pattern Components** — import components directly from your Figma team libraries;
+  `pattern scan` indexes component and icon keys locally, `pattern add` places instances
+  with variant, state, and property control (`--prop` flag supports text, boolean, and
+  instance swap)
 - **Screen templates** — Dashboard, List, Detail, Form, Login, Settings (mobile and web)
 - **Layer naming enforcement** — `OS/{Component}/{Variant}/{State}` convention
 

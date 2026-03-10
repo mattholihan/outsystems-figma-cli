@@ -59,6 +59,11 @@ os-figma tokens status
 # Re-run if the library is updated
 os-figma pattern scan
 
+# Scan the current Figma document for icon keys and save to library-config.json
+# Open your icon/foundations library file in Figma first
+# Re-run if the icon library is updated
+os-figma pattern scan --icons
+
 # List all components saved in library-config.json (no Figma connection required)
 os-figma pattern list
 
@@ -73,11 +78,29 @@ os-figma pattern add Button --variant Primary --state Hover
 
 # Add at a specific position
 os-figma pattern add Card --x 100 --y 200
+
+# Add with component properties (--prop can be passed multiple times)
+os-figma pattern add Button --variant Primary --state Default \
+  --prop "Text=Sign In"
+
+# Boolean property
+os-figma pattern add Button --variant Primary \
+  --prop "Show icon (L)=true"
+
+# Instance swap — value must match an icon name from pattern scan --icons
+os-figma pattern add Button --variant Primary \
+  --prop "Icon (L)=arrow-left"
+
+# Full combination
+os-figma pattern add Button --variant Primary --state Default \
+  --prop "Text=Sign In" \
+  --prop "Show icon (L)=true" \
+  --prop "Icon (L)=arrow-left"
 ```
 
 > **First-time setup:** Run `os-figma pattern scan` once with your component library
-> file open in Figma. This saves component keys to `library-config.json`. Re-run
-> after any library updates.
+> file open in Figma, and `os-figma pattern scan --icons` with your icon library file
+> open. Both save keys to `library-config.json`. Re-run after any library updates.
 
 ---
 

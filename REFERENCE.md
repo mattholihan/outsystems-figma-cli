@@ -2,6 +2,17 @@
 
 Full command reference. For quick start, see CLAUDE.md.
 
+## Setup & Connection
+
+```bash
+os-figma init                            # Initialise project (tokens.json + library-config.json)
+os-figma connect                         # Connect (Yolo Mode)
+os-figma connect --safe                  # Connect (Safe Mode, plugin)
+os-figma daemon status                   # Check daemon status
+os-figma daemon restart                  # Restart daemon
+os-figma files                           # List open Figma files (JSON)
+```
+
 ## Design Tokens & Variables
 
 ### Create OutSystems Token Collections
@@ -33,6 +44,66 @@ os-figma bind radius "--border-radius-soft"
 os-figma bind gap "--space-m"
 os-figma bind padding "--space-l"
 os-figma bind list                       # List available variables
+```
+
+## Pattern Components
+
+### Scan & List
+```bash
+os-figma pattern scan                    # Index component keys from current Figma document
+                                         # Open component library file in Figma first
+os-figma pattern scan --icons            # Index icon keys from current Figma document
+                                         # Open icon/foundations library file in Figma first
+os-figma pattern list                    # List all indexed components (no Figma connection needed)
+```
+
+### Add Components
+```bash
+os-figma pattern add Button              # Add component at viewport centre
+os-figma pattern add Button --variant Primary
+os-figma pattern add Button --variant Primary --state Default
+os-figma pattern add Button --x 100 --y 200   # Add at specific position
+```
+
+### Add with --prop flag
+
+`--prop` can be passed multiple times. Format: `"Key=Value"`. Types are auto-detected:
+```bash
+# Text property
+os-figma pattern add Button --variant Primary --prop "Text=Sign In"
+
+# Boolean property
+os-figma pattern add Button --variant Primary --prop "Show icon (L)=true"
+
+# Instance swap — value must match an icon name from pattern scan --icons
+os-figma pattern add Button --variant Primary --prop "Icon (L)=arrow-left"
+
+# Full combination
+os-figma pattern add Button --variant Primary --state Default \
+  --prop "Text=Sign In" \
+  --prop "Show icon (L)=true" \
+  --prop "Icon (L)=arrow-left"
+```
+
+Property names are matched case-insensitively. Figma's internal `#id` suffix and
+`↳` prefix are handled automatically — do not include them.
+
+### library-config.json structure
+```json
+{
+  "libraries": {
+    "components": "PDX Template - COMPONENTS",
+    "icons": "PDX Template - FOUNDATIONS"
+  },
+  "components": {
+    "Button": "abc123key",
+    "Card": "def456key"
+  },
+  "icons": {
+    "arrow-left": "xyz789key",
+    "home": "def456key"
+  }
+}
 ```
 
 ## Create Elements
@@ -254,7 +325,6 @@ Shape types: `ROUNDED_RECTANGLE`, `RECTANGLE`, `ELLIPSE`, `DIAMOND`, `TRIANGLE_U
 ## Daemon & Connection
 
 ```bash
-os-figma init                            # Initialise project (tokens.json + library-config.json)
 os-figma connect                         # Connect (Yolo Mode)
 os-figma connect --safe                  # Connect (Safe Mode, plugin)
 os-figma daemon status                   # Check daemon status
