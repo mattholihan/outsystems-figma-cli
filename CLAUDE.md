@@ -2,6 +2,8 @@
 
 CLI that controls Figma Desktop directly for designing OutSystems apps. No API key needed.
 
+Based on OutSystems UI v2.0.0 (Figma Community). Supports both ODC and O11.
+
 ---
 
 ## Quick Reference
@@ -24,6 +26,10 @@ CLI that controls Figma Desktop directly for designing OutSystems apps. No API k
 | "convert to component" | `os-figma node to-component "ID"` |
 | "add slot to component" | `os-figma slot create "compID" "frameID" "SlotName"` |
 | "list slots" | `os-figma slot list "compID"` |
+| "scan components from library" | `os-figma pattern scan` |
+| "scan icons from library" | `os-figma pattern scan --icons` |
+| "list available patterns" | `os-figma pattern list` |
+| "add a button" / "add a card" | `os-figma pattern add Button` |
 
 **Full command reference:** See REFERENCE.md
 
@@ -37,11 +43,13 @@ Each project has its own configuration. Always run os-figma commands from the pr
 ```bash
 os-figma init                  # creates tokens.json and library-config.json
 os-figma tokens pull           # syncs token values from Figma
+os-figma pattern scan          # one-time: index components from library file
+os-figma pattern scan --icons  # one-time: index icons from foundations file
 ```
 
 ### Project files
 - `tokens.json` — project-specific token values, synced with Figma
-- `library-config.json` — Figma library connections (Foundations + Components)
+- `library-config.json` — Figma library connections, component keys, and icon keys
 
 ### Token workflow
 ```bash
@@ -50,6 +58,72 @@ os-figma tokens push           # tokens.json → Figma (after local edits)
 os-figma tokens status         # check for drift between tokens.json and Figma
 os-figma tokens preset         # first-time setup only — creates token collections in Figma
 ```
+
+---
+
+## Pattern Components
+
+Components and icons are sourced from your Figma libraries and indexed locally in
+`library-config.json`. Run the scan commands once per library, then re-run after
+any library updates.
+
+### First-time setup
+```bash
+# Open your component library file in Figma, then:
+os-figma pattern scan
+
+# Open your icon library file in Figma, then:
+os-figma pattern scan --icons
+```
+
+### library-config.json structure
+```json
+{
+  "libraries": {
+    "components": "PDX Template - COMPONENTS",
+    "icons": "PDX Template - FOUNDATIONS"
+  },
+  "components": {
+    "Button": "abc123key",
+    "Card": "def456key"
+  },
+  "icons": {
+    "arrow-left": "xyz789key",
+    "home": "def456key"
+  }
+}
+```
+
+### Commands
+```bash
+# List all scanned components (no Figma connection required)
+os-figma pattern list
+
+# Add a component at viewport centre
+os-figma pattern add Button
+
+# Add with variant and state
+os-figma pattern add Button --variant Primary --state Default
+
+# Add at a specific position
+os-figma pattern add Button --x 100 --y 200
+
+# Add with component properties
+os-figma pattern add Button --variant Primary --state Default \
+  --prop "Text=Sign In" \
+  --prop "Show icon (L)=true" \
+  --prop "Icon (L)=arrow-left"
+```
+
+### --prop flag
+`--prop` can be passed multiple times. Each value is a `"Key=Value"` string.
+Property types are detected automatically:
+- `"true"` or `"false"` → boolean
+- Value matches an icon name in `library-config.json → icons` → instance swap
+- Anything else → text
+
+Property names are matched case-insensitively and do not require Figma's internal
+`#id` suffix or `↳` prefix.
 
 ---
 
@@ -193,6 +267,18 @@ OS/Navigation/Sidebar/Web
 
 ---
 
+## Screen Templates
+
+Available screen template types (mobile and web):
+- Dashboards
+- Details
+- Forms
+- Galleries
+- Lists
+- Onboardings
+
+---
+
 ## OutSystems UI Patterns
 
 When a user asks to create an OutSystems UI pattern, use these exact names.
@@ -219,6 +305,12 @@ Always ask or check which platform the user is designing for:
 ```
 --platform odc        OutSystems Developer Cloud (modern, recommended)
 --platform o11        OutSystems 11 / Service Studio (classic)
+```
+
+### CSS Export Targets
+```
+--target odc-studio          (for ODC Theme CSS)
+--target service-studio      (for O11 Service Studio theme)
 ```
 
 ---
