@@ -85,6 +85,16 @@ os-figma pattern scan --icons
 # List all components saved in library-config.json (no Figma connection required)
 os-figma pattern list
 
+# Get the full schema for a component — variants, states, and all props
+# Returns structured JSON by default
+os-figma pattern describe Button
+
+# Human-readable summary
+os-figma pattern describe Button --pretty
+
+# Component names with spaces require quotes
+os-figma pattern describe "Date Picker"
+
 # Add a component instance to the canvas (placed at viewport centre by default)
 os-figma pattern add Button
 

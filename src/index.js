@@ -6817,7 +6817,7 @@ screen
 
 const pattern = program
   .command('pattern')
-  .description('OutSystems UI pattern operations (scan, list, add)');
+  .description('OutSystems UI pattern operations (scan, list, add, describe)');
 
 // Helper: load library-config.json from cwd
 function loadLibraryConfig() {
@@ -6962,6 +6962,178 @@ pattern
       console.log(chalk.cyan(`  ${name}`));
     }
     console.log();
+  });
+
+pattern
+  .command('describe <ComponentName>')
+  .description('Get the full schema for a component — variants, states, and all props')
+  .option('--json', 'Output as JSON (default)')
+  .option('--pretty', 'Output as human-readable summary')
+  .action(async (componentName, options) => {
+    const libConfig = loadLibraryConfig();
+
+    if (!libConfig.components || Object.keys(libConfig.components).length === 0) {
+      console.log(chalk.red('\n✗ No components indexed.\n'));
+      console.log(chalk.white('  Run ') + chalk.cyan('os-figma pattern scan') + chalk.white(' to index components from the current Figma document.\n'));
+      process.exit(1);
+    }
+
+    // Case-insensitive lookup
+    const target = componentName.toLowerCase();
+    const matchedName = Object.keys(libConfig.components).find(k => k.toLowerCase() === target);
+
+    if (!matchedName) {
+      console.log(chalk.red(`\n✗ Component "${componentName}" not found. Run `) + chalk.cyan('os-figma pattern scan') + chalk.red(' first.\n'));
+      process.exit(1);
+    }
+
+    const componentKey = libConfig.components[matchedName];
+    const icons = libConfig.icons || {};
+
+    await checkConnection();
+
+    const spinner = ora(`Inspecting ${matchedName}...`).start();
+
+    const code = `(async function() {
+  var key = ${JSON.stringify(componentKey)};
+
+  function extractProps(defs) {
+    var props = [];
+    var keys = Object.keys(defs || {});
+    for (var i = 0; i < keys.length; i++) {
+      var rawKey = keys[i];
+      var def = defs[rawKey];
+      if (def.type === 'VARIANT') continue;
+      var name = rawKey.split('#')[0].replace(/^\u21b3/, '').trim();
+      var prop = { name: name, type: def.type };
+      if (def.type === 'BOOLEAN') {
+        prop.default = def.defaultValue;
+      } else if (def.type === 'TEXT') {
+        prop.default = def.defaultValue;
+      } else if (def.type === 'INSTANCE_SWAP') {
+        prop.default = def.defaultValue;
+      }
+      props.push(prop);
+    }
+    return props;
+  }
+
+  function resolveComponentSet(node) {
+    if (!node) return null;
+    if (node.type === 'COMPONENT' && node.parent && node.parent.type === 'COMPONENT_SET') {
+      return node.parent;
+    }
+    return node;
+  }
+
+  function buildResult(target) {
+    var isSet = target.type === 'COMPONENT_SET';
+
+    var variants = [];
+    var states = [];
+    if (isSet) {
+      var variantGroupProps = target.variantGroupProperties || {};
+      var groupKeys = Object.keys(variantGroupProps);
+      for (var i = 0; i < groupKeys.length; i++) {
+        var gk = groupKeys[i];
+        var values = variantGroupProps[gk].values || [];
+        var lk = gk.toLowerCase();
+        if (lk === 'variant' || lk === 'type' || lk === 'style' || lk === 'kind') {
+          variants = values;
+        } else if (lk === 'state' || lk === 'status') {
+          states = values;
+        }
+      }
+    }
+
+    var defs = target.componentPropertyDefinitions || {};
+
+    return {
+      name: target.name,
+      key: key,
+      variants: variants,
+      states: states,
+      props: extractProps(defs)
+    };
+  }
+
+  // Try importComponentSetByKeyAsync first
+  var node;
+  try {
+    node = await figma.importComponentSetByKeyAsync(key);
+  } catch (e) {
+    // Fall back to importComponentByKeyAsync (may return variant child)
+    try {
+      node = await figma.importComponentByKeyAsync(key);
+    } catch (e2) {
+      return { error: e2.message };
+    }
+  }
+
+  var target = resolveComponentSet(node);
+  if (!target) return { error: 'Could not resolve component' };
+
+  return buildResult(target);
+})()`;
+
+    let result;
+    try {
+      result = await fastEval(code);
+    } catch (err) {
+      spinner.fail('Failed to inspect component');
+      console.error(chalk.red(err.message));
+      process.exit(1);
+    }
+
+    if (result?.error) {
+      spinner.fail(`Could not retrieve ${matchedName} from Figma. Make sure the library file is open.`);
+      process.exit(1);
+    }
+
+    spinner.stop();
+
+    // Enrich INSTANCE_SWAP props with icon values from library-config
+    const iconNames = Object.keys(icons).sort();
+    for (const prop of result.props) {
+      if (prop.type === 'INSTANCE_SWAP') {
+        if (iconNames.length > 0) {
+          prop.values = iconNames;
+        } else {
+          prop.values = [];
+          prop.note = 'Run pattern scan --icons to populate swap values';
+        }
+        delete prop.default;
+      }
+    }
+
+    if (options.pretty) {
+      console.log(chalk.white.bold(`\n${result.name}`));
+      if (result.variants.length > 0) {
+        console.log(chalk.gray('  Variants:  ') + chalk.cyan(result.variants.join(', ')));
+      }
+      if (result.states.length > 0) {
+        console.log(chalk.gray('  States:    ') + chalk.cyan(result.states.join(', ')));
+      }
+      if (result.props.length > 0) {
+        console.log(chalk.gray('  Props:'));
+        for (const prop of result.props) {
+          const nameCol = prop.name.padEnd(20);
+          const typeCol = prop.type.padEnd(15);
+          let detail = '';
+          if (prop.type === 'INSTANCE_SWAP') {
+            detail = prop.values.length > 0
+              ? 'values: ' + prop.values.slice(0, 5).join(', ') + (prop.values.length > 5 ? ', ...' : '')
+              : (prop.note || '');
+          } else {
+            detail = 'default: ' + JSON.stringify(prop.default);
+          }
+          console.log(chalk.white(`    ${nameCol}`) + chalk.gray(typeCol) + chalk.dim(detail));
+        }
+      }
+      console.log();
+    } else {
+      console.log(JSON.stringify(result, null, 2));
+    }
   });
 
 pattern

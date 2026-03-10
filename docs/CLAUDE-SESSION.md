@@ -37,6 +37,10 @@ os-figma tokens status
 # List available components (no Figma connection required)
 os-figma pattern list
 
+# Get full schema for a component (variants, states, props)
+os-figma pattern describe Button
+os-figma pattern describe Button --pretty
+
 # Add a component to canvas
 os-figma pattern add Button
 os-figma pattern add Button --variant Primary --state Default

@@ -26,6 +26,7 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "add content to slot" | `os-figma slot add "INST_ID" "SLOT_FRAME_ID" "CONTENT_ID"` |
 | "reset slot" | `os-figma slot reset "INST_ID" "SLOT_FRAME_ID"` |
 | "clear slot" | `os-figma slot clear "INST_ID" "SLOT_FRAME_ID"` |
+| "describe a component" | `os-figma pattern describe Button` |
 | "scan components from library" | `os-figma pattern scan` |
 | "scan icons from library" | `os-figma pattern scan --icons` |
 | "list available patterns" | `os-figma pattern list` |
@@ -100,6 +101,12 @@ os-figma pattern scan --icons
 ```bash
 # List all scanned components (no Figma connection required)
 os-figma pattern list
+
+# Get full schema for a component (variants, states, props)
+# Returns JSON by default — use --pretty for human-readable output
+os-figma pattern describe Button
+os-figma pattern describe Button --pretty
+os-figma pattern describe "Date Picker" --json
 
 # Add a component at viewport centre
 os-figma pattern add Button
