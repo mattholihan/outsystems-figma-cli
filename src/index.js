@@ -7,7 +7,7 @@ import { execSync, spawn } from 'child_process';
 import { randomBytes } from 'crypto';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, resolve } from 'path';
 import { createInterface } from 'readline';
 import { homedir, platform } from 'os';
 import { createServer } from 'http';
@@ -6269,6 +6269,62 @@ return result;
     await prompt('');
 
     await runPatternScan({});
+
+    // ─── Generate CLAUDE.md ───
+    {
+      const claudeMdPath = join(cwd, 'CLAUDE.md');
+      let shouldWrite = true;
+
+      if (existsSync(claudeMdPath)) {
+        const rawOverwrite = await prompt(chalk.yellow('\n  CLAUDE.md already exists. Overwrite? ') + chalk.gray('(y/N): '));
+        shouldWrite = rawOverwrite.trim().toLowerCase() === 'y';
+      }
+
+      if (shouldWrite) {
+        const cliDir = resolve(__dirname, '..');
+        const claudeContent = `# ${projectName} — Design Project
+
+This project uses outsystems-figma-cli to design screens in Figma.
+
+## Getting started
+
+Before designing, make sure Figma is connected:
+\`\`\`bash
+os-figma connect
+\`\`\`
+
+Then confirm tokens are in sync:
+\`\`\`bash
+os-figma tokens pull
+\`\`\`
+
+## Full instructions
+
+All commands, conventions, and design guidance are in the CLI's CLAUDE.md:
+
+@${cliDir}/CLAUDE.md
+
+## Project files
+
+- \`tokens.json\` — design token values for this project (project-specific)
+- \`library-config.json\` — component and icon library keys
+
+## Quick start
+
+To create a screen, just ask. For example:
+
+- "Create a mobile login screen"
+- "Create a web dashboard with a sidebar and stats"
+- "Add a form screen for creating a new item"
+
+Claude will use pattern list, pattern describe, pattern add, and render to compose the screen using real library components and design tokens.
+`;
+        writeFileSync(claudeMdPath, claudeContent);
+        console.log(chalk.green('  ✓ Created CLAUDE.md'));
+      } else {
+        console.log(chalk.gray('  Skipping CLAUDE.md'));
+      }
+    }
 
     // Final
     console.log(chalk.green('\n  ✔ All done. You\'re ready to design.\n'));

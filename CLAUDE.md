@@ -614,6 +614,10 @@ fontWeight="bold"    →  weight="bold"
 1. Run `os-figma init` — guides through connection, token sync, and library scan
 2. When complete, say: "Connected! What screen or component would you like to design?"
 
+`os-figma init` generates a `CLAUDE.md` in the project directory that points
+Claude Code to this file. Always launch Claude Code from the project directory,
+not the CLI directory.
+
 If permission error (macOS): System Settings → Privacy → Full Disk Access → Add Terminal
 
 ---

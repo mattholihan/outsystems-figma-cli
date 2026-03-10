@@ -26,6 +26,9 @@ os-figma init
 > `init` handles the full project setup in one flow. You do not need to run
 > `tokens pull`, `pattern scan`, or `pattern scan --icons` separately for
 > a new project.
+>
+> Generates a CLAUDE.md in the project directory so Claude Code has full
+> context when launched from that directory.
 
 ---
 
