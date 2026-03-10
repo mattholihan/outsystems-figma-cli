@@ -581,6 +581,25 @@ const boundFill = (variable) => figma.variables.setBoundVariableForPaint(
 `;
 }
 
+// Helper: Resolve a token value from tokens.json in the current project directory
+// Searches all collections → groups → token entries for the given token name key
+// Returns the value string (e.g. "#FFFFFF") or null if not found
+function resolveToken(tokenName) {
+  const tokensPath = join(process.cwd(), 'tokens.json');
+  if (!existsSync(tokensPath)) return null;
+  try {
+    const data = JSON.parse(readFileSync(tokensPath, 'utf8'));
+    for (const groups of Object.values(data.collections || {})) {
+      for (const entries of Object.values(groups)) {
+        if (entries[tokenName] !== undefined) {
+          return entries[tokenName] ?? null;
+        }
+      }
+    }
+  } catch {}
+  return null;
+}
+
 // Helper: Smart positioning code (returns JS to get next free X position)
 function smartPosCode(gap = 100) {
   return `
@@ -2198,7 +2217,7 @@ for (const col of collections) {
     const tokenName = parts.pop();
     const groupName = parts.length ? parts.join('/') : 'Default';
     if (!result[col.name][groupName]) result[col.name][groupName] = {};
-    result[col.name][groupName][tokenName] = { type: v.resolvedType, value };
+    result[col.name][groupName][tokenName] = { type: v.resolvedType, value, key: v.key };
   }
 }
 return result;
@@ -6253,6 +6272,114 @@ return result;
 
     // Final
     console.log(chalk.green('\n  ✔ All done. You\'re ready to design.\n'));
+  });
+
+// ============ SCREEN ============
+
+const screen = program
+  .command('screen')
+  .description('OutSystems screen operations');
+
+screen
+  .command('create <name>')
+  .description('Create a blank screen frame at the correct size')
+  .option('--size <size>', 'Screen size: mobile or web')
+  .action(async (name, options) => {
+    await checkConnection();
+
+    // Resolve size — prompt if not provided
+    let size = options.size ? options.size.toLowerCase() : null;
+
+    if (!size) {
+      console.log(chalk.white('\n  Screen size:'));
+      console.log(chalk.cyan('  ❯ Mobile (390×844)'));
+      console.log(chalk.gray('    Web (1440×900)\n'));
+      const raw = await prompt(chalk.white('  Select [1=Mobile / 2=Web, default 1]: '));
+      size = raw.trim() === '2' ? 'web' : 'mobile';
+    }
+
+    if (size !== 'mobile' && size !== 'web') {
+      console.log(chalk.red(`\n✗ Invalid size "${options.size}" — use mobile or web\n`));
+      process.exit(1);
+    }
+
+    const width  = size === 'mobile' ? 390  : 1440;
+    const height = size === 'mobile' ? 844  : 900;
+    const sizeLabel = size === 'mobile' ? 'Mobile' : 'Web';
+    const layerName = `Screen/${sizeLabel}/${name}/Blank`;
+
+    const token = resolveToken('--color-neutral-0');
+    if (!token) {
+      console.log(chalk.yellow('  ⚠ Could not resolve --color-neutral-0 from tokens.json, using #FFFFFF'));
+    }
+
+    // Step 1: create frame and get its ID
+    const createCode = `(async () => {
+${smartPosCode(100)}
+const frame = figma.createFrame();
+frame.name = ${JSON.stringify(layerName)};
+frame.x = smartX;
+frame.y = 0;
+frame.resize(${width}, ${height});
+figma.currentPage.selection = [frame];
+figma.viewport.scrollAndZoomIntoView([frame]);
+return frame.id;
+})()`;
+
+    const spinner = ora(`Creating ${layerName}...`).start();
+    let frameId;
+    try {
+      frameId = await fastEval(createCode);
+    } catch (err) {
+      spinner.fail('Failed to create screen');
+      console.error(chalk.red(err.message));
+      process.exit(1);
+    }
+
+    // Step 2: bind background — library variable if key available, hex fallback otherwise
+    const applyHexFallback = async () => {
+      const bgHex = token?.value || '#FFFFFF';
+      const hexFill = generateFillCode(bgHex, 'frame');
+      const hexCode = `(async () => {
+const frame = figma.getNodeById(${JSON.stringify(String(frameId))});
+${hexFill.code}
+})()`;
+      try { await fastEval(hexCode); } catch {}
+    };
+
+    if (token?.key && frameId) {
+      const bindCode = `(async () => {
+const key = ${JSON.stringify(token.key)};
+const collections = await figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync();
+for (const col of collections) {
+  const vars = await figma.teamLibrary.getVariablesInLibraryCollectionAsync(col.key);
+  const match = vars.find(v => v.key === key);
+  if (match) {
+    const imported = await figma.variables.importVariableByKeyAsync(match.key);
+    const frame = figma.getNodeById(${JSON.stringify(String(frameId))});
+    const paint = { type: 'SOLID', color: { r: 1, g: 1, b: 1 } };
+    const boundPaint = figma.variables.setBoundVariableForPaint(paint, 'color', imported);
+    frame.fills = [boundPaint];
+    return JSON.stringify({ success: true });
+  }
+}
+return JSON.stringify({ fallback: true });
+})()`;
+      let bindResult;
+      try {
+        bindResult = await fastEval(bindCode);
+      } catch {
+        await applyHexFallback();
+      }
+      if (bindResult) {
+        const parsed = typeof bindResult === 'string' ? JSON.parse(bindResult) : bindResult;
+        if (parsed?.fallback) await applyHexFallback();
+      }
+    } else {
+      await applyHexFallback();
+    }
+
+    spinner.succeed(`Created ${layerName} (${width}×${height})`);
   });
 
 // ============ PATTERN ============
