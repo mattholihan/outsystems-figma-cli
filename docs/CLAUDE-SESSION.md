@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-`outsystems-figma-cli` is a CLI tool for designing OutSystems apps in Figma. It connects to Figma Desktop via Chrome DevTools Protocol and executes JavaScript against the Figma Plugin API.
+`outsystems-figma-cli` is a CLI tool for designing apps in Figma. It connects to Figma Desktop via Chrome DevTools Protocol and executes JavaScript against the Figma Plugin API.
 
 **npm package:** `outsystems-figma-cli`
 **GitHub:** https://github.com/mattholihan/outsystems-figma-cli
@@ -52,7 +52,7 @@ os-figma eval "YOUR_JAVASCRIPT_HERE"
 ```bash
 os-figma raw query "//FRAME"
 os-figma raw query "//GROUP[@name='content']"
-os-figma raw query "//*[@name^='OS/']"
+os-figma raw query "//FRAME"
 ```
 
 ### Export
@@ -115,7 +115,7 @@ if (found) {
 os-figma eval "
 const page = figma.currentPage;
 page.children.filter(n => n.name.startsWith('Frame')).forEach((f, i) => {
-  f.name = 'OS/Screen/Mobile/' + (i + 1);
+  f.name = 'Screen/Mobile/' + (i + 1);
 });
 "
 ```
@@ -170,9 +170,9 @@ os-figma fj eval "figma.currentPage.children.length"
 
 5. **Token commands** (`pull`/`push`/`status`) and `init` must be run from the project directory, not the CLI root.
 
-6. **Always follow OutSystems layer naming** — `OS/{Component}/{Variant}/{State}`.
+6. **Always follow layer naming convention** — `{Component}/{Variant}/{State}`.
 
-7. **Always use OutSystems token variables** — not raw hex values. See `CLAUDE.md` for full token list.
+7. **Always use token variables from tokens.json** — not raw hex values.
 
 8. **Pattern scan is handled by init** — run `os-figma init` for new projects.
    To re-scan manually (e.g. after a library update): `os-figma pattern scan`
@@ -207,5 +207,5 @@ project-directory/           ← Per-project config (one per client/design)
 Active file node IDs:
 (paste your node IDs here)
 
-OutSystems token collection in use:
-(e.g. "OutSystems UI / Light")
+Token collection in use:
+(e.g. "Light")

@@ -91,10 +91,10 @@ node.x = oldRight - node.width;
 node.y = oldTop;
 ```
 
-### Scale and Center in an OutSystems Screen Frame
+### Scale and Center in a Screen Frame
 
 ```javascript
-// Screen dimensions are OutSystems standards — confirm against your tokens.json if overridden
+// Screen dimensions — confirm against your tokens.json if overridden
 // Mobile (390×844)
 const frameW = 390, frameH = 844;
 
@@ -114,35 +114,35 @@ node.y = (frameH - node.height) / 2;
 
 ## Batch Operations
 
-### Rename Multiple Nodes to OutSystems Convention
+### Rename Multiple Nodes
 
 ```javascript
 const page = figma.currentPage;
 const frames = page.children.filter(n => n.name.startsWith('Frame'));
 
 frames.forEach((frame, i) => {
-  frame.name = `OS/Screen/Mobile/${i + 1}`;
+  frame.name = `Screen/Mobile/${i + 1}`;
 });
 ```
 
 ### Rename Children Inside Frames
 
 ```javascript
-const screens = page.children.filter(n => n.name.startsWith('OS/Screen/'));
+const screens = page.children.filter(n => n.name.startsWith('Screen/'));
 
 screens.forEach(screen => {
   const group = screen.children.find(c => c.type === 'GROUP');
-  if (group) group.name = 'OS/Content';
+  if (group) group.name = 'Content';
 });
 ```
 
 ### Different Scaling Based on Screen Type
 
 ```javascript
-const screens = page.children.filter(n => n.name.startsWith('OS/Screen/'));
+const screens = page.children.filter(n => n.name.startsWith('Screen/'));
 
 screens.forEach(screen => {
-  const content = screen.children.find(c => c.name === 'OS/Content');
+  const content = screen.children.find(c => c.name === 'Content');
   if (!content) return;
 
   // Scale differently for mobile vs web
@@ -162,7 +162,7 @@ screens.forEach(screen => {
 
 ```javascript
 // Export all screens with a suffix
-const screens = page.children.filter(n => n.name.startsWith('OS/Screen/'));
+const screens = page.children.filter(n => n.name.startsWith('Screen/'));
 
 for (const screen of screens) {
   // Use os-figma export command with the screen's node ID
@@ -217,7 +217,7 @@ Sometimes eval commands execute but return nothing. The code still runs. Verify 
 ```bash
 # Query returns IDs in format: [TYPE] "name" (ID) dimensions
 os-figma raw query "//FRAME"
-# Output: [FRAME] "OS/Screen/Mobile/1" (1:90) 390×844
+# Output: [FRAME] "Screen/Mobile/1" (1:90) 390×844
 ```
 
 ### Check Node Structure
@@ -227,8 +227,8 @@ const node = figma.getNodeById('NODE_ID');
 node.children.map(c => c.name + ' (' + c.type + ')').join(', ');
 ```
 
-### Find All OutSystems Components on Canvas
+### Find All Named Layers on Canvas
 
 ```bash
-os-figma raw query "//*[@name^='OS/']"
+os-figma raw query "//*[@name^='Screen/']"
 ```

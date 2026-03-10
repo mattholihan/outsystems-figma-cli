@@ -16,12 +16,12 @@ os-figma files                           # List open Figma files (JSON)
 
 ## Design Tokens & Variables
 
-### Create OutSystems Token Collections
+### Create Token Collections
 
 ```bash
-os-figma tokens preset                   # Create all OutSystems token collections
-os-figma tokens spacing                  # OutSystems spacing tokens only
-os-figma tokens radii                    # OutSystems border radius tokens only
+os-figma tokens preset                   # Create all token collections
+os-figma tokens spacing                  # Spacing tokens only
+os-figma tokens radii                    # Border radius tokens only
 os-figma tokens pull                     # Pull from Foundations file → tokens.json
 os-figma tokens pull --file "Name"       # Override target file
 os-figma tokens push                     # Push tokens.json → Foundations file
@@ -33,7 +33,7 @@ os-figma tokens status --file "Name"     # Override target file
 Token commands target `library-config.json → libraries.foundations` automatically.
 The Foundations file must be open in Figma Desktop. Use `--file` to override.
 
-### Manage Variables
+### Variables
 
 ```bash
 os-figma var list                        # Show all variables
@@ -42,7 +42,7 @@ os-figma var visualize                   # Show colors on canvas
 os-figma var create "name" -c "ColId" -t COLOR -v "#1068EB"
 ```
 
-### Bind Variables
+### Variable Bindings
 
 ```bash
 os-figma bind fill "--color-primary"
@@ -157,16 +157,16 @@ os-figma create icon lucide:star -c "var:--color-warning"
 ### Render with JSX
 
 ```bash
-os-figma render '<Frame name="OS/Card/Default" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" gap={8} p={24} stroke="var:--color-neutral-4" strokeWidth={1}>
+os-figma render '<Frame name="Card/Default" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" gap={8} p={24} stroke="var:--color-neutral-4" strokeWidth={1}>
   <Text size={18} weight="bold" color="var:--color-neutral-10" w="fill">Card Title</Text>
   <Text size={14} color="var:--color-neutral-7" w="fill">Card description text.</Text>
 </Frame>'
 ```
 
-### Render with OutSystems Variable Binding
+### Render with Variable Binding
 
 ```bash
-os-figma render '<Frame name="OS/Card/Default" w={320} bg="var:--color-neutral-0" stroke="var:--color-neutral-4" rounded={8} flex="col" gap={8} p={24}>
+os-figma render '<Frame name="Card/Default" w={320} bg="var:--color-neutral-0" stroke="var:--color-neutral-4" rounded={8} flex="col" gap={8} p={24}>
   <Text size={18} weight="bold" color="var:--color-neutral-10" w="fill">Card Title</Text>
   <Text size={14} color="var:--color-neutral-7" w="fill">Description text.</Text>
   <Frame bg="var:--color-primary" px={16} py={8} rounded={4} flex="row" justify="center" items="center">
@@ -175,14 +175,14 @@ os-figma render '<Frame name="OS/Card/Default" w={320} bg="var:--color-neutral-0
 </Frame>'
 ```
 
-OutSystems color variables: `--color-primary`, `--color-secondary`, `--color-neutral-0` through `--color-neutral-10`, `--color-feedback-success`, `--color-feedback-warning`, `--color-feedback-error`, `--color-feedback-info`
+Color variables: `--color-primary`, `--color-secondary`, `--color-neutral-0` through `--color-neutral-10`, `--color-success`, `--color-warning`, `--color-error`, `--color-info`
 
 ### Render Batch (Multiple Frames)
 
 ```bash
 os-figma render-batch '[
-  "<Frame name=\"OS/Card/1\" w={300} h={200} bg=\"var:--color-neutral-0\"><Text>Card 1</Text></Frame>",
-  "<Frame name=\"OS/Card/2\" w={300} h={200} bg=\"var:--color-neutral-0\"><Text>Card 2</Text></Frame>"
+  "<Frame name=\"Card/1\" w={300} h={200} bg=\"var:--color-neutral-0\"><Text>Card 1</Text></Frame>",
+  "<Frame name=\"Card/2\" w={300} h={200} bg=\"var:--color-neutral-0\"><Text>Card 2</Text></Frame>"
 ]' -d row -g 40
 ```
 
@@ -213,7 +213,7 @@ os-figma set size 320 200                         # Resize
 os-figma set pos 100 100                          # Move
 os-figma set opacity 0.5                          # Opacity
 os-figma set autolayout row -g 8 -p 16            # Apply auto-layout
-os-figma set name "OS/Button/Primary/Default"     # Rename (use OS convention)
+os-figma set name "Button/Primary/Default"        # Rename (use naming convention)
 ```
 
 ## Layout & Sizing
@@ -231,9 +231,9 @@ os-figma align center                    # Align items
 ## Find & Select
 
 ```bash
-os-figma find "OS/Button"                # Find by name
-os-figma find "OS/Card" -t FRAME         # Filter by type
-os-figma raw query "//*[@name^='OS/']"   # All OutSystems layers
+os-figma find "Button"                   # Find by name
+os-figma find "Card" -t FRAME            # Filter by type
+os-figma raw query "//*[@name^='Card/']" # All named layers
 os-figma select "1:234"                  # Select node
 os-figma get                             # Get selection props
 os-figma get "1:234"                     # Get specific node
@@ -303,7 +303,7 @@ Presets: `recommended`, `strict`, `accessibility`, `design-system`
 ```bash
 os-figma raw query "//FRAME"
 os-figma raw query "//COMPONENT"
-os-figma raw query "//*[@name^='OS/']"
+os-figma raw query "//*[@name^='Card/']"
 os-figma raw query "//*[contains(@name, 'Button')]"
 os-figma raw select "1:234"
 os-figma raw export "1:234" --scale 2
@@ -388,7 +388,7 @@ fontWeight="bold"    →  weight="bold"
 
 ## Advanced Examples
 
-### Switch to Dark Mode (OutSystems Light/Dark tokens)
+### Switch to Dark Mode
 
 ```javascript
 os-figma eval "
@@ -422,11 +422,11 @@ if (found) {
 "
 ```
 
-### Create OutSystems Component Instance
+### Create Component Instance
 
 ```javascript
 os-figma eval "(function() {
-  const comp = figma.currentPage.findOne(n => n.type === 'COMPONENT' && n.name === 'OS/Button/Primary/Default');
+  const comp = figma.currentPage.findOne(n => n.type === 'COMPONENT' && n.name === 'Button/Primary/Default');
   if (!comp) return 'Component not found';
   const instance = comp.createInstance();
   instance.x = 100;
@@ -435,7 +435,7 @@ os-figma eval "(function() {
 })()"
 ```
 
-### Smart Positioning (respects existing OS frames)
+### Smart Positioning (respects existing frames)
 
 ```javascript
 let smartX = 0;
@@ -444,5 +444,5 @@ smartX += 100;
 const frame = figma.createFrame();
 frame.x = smartX;
 frame.resize(390, 844); // Mobile screen size
-frame.name = 'OS/Screen/Mobile/New';
+frame.name = 'Screen/Mobile/New';
 ```

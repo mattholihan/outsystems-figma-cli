@@ -98,16 +98,15 @@ Unlike the Figma REST API which requires authentication, we use the Plugin API d
 - Access to features not available in REST API (like variable modes)
 - Works with the user's existing Figma session
 
-### OutSystems-Specific Design
+### CLI Design
 
-This CLI is purpose-built for OutSystems app design. It is aware of:
+This CLI is purpose-built for designing apps with a Figma component library. It is aware of:
 
 - **Custom component library** — two-file setup (Foundations + Components) linked as Figma Team Libraries
 - **Project-specific tokens** — token values stored in `tokens.json`, synced bidirectionally with Figma
-- **Design tokens** — OutSystems CSS custom property naming (`--color-primary`, `--space-m`, etc.)
-- **Platform targets** — ODC (OutSystems Developer Cloud) and O11 (OutSystems 11)
+- **Design tokens** — CSS custom property naming (`--color-primary`, `--space-m`, etc.)
 - **Screen sizes** — correct frame dimensions for mobile (390×844), tablet (768×1024), and web (1440×900)
-- **Layer naming** — enforces `OS/{Component}/{Variant}/{State}` convention throughout
+- **Layer naming** — `{Component}/{Variant}/{State}` convention throughout
 - **Slots** — support for Figma Slots (CHILDREN component properties) to create flexible content areas in components
 - **Pattern index** — component and icon keys stored in `library-config.json`,
   populated by `os-figma pattern scan`. Enables `pattern list` and `pattern add`

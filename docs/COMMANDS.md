@@ -178,14 +178,14 @@ os-figma col create "OutSystems UI Tokens"
 ## Create Elements
 
 ```bash
-# Create a mobile screen frame (OutSystems standard)
-os-figma create frame "OS/Screen/Mobile" -w 390 -h 844
+# Create a mobile screen frame
+os-figma create frame "Screen/Mobile" -w 390 -h 844
 
-# Create a web screen frame (OutSystems standard)
-os-figma create frame "OS/Screen/Web" -w 1440 -h 900
+# Create a web screen frame
+os-figma create frame "Screen/Web" -w 1440 -h 900
 
-# Create a frame with OutSystems token fill
-os-figma create frame "OS/Card/Default" -w 320 -h 200 --fill "var:--color-neutral-0" --radius 8
+# Create a frame with token fill
+os-figma create frame "Card/Default" -w 320 -h 200 --fill "var:--color-neutral-0" --radius 8
 
 # Create an icon (Iconify, 150k+ icons)
 os-figma create icon lucide:star -s 24 -c "#f59e0b"
@@ -197,12 +197,12 @@ os-figma create icon mdi:home -s 32 -c "#3b82f6"
 ## JSX Rendering
 
 ```bash
-# Create an OutSystems Card component
-os-figma render '<Frame name="OS/Card/Default" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" overflow="hidden" stroke="var:--color-neutral-200" strokeWidth={1}>
-  <Frame name="OS/Card/Image" w="fill" h={160} bg="var:--color-neutral-100" />
-  <Frame name="OS/Card/Content" flex="col" gap={8} p={16} w="fill">
-    <Text size={18} weight="bold" color="var:--color-neutral-900" w="fill">Card Title</Text>
-    <Text size={14} color="var:--color-neutral-500" w="fill">Card description text.</Text>
+# Create a Card component
+os-figma render '<Frame name="Card/Default" w={320} bg="var:--color-neutral-0" rounded={8} flex="col" overflow="hidden" stroke="var:--color-neutral-4" strokeWidth={1}>
+  <Frame name="Card/Image" w="fill" h={160} bg="var:--color-neutral-1" />
+  <Frame name="Card/Content" flex="col" gap={8} p={16} w="fill">
+    <Text size={18} weight="bold" color="var:--color-neutral-10" w="fill">Card Title</Text>
+    <Text size={14} color="var:--color-neutral-7" w="fill">Card description text.</Text>
   </Frame>
 </Frame>'
 
@@ -346,10 +346,10 @@ The query command uses XPath-like syntax:
 os-figma raw query "//FRAME"
 
 # Frames with specific name
-os-figma raw query "//FRAME[@name='OS/Card/Default']"
+os-figma raw query "//FRAME[@name='Card/Default']"
 
-# All OutSystems components (name starts with OS/)
-os-figma raw query "//*[@name^='OS/']"
+# Layers starting with a prefix
+os-figma raw query "//*[@name^='Card/']"
 
 # All components
 os-figma raw query "//COMPONENT"

@@ -1,8 +1,6 @@
 # outsystems-figma-cli
 
-CLI that controls Figma Desktop directly for designing OutSystems apps. No API key needed.
-
-Based on OutSystems UI v2.0.0 (Figma Community). Supports both ODC and O11.
+CLI that controls Figma Desktop directly for designing apps in Figma. No API key needed.
 
 ---
 
@@ -15,7 +13,7 @@ Based on OutSystems UI v2.0.0 (Figma Community). Supports both ODC and O11.
 | "sync tokens from figma" | `os-figma tokens pull` |
 | "push tokens to figma" | `os-figma tokens push` |
 | "check token sync status" | `os-figma tokens status` |
-| "add outsystems tokens" | `os-figma tokens preset` |
+| "create token collections" | `os-figma tokens preset` |
 | "create a screen" / "new screen" | `os-figma screen create Login --size mobile` |
 | "show colors on canvas" | `os-figma var visualize` |
 | "list variables" | `os-figma var list` |
@@ -182,10 +180,10 @@ os-figma slot clear "INSTANCE_ID" "SLOT_FRAME_ID"
 
 ### Slot naming convention
 ```
-OS/{Component}/Content     — main content slot
-OS/{Component}/Actions     — action buttons slot
-OS/{Component}/Header      — header content slot
-OS/{Component}/Footer      — footer content slot
+{Component}/Content     — main content slot
+{Component}/Actions     — action buttons slot
+{Component}/Header      — header content slot
+{Component}/Footer      — footer content slot
 ```
 
 ### Workflow
@@ -196,9 +194,9 @@ OS/{Component}/Footer      — footer content slot
 
 ---
 
-## OutSystems Design Tokens
+## Design Tokens
 
-OutSystems uses CSS custom properties as design tokens. Always use these variable names
+CSS custom properties used as design tokens. Always use these variable names
 (not raw hex values) when creating variables or binding to nodes.
 
 Token values are project-specific and stored in `tokens.json` in each project directory.
@@ -290,7 +288,7 @@ Run `os-figma tokens status` to check if tokens are in sync.
 ```
 
 ### Fast Variable Binding (var: syntax)
-Use `var:name` syntax to bind OutSystems tokens directly at creation time:
+Use `var:name` syntax to bind tokens directly at creation time:
 
 ```bash
 os-figma create rect "Card" --fill "var:--color-neutral-0" --stroke "var:--color-neutral-4"
@@ -309,29 +307,29 @@ os-figma create text "Label" -c "var:--color-neutral-10"
 
 ---
 
-## OutSystems Screen Sizes
+## Screen Sizes
 
-Always use these frame sizes for OutSystems app designs:
+Standard frame sizes:
 
 ```
-Mobile:   390 × 844    (iPhone 14 base — used for ODC mobile apps)
+Mobile:   390 × 844    (iPhone 14 base)
 Tablet:   768 × 1024   (iPad base)
 Web:      1440 × 900   (Desktop web)
 ```
 
 ### Layer naming convention
-Always name layers using this pattern: `OS/{Component}/{Variant}/{State}`
+Always name layers using this pattern: `{Component}/{Variant}/{State}`
 
 Examples:
 ```
-OS/Screen/Mobile/Login
-OS/Screen/Web/Dashboard
-OS/Button/Primary/Default
-OS/Button/Primary/Hover
-OS/Card/Default
-OS/Input/Text/Focused
-OS/Navigation/TopBar/Mobile
-OS/Navigation/Sidebar/Web
+Screen/Mobile/Login
+Screen/Web/Dashboard
+Button/Primary/Default
+Button/Primary/Hover
+Card/Default
+Input/Text/Focused
+Navigation/TopBar/Mobile
+Navigation/Sidebar/Web
 ```
 
 ---
@@ -348,10 +346,10 @@ Available screen template types (mobile and web):
 
 ---
 
-## OutSystems UI Patterns
+## UI Patterns
 
-When a user asks to create an OutSystems UI pattern, use these exact names.
-Each pattern should be built as a component using OutSystems token variables.
+When a user asks to create a UI pattern, use these exact names.
+Each pattern should be built as a component using token variables.
 
 - Accordion
 - Alert
@@ -364,23 +362,6 @@ Each pattern should be built as a component using OutSystems token variables.
 - Radio Button
 - Search
 - Tags
-
----
-
-## Platform Targets
-
-Always ask or check which platform the user is designing for:
-
-```
---platform odc        OutSystems Developer Cloud (modern, recommended)
---platform o11        OutSystems 11 / Service Studio (classic)
-```
-
-### CSS Export Targets
-```
---target odc-studio          (for ODC Theme CSS)
---target service-studio      (for O11 Service Studio theme)
-```
 
 ---
 
@@ -403,12 +384,12 @@ Then: Plugins → Development → FigCli
 
 ## Creating Components
 
-When user asks to "create cards", "design buttons", or any OutSystems pattern:
+When user asks to "create cards", "design buttons", or any UI pattern:
 
 1. **Each component = separate frame** (NOT inside parent gallery)
 2. **Convert to component** after creation
-3. **Use OutSystems token variables** for all colors, spacing, and radius — variable names come from `tokens.json`
-4. **Follow OS layer naming** (`OS/{Component}/{Variant}/{State}`)
+3. **Use token variables** for all colors, spacing, and radius — variable names come from `tokens.json`
+4. **Follow layer naming convention** (`{Component}/{Variant}/{State}`)
 
 ```bash
 # Step 1: Create
@@ -417,7 +398,7 @@ os-figma render-batch '[...]'
 # Step 2: Convert to component
 os-figma node to-component "ID1" "ID2"
 
-# Step 3: Bind OutSystems variables
+# Step 3: Bind variables
 os-figma bind fill "--color-primary" -n "ID1"
 ```
 
@@ -502,13 +483,12 @@ fontWeight="bold"    →  weight="bold"
 
 ## Key Rules
 
-1. **Always use OutSystems token variable names**, not raw hex values
-2. **Always follow OS layer naming** — `OS/{Component}/{Variant}/{State}`
-3. **Always confirm platform** (ODC or O11) — affects screen sizes, component structure, and future CSS export
-4. **Always use `render` for frames** — has smart positioning
-5. **Never use `eval` to create** — no positioning, overlaps at (0,0)
-6. **For multiple frames:** Use `render-batch`
-7. **Convert to components:** `node to-component` after creation
+1. **Always use token variable names from tokens.json** — not raw hex values
+2. **Always follow layer naming convention** — `{Component}/{Variant}/{State}`
+3. **Always use `render` for frames** — has smart positioning
+4. **Never use `eval` to create** — no positioning, overlaps at (0,0)
+5. **For multiple frames:** Use `render-batch`
+6. **Convert to components:** `node to-component` after creation
 
 ---
 
@@ -517,8 +497,7 @@ fontWeight="bold"    →  weight="bold"
 **Never show terminal commands to users.** Run silently, give friendly feedback.
 
 1. Run `os-figma init` — guides through connection, token sync, and library scan
-2. Ask: Mobile or Web?
-3. When complete, say: "Connected! What OutSystems screen or component would you like to design?"
+2. When complete, say: "Connected! What screen or component would you like to design?"
 
 If permission error (macOS): System Settings → Privacy → Full Disk Access → Add Terminal
 

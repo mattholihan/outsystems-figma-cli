@@ -16,12 +16,12 @@
 
 # outsystems-figma-cli
 
-A CLI that connects directly to Figma Desktop for designing OutSystems apps. No API key needed.
+A CLI that connects directly to Figma Desktop. No API key needed.
 
-- **OutSystems UI Tokens** — Create variables and collections using OutSystems CSS naming conventions
-- **OutSystems Patterns** — Scaffold Accordion, Card, Modal, Tabs, and 40+ other OS UI patterns
-- **Screen Templates** — Generate mobile (390×844) and web (1440×900) screens ready for OutSystems
-- **Theme Export** — Export design tokens as CSS variables for ODC or O11 Service Studio
+- **Design Tokens** — Create variables and collections using CSS custom property naming conventions
+- **Patterns** — Scaffold Accordion, Card, Modal, Tabs, and 40+ UI patterns
+- **Screen Templates** — Generate mobile (390×844) and web (1440×900) screens
+- **Theme Export** — Export design tokens as CSS variables
 - **Slots** — Create flexible content areas in components using Figma Slots
 - **Create Anything** — Frames, text, shapes, icons (150k+ from Iconify), components
 - **Team Libraries** — Import and use components, styles, variables from any library
@@ -29,21 +29,20 @@ A CLI that connects directly to Figma Desktop for designing OutSystems apps. No 
 - **Lint & Accessibility** — Contrast checker, touch targets, design rules
 - **Export** — PNG, SVG, JSX, Storybook stories, CSS variables
 - **Batch Operations** — Rename layers, find/replace text, create 100 variables at once
-- **Works with Claude Code** — Just ask in natural language, Claude knows all OutSystems commands
+- **Works with Claude Code** — Just ask in natural language, Claude knows all the commands
 
 ## Why This CLI?
 
 This project includes a `CLAUDE.md` file that Claude Code reads automatically. It contains:
 
 - All available commands and their syntax
-- OutSystems UI token naming conventions
-- OS UI pattern names and component structures
-- Platform targets (ODC vs O11)
+- Design token naming conventions
+- UI pattern names and component structures
 - Screen size standards for mobile, tablet, and web
 
 **Want to teach Claude new tricks?** Just update `CLAUDE.md`. No code changes needed.
 
-**Example:** You type "Create a mobile login screen" → Claude already knows to use a 390×844 frame, OutSystems token variables, and OS layer naming conventions — because it's all documented in `CLAUDE.md`.
+**Example:** You type "Create a mobile login screen" → Claude already knows to use a 390×844 frame, token variables, and the layer naming convention — because it's all documented in `CLAUDE.md`.
 
 ---
 
@@ -124,11 +123,11 @@ cd ~/projects/outsystems-figma-cli
 claude
 ```
 
-Claude will automatically read `CLAUDE.md` and understand all OutSystems conventions. Try asking:
+Claude will automatically read `CLAUDE.md` and understand all design conventions. Try asking:
 
-> "Create a mobile login screen using OutSystems UI conventions"
+> "Create a mobile login screen"
 
-> "Add OutSystems design tokens to this file"
+> "Add design tokens to this file"
 
 > "Create a Card pattern with primary brand colors"
 
@@ -267,17 +266,16 @@ Connects to Figma Desktop via Chrome DevTools Protocol (CDP). No API key needed 
 
 ## Full Feature List
 
-### OutSystems-Specific
+### Design System
 
-- **OutSystems UI Tokens** — colors, typography, spacing, radius using OS CSS variable naming
-- **Platform-aware** — ODC and O11 support with correct CSS export targets
-- **OS UI Patterns** — 40+ patterns including Card, Modal, Tabs, Accordion, Gallery, Wizard
+- **Design Tokens** — colors, typography, spacing, radius using CSS custom property naming
+- **UI Patterns** — 40+ patterns including Card, Modal, Tabs, Accordion, Gallery, Wizard
 - **Pattern Components** — import components directly from your Figma team libraries;
   `pattern scan` indexes component and icon keys locally, `pattern add` places instances
   with variant, state, and property control (`--prop` flag supports text, boolean, and
   instance swap)
 - **Screen templates** — Dashboard, List, Detail, Form, Login, Settings (mobile and web)
-- **Layer naming enforcement** — `OS/{Component}/{Variant}/{State}` convention
+- **Layer naming** — `{Component}/{Variant}/{State}` convention
 
 ### Design Tokens & Variables
 
