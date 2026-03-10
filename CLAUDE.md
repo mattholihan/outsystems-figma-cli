@@ -341,17 +341,123 @@ Navigation/Sidebar/Web
 
 ---
 
-## Screen Templates
+## Composing Screens
 
+When asked to create a screen, do not use a fixed template. Instead:
+
+1. Run `os-figma pattern list` to see available components
+2. Run `os-figma pattern describe <Component>` for each component you plan
+   to use — this gives you exact variants, states, and prop names
+3. Run `os-figma screen create <Name> --size <mobile|web>` to create the
+   screen frame
+4. Place real components using `os-figma pattern add` with correct props
+5. Use `os-figma render` for any UI element not available as a component
+
+### Placement rules
+
+- Always place components inside the screen frame, not on the root canvas
+- After creating the screen frame, get its node ID and use it as the parent
+  for all placed components
+- Real components via `pattern add` take precedence over placeholders always
+- Use `os-figma render` for structural elements: nav bars, cards, dividers,
+  hero images, stat counters, tables, sidebars
+
+### Layout and spacing
+
+- Screen frames must use auto-layout (`flex="col"`)
+- Always use spacing variables for gaps and padding — never hardcoded pixels:
+  - Between major sections: `--space-l` or `--space-xl`
+  - Between form fields: `--space-m`
+  - Between tightly grouped elements: `--space-s` or `--space-base`
+  - Screen edge padding (mobile): `--space-l`
+  - Screen edge padding (web): `--space-xl`
+
+### Component placement
+
+Always run `pattern describe` before placing a component. Use the schema to:
+- Pass the correct `--variant` (only if the component has variants)
+- Pass the correct `--state` (use `Default` unless a specific state is needed)
+- Pass `--prop` for all meaningful text content (labels, button text,
+  placeholder text)
+
+Examples:
 ```bash
-os-figma screen template <template> [--size <mobile|web|both>] [--name <custom-name>]
+# Button — has variants
+os-figma pattern add Button --variant Primary --state Default --prop "Text=Sign In"
+
+# Input — no variants, only states
+os-figma pattern add Input --state Default --prop "Label=Email" --prop "Placeholder text=Enter your email"
+
+# Tag — has variants, no states
+os-figma pattern add Tag --variant Info --prop "Text=Active"
 ```
 
-Available templates: `login`, `list`, `form`, `detail`, `dashboard`
+### Placeholder frames (render)
 
-Layer naming: `Screen/{Size}/{Template}` e.g. `Screen/Mobile/Login`
+Use `os-figma render` for UI elements not in the component library.
+Placeholders must:
+- Use `bg="var:--color-neutral-1"` and `stroke="var:--color-neutral-4"`
+  with `strokeWidth={1}`
+- Include a `<Text>` label naming the element, colour `var:--color-neutral-6`,
+  size 12
+- Follow layer naming convention: `{Component}/{Variant}`
+  e.g. `Navigation/TopBar`, `Card/Item`, `Media/Hero`
 
-Templates place real library components where available (`pattern add`), and styled placeholder frames for anything not yet in the library. Placeholders follow the `{Component}/{Variant}` naming convention.
+```jsx
+<Frame
+  name="Navigation/TopBar"
+  w="fill" h={56}
+  flex="row" items="center"
+  px={16} gap={16}
+  bg="var:--color-neutral-1"
+  stroke="var:--color-neutral-4"
+  strokeWidth={1}
+>
+  <Text size={12} color="var:--color-neutral-6">Navigation/TopBar</Text>
+</Frame>
+```
+
+### Text links
+
+For text links (e.g. "Forgot password?"), use a plain Text element — no
+background, no stroke:
+```jsx
+<Text
+  size={14}
+  color="var:--color-primary"
+  decoration="underline"
+  w="fill"
+  align="center"
+>Forgot password?</Text>
+```
+
+### Screen size reference
+
+| Size   | Width | Height |
+|--------|-------|--------|
+| mobile | 390   | 844    |
+| web    | 1440  | 900    |
+
+Web screens use different structural patterns from mobile — not just wider:
+- Mobile: single column, bottom nav bar, top bar
+- Web: top nav bar, optional left sidebar (~240px), main content area
+
+### Layer naming for screens
+
+```
+Screen/Mobile/Login
+Screen/Web/Dashboard
+Navigation/TopBar
+Navigation/BottomBar
+Navigation/Sidebar
+Card/Item
+Card/Action
+Media/Hero
+Counter/Default
+Chart/Default
+Divider/Default
+Brand/Logo
+```
 
 ---
 
