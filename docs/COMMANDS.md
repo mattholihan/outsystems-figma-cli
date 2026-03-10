@@ -33,20 +33,30 @@ os-figma tokens spacing
 # Border radii
 os-figma tokens radii
 
-# Pull token values from the active Figma file into local tokens.json
-# Must be run from a project directory (requires tokens.json + library-config.json)
+# Pull token values from the Foundations file into local tokens.json
+# Targets library-config.json → libraries.foundations automatically
+# Foundations file must be open in Figma Desktop
 os-figma tokens pull
 
-# Push local tokens.json values to the connected Figma file
-# Updates existing Figma variables — does not create new ones
-# Must be run from a project directory (requires tokens.json + library-config.json)
+# Override target file
+os-figma tokens pull --file "PDX Template - FOUNDATIONS"
+
+# Push local tokens.json values to the Foundations file in Figma
+# Targets library-config.json → libraries.foundations automatically
+# Foundations file must be open in Figma Desktop
 os-figma tokens push
 
-# Show diff between local tokens.json and current Figma variable state
-# Reports: in sync, modified in Figma, missing in Figma, new in Figma
+# Override target file
+os-figma tokens push --file "PDX Template - FOUNDATIONS"
+
+# Show diff between local tokens.json and the Foundations file in Figma
+# Targets library-config.json → libraries.foundations automatically
+# Foundations file must be open in Figma Desktop
 # Read-only — does not modify files or Figma variables
-# Must be run from a project directory (requires tokens.json + library-config.json)
 os-figma tokens status
+
+# Override target file
+os-figma tokens status --file "PDX Template - FOUNDATIONS"
 ```
 
 ---

@@ -21,10 +21,16 @@ os-figma files                           # List open Figma files (JSON)
 os-figma tokens preset                   # Create all OutSystems token collections
 os-figma tokens spacing                  # OutSystems spacing tokens only
 os-figma tokens radii                    # OutSystems border radius tokens only
-os-figma tokens pull                     # Pull token values from Figma → tokens.json
-os-figma tokens push                     # Push tokens.json values → Figma variables
-os-figma tokens status                   # Compare tokens.json against Figma (read-only)
+os-figma tokens pull                     # Pull from Foundations file → tokens.json
+os-figma tokens pull --file "Name"       # Override target file
+os-figma tokens push                     # Push tokens.json → Foundations file
+os-figma tokens push --file "Name"       # Override target file
+os-figma tokens status                   # Compare tokens.json vs Foundations file
+os-figma tokens status --file "Name"     # Override target file
 ```
+
+Token commands target `library-config.json → libraries.foundations` automatically.
+The Foundations file must be open in Figma Desktop. Use `--file` to override.
 
 ### Manage Variables
 

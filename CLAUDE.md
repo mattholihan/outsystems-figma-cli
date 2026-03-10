@@ -56,11 +56,15 @@ os-figma pattern scan --icons  # one-time: index icons from foundations file
 
 ### Token workflow
 ```bash
-os-figma tokens pull           # Figma → tokens.json (after manual Figma edits)
-os-figma tokens push           # tokens.json → Figma (after local edits)
-os-figma tokens status         # check for drift between tokens.json and Figma
+os-figma tokens pull           # Foundations file → tokens.json
+os-figma tokens push           # tokens.json → Foundations file
+os-figma tokens status         # check for drift between tokens.json and Foundations file
 os-figma tokens preset         # first-time setup only — creates token collections in Figma
 ```
+
+> Token commands automatically target the file set in `library-config.json →
+> libraries.foundations`. That file must be open in Figma Desktop. Use `--file`
+> to override.
 
 ---
 
