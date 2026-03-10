@@ -2093,10 +2093,50 @@ return 'Imported ' + count + ' tokens into ' + collectionName;
     }
   });
 
+// Helper: resolve and connect to the Foundations file for token commands
+async function resolveFoundationsClient(targetName, spinner) {
+  let pages;
+  try {
+    pages = await FigmaClient.listPages();
+  } catch {
+    spinner.fail('Not connected to Figma — run os-figma connect first');
+    process.exit(1);
+  }
+
+  const designFiles = pages.filter(p =>
+    p.url && (p.url.includes('/design/') || p.url.includes('/board/'))
+  );
+
+  const stripSuffix = t => t.replace(/\s*\u2013\s*Figma\s*$/, '').trim();
+
+  const match = designFiles.find(p =>
+    stripSuffix(p.title).toLowerCase() === targetName.toLowerCase()
+  );
+
+  if (!match) {
+    spinner.fail(`Foundations file not open. Please open "${targetName}" in Figma Desktop and try again.`);
+    process.exit(1);
+  }
+
+  const matchedName = stripSuffix(match.title);
+  spinner.text = `Connecting to ${matchedName}...`;
+
+  const client = new FigmaClient();
+  try {
+    await client.connect(matchedName);
+  } catch (err) {
+    spinner.fail(`Could not connect to "${matchedName}": ${err.message}`);
+    process.exit(1);
+  }
+
+  return { client, matchedName };
+}
+
 tokens
   .command('pull')
   .description('Pull variable values from Figma and sync to local tokens.json')
-  .action(async () => {
+  .option('--file <name>', 'Target Figma file name (overrides library-config.json)')
+  .action(async (options) => {
     const cwd = process.cwd();
     const libraryConfigPath = join(cwd, 'library-config.json');
     const tokensPath = join(cwd, 'tokens.json');
@@ -2117,15 +2157,19 @@ tokens
       process.exit(1);
     }
 
-    // Check Figma connection
-    const spinner = ora('Connecting to Figma...').start();
-    try {
-      await checkConnection();
-      spinner.text = 'Reading variables from Figma...';
-    } catch {
-      spinner.fail('Not connected to Figma — run os-figma connect first');
+    // Resolve target foundations file name
+    const libConfig = JSON.parse(readFileSync(libraryConfigPath, 'utf8'));
+    const foundationsName = options.file || libConfig?.libraries?.foundations;
+    if (!foundationsName) {
+      console.log(chalk.red('\n✗ No foundations library configured in library-config.json.\n'));
+      console.log(chalk.white('  Re-run ') + chalk.cyan('os-figma init') + chalk.white(' and provide a Foundations library name, or use ') + chalk.cyan('--file') + chalk.white('.\n'));
       process.exit(1);
     }
+
+    const spinner = ora('Connecting to Figma...').start();
+    const { client, matchedName } = await resolveFoundationsClient(foundationsName, spinner);
+    console.log(chalk.gray(`  ℹ Using ${matchedName}`));
+    spinner.text = 'Reading variables from Figma...';
 
     // Figma eval: extract all collections → groups → tokens
     const pullCode = `(async () => {
@@ -2162,8 +2206,10 @@ return result;
 
     let figmaData;
     try {
-      figmaData = await fastEval(pullCode);
+      figmaData = await client.eval(pullCode);
+      client.close();
     } catch (err) {
+      client.close();
       spinner.fail('Failed to read variables from Figma');
       console.error(chalk.red(err.message));
       process.exit(1);
@@ -2244,7 +2290,8 @@ return result;
 tokens
   .command('push')
   .description('Push local token values from tokens.json to Figma variables')
-  .action(async () => {
+  .option('--file <name>', 'Target Figma file name (overrides library-config.json)')
+  .action(async (options) => {
     const cwd = process.cwd();
     const libraryConfigPath = join(cwd, 'library-config.json');
     const tokensPath = join(cwd, 'tokens.json');
@@ -2273,15 +2320,19 @@ tokens
       process.exit(1);
     }
 
-    // Check Figma connection
-    const spinner = ora('Connecting to Figma...').start();
-    try {
-      await checkConnection();
-      spinner.text = 'Pushing tokens to Figma...';
-    } catch {
-      spinner.fail('Not connected to Figma — run os-figma connect first');
+    // Resolve target foundations file name
+    const libConfig = JSON.parse(readFileSync(libraryConfigPath, 'utf8'));
+    const foundationsName = options.file || libConfig?.libraries?.foundations;
+    if (!foundationsName) {
+      console.log(chalk.red('\n✗ No foundations library configured in library-config.json.\n'));
+      console.log(chalk.white('  Re-run ') + chalk.cyan('os-figma init') + chalk.white(' and provide a Foundations library name, or use ') + chalk.cyan('--file') + chalk.white('.\n'));
       process.exit(1);
     }
+
+    const spinner = ora('Connecting to Figma...').start();
+    const { client, matchedName } = await resolveFoundationsClient(foundationsName, spinner);
+    console.log(chalk.gray(`  ℹ Using ${matchedName}`));
+    spinner.text = 'Pushing tokens to Figma...';
 
     // Flatten tokens.json into a push list
     const pushTokens = [];
@@ -2344,8 +2395,10 @@ return { updated, notFound };
 
     let figmaResult;
     try {
-      figmaResult = await fastEval(pushCode);
+      figmaResult = await client.eval(pushCode);
+      client.close();
     } catch (err) {
+      client.close();
       spinner.fail('Failed to push tokens to Figma');
       console.error(chalk.red(err.message));
       process.exit(1);
@@ -2385,7 +2438,8 @@ return { updated, notFound };
 tokens
   .command('status')
   .description('Compare local tokens.json against current Figma variable values')
-  .action(async () => {
+  .option('--file <name>', 'Target Figma file name (overrides library-config.json)')
+  .action(async (options) => {
     const cwd = process.cwd();
     const libraryConfigPath = join(cwd, 'library-config.json');
     const tokensPath = join(cwd, 'tokens.json');
@@ -2406,15 +2460,19 @@ tokens
       process.exit(1);
     }
 
-    // Check Figma connection
-    const spinner = ora('Connecting to Figma...').start();
-    try {
-      await checkConnection();
-      spinner.text = 'Reading variables from Figma...';
-    } catch {
-      spinner.fail('Not connected to Figma — run os-figma connect first');
+    // Resolve target foundations file name
+    const libConfig = JSON.parse(readFileSync(libraryConfigPath, 'utf8'));
+    const foundationsName = options.file || libConfig?.libraries?.foundations;
+    if (!foundationsName) {
+      console.log(chalk.red('\n✗ No foundations library configured in library-config.json.\n'));
+      console.log(chalk.white('  Re-run ') + chalk.cyan('os-figma init') + chalk.white(' and provide a Foundations library name, or use ') + chalk.cyan('--file') + chalk.white('.\n'));
       process.exit(1);
     }
+
+    const spinner = ora('Connecting to Figma...').start();
+    const { client, matchedName } = await resolveFoundationsClient(foundationsName, spinner);
+    console.log(chalk.gray(`  ℹ Using ${matchedName}`));
+    spinner.text = 'Reading variables from Figma...';
 
     // Figma eval: read all variables (same shape as tokens pull)
     const readCode = `(async () => {
@@ -2451,8 +2509,10 @@ return result;
 
     let figmaData;
     try {
-      figmaData = await fastEval(readCode);
+      figmaData = await client.eval(readCode);
+      client.close();
     } catch (err) {
+      client.close();
       spinner.fail('Failed to read variables from Figma');
       console.error(chalk.red(err.message));
       process.exit(1);
