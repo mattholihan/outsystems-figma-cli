@@ -113,6 +113,17 @@ Property names are matched case-insensitively. Figma's internal `#id` suffix and
 }
 ```
 
+## Screens
+
+```bash
+os-figma screen create <name> --size <mobile|web>   # Create blank screen frame
+                                                     # Prompts for size if omitted
+```
+
+Layer naming: `Screen/{Size}/{Name}/Blank`
+Background bound to `--color-neutral-0` from Foundations library.
+Sizes: mobile = 390×844, web = 1440×900
+
 ## Create Elements
 
 ### Quick Primitives

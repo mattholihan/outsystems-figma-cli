@@ -122,6 +122,23 @@ os-figma pattern add Button --variant Primary --state Default \
 
 ---
 
+## Screens
+
+```bash
+# Create a blank mobile screen (390×844)
+# Background bound to --color-neutral-0
+# Layer named Screen/Mobile/{Name}/Blank
+os-figma screen create Login --size mobile
+
+# Create a blank web screen (1440×900)
+os-figma screen create Dashboard --size web
+
+# Omit --size to be prompted
+os-figma screen create "User Profile"
+```
+
+---
+
 ## Variables
 
 ```bash

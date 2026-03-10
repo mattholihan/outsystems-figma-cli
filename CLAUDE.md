@@ -16,8 +16,7 @@ Based on OutSystems UI v2.0.0 (Figma Community). Supports both ODC and O11.
 | "push tokens to figma" | `os-figma tokens push` |
 | "check token sync status" | `os-figma tokens status` |
 | "add outsystems tokens" | `os-figma tokens preset` |
-| "create mobile screen" | `os-figma render '<Frame name="OS/Screen/Mobile" w={390} h={844} ...'` |
-| "create web screen" | `os-figma render '<Frame name="OS/Screen/Web" w={1440} h={900} ...'` |
+| "create a screen" / "new screen" | `os-figma screen create Login --size mobile` |
 | "show colors on canvas" | `os-figma var visualize` |
 | "list variables" | `os-figma var list` |
 | "find nodes named X" | `os-figma find "X"` |
@@ -129,6 +128,30 @@ Property types are detected automatically:
 
 Property names are matched case-insensitively and do not require Figma's internal
 `#id` suffix or `↳` prefix.
+
+---
+
+## Screen Commands
+
+### `screen create`
+Creates a blank screen frame with correct dimensions, background token binding,
+and layer naming.
+```bash
+# Mobile screen (390×844)
+os-figma screen create Login --size mobile
+
+# Web screen (1440×900)
+os-figma screen create Dashboard --size web
+
+# Prompted if --size omitted
+os-figma screen create "User Profile"
+```
+
+Layer naming: `Screen/{Size}/{Name}/Blank`
+- `Screen/Mobile/Login/Blank`
+- `Screen/Web/Dashboard/Blank`
+
+Background is bound to `--color-neutral-0` from the Foundations library variable.
 
 ---
 

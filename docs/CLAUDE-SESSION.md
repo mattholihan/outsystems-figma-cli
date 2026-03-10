@@ -62,14 +62,13 @@ os-figma raw export "NODE_ID" --scale 2 --suffix "_export"
 
 ## Common OutSystems Operations
 
-### Create an OutSystems Mobile Screen Frame
+### Create a Screen
 ```bash
-os-figma render '<Frame name="OS/Screen/Mobile" w={390} h={844} bg="var:--color-neutral-0" flex="col" />'
-```
+# Mobile (390×844) — layer named Screen/Mobile/{Name}/Blank
+os-figma screen create Login --size mobile
 
-### Create an OutSystems Web Screen Frame
-```bash
-os-figma render '<Frame name="OS/Screen/Web" w={1440} h={900} bg="var:--color-neutral-0" flex="col" />'
+# Web (1440×900) — layer named Screen/Web/{Name}/Blank
+os-figma screen create Dashboard --size web
 ```
 
 ### Switch Variable Mode (Light/Dark)
