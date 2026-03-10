@@ -6382,6 +6382,437 @@ return JSON.stringify({ fallback: true });
     spinner.succeed(`Created ${layerName} (${width}×${height})`);
   });
 
+screen
+  .command('template <template>')
+  .description('Stamp out a pre-wired screen template with real components and placeholders')
+  .option('--size <size>', 'Screen size: mobile, web, or both', 'mobile')
+  .option('--name <name>', 'Custom layer name (overrides default Screen/{Size}/{Template})')
+  .action(async (templateName, options) => {
+    const { TEMPLATES, VALID_TEMPLATES } = await import('./templates/index.js');
+
+    const tplKey = templateName.toLowerCase();
+    if (!VALID_TEMPLATES.includes(tplKey)) {
+      console.log(chalk.red(`\n✗ Unknown template "${templateName}"\n`));
+      console.log(chalk.white('  Available: ') + chalk.cyan(VALID_TEMPLATES.join(', ')) + '\n');
+      process.exit(1);
+    }
+
+    const sizes = options.size === 'both' ? ['mobile', 'web'] : [options.size.toLowerCase()];
+    for (const s of sizes) {
+      if (s !== 'mobile' && s !== 'web') {
+        console.log(chalk.red(`\n✗ Invalid size "${s}" — use mobile, web, or both\n`));
+        process.exit(1);
+      }
+    }
+
+    // Load library-config (soft fail — templates work without a library)
+    let rawCompKeys = {};
+    try {
+      const libCfgPath = join(process.cwd(), 'library-config.json');
+      if (existsSync(libCfgPath)) {
+        const cfg = JSON.parse(readFileSync(libCfgPath, 'utf8'));
+        rawCompKeys = cfg.components || {};
+      }
+    } catch {}
+
+    // compKeyMap: componentName.toLowerCase() → { name, key }
+    const compKeyMap = {};
+    for (const [name, key] of Object.entries(rawCompKeys)) {
+      compKeyMap[name.toLowerCase()] = { name, key };
+    }
+
+    // Resolve design token values from tokens.json (soft fail)
+    const COLOR_TOKENS = [
+      '--color-neutral-0', '--color-neutral-1', '--color-neutral-4',
+      '--color-neutral-6', '--color-neutral-10', '--color-primary',
+    ];
+    const SPACING_DEFAULTS = {
+      '--space-xs': 4, '--space-s': 8, '--space-base': 12,
+      '--space-m': 16, '--space-l': 24, '--space-xl': 32, '--space-xxl': 48,
+    };
+    const varEntries = {};  // token name → { value, key }
+    const spacing    = { ...SPACING_DEFAULTS };
+
+    for (const t of COLOR_TOKENS) {
+      const entry = resolveToken(t);
+      if (entry) varEntries[t] = entry;
+    }
+    for (const t of Object.keys(SPACING_DEFAULTS)) {
+      const entry = resolveToken(t);
+      if (entry && entry.value) spacing[t] = parseInt(entry.value) || SPACING_DEFAULTS[t];
+    }
+
+    await checkConnection();
+
+    const tpl = TEMPLATES[tplKey];
+
+    for (const size of sizes) {
+      const sizeLabel  = size === 'mobile' ? 'Mobile' : 'Web';
+      const width      = size === 'mobile' ?  390 : 1440;
+      const height     = size === 'mobile' ?  844 :  900;
+      const screenName = options.name ||
+        `Screen/${sizeLabel}/${tplKey.charAt(0).toUpperCase() + tplKey.slice(1)}`;
+
+      const layout = tpl[size];
+      if (!layout) {
+        console.log(chalk.yellow(`  ⚠ No ${size} layout defined for "${tplKey}" — skipping`));
+        continue;
+      }
+
+      const { topBar = null, bottomBar = null, sidebar = null,
+              elements, gap = '--space-m', padding = '--space-l' } = layout;
+
+      const code = `(async () => {
+  // ── Smart position ──────────────────────────────────────────
+  const ch = figma.currentPage.children;
+  let sx = 0;
+  if (ch.length > 0) { ch.forEach(n => { sx = Math.max(sx, n.x + n.width); }); sx += 100; }
+
+  await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
+
+  // ── Token data from host ─────────────────────────────────────
+  const VAR_ENTRIES  = ${JSON.stringify(varEntries)};
+  const SPACING      = ${JSON.stringify(spacing)};
+  const COMP_KEYS    = ${JSON.stringify(compKeyMap)};
+  const ELEMENTS     = ${JSON.stringify(elements)};
+  const TOP_BAR      = ${JSON.stringify(topBar)};
+  const BOTTOM_BAR   = ${JSON.stringify(bottomBar)};
+  const SIDEBAR      = ${JSON.stringify(sidebar)};
+  const GAP_TOKEN    = ${JSON.stringify(gap)};
+  const PAD_TOKEN    = ${JSON.stringify(padding)};
+
+  function sp(token) { return SPACING[token] || 16; }
+
+  // ── Variable preloading ──────────────────────────────────────
+  const colorVars = {};
+  try {
+    const needed = Object.entries(VAR_ENTRIES).filter(([,e]) => e && e.key).map(([n, e]) => ({ n, key: e.key }));
+    if (needed.length > 0) {
+      const colls = await figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync();
+      for (const coll of colls) {
+        const vars = await figma.teamLibrary.getVariablesInLibraryCollectionAsync(coll.key);
+        for (const v of vars) {
+          const m = needed.find(k => k.key === v.key);
+          if (m) colorVars[m.n] = await figma.variables.importVariableByKeyAsync(v.key);
+        }
+      }
+    }
+  } catch {}
+
+  function colorPaint(token) {
+    const cv = colorVars[token];
+    if (cv) return figma.variables.setBoundVariableForPaint({ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }, 'color', cv);
+    const hex = (VAR_ENTRIES[token] && VAR_ENTRIES[token].value) || '#CCCCCC';
+    const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255;
+    return { type: 'SOLID', color: { r, g, b } };
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────
+  let realCount = 0, phCount = 0;
+
+  function applyAL(f, mode, gap, padH, padV) {
+    f.layoutMode = mode;
+    f.primaryAxisSizingMode = 'FIXED';
+    f.counterAxisSizingMode = 'FIXED';
+    f.primaryAxisAlignItems = 'MIN';
+    f.counterAxisAlignItems = 'MIN';
+    f.itemSpacing = gap || 0;
+    if (padH !== undefined) { f.paddingLeft = padH; f.paddingRight = padH; }
+    if (padV !== undefined) { f.paddingTop = padV; f.paddingBottom = padV; }
+  }
+
+  function makePh(name, label, h, rounded) {
+    const f = figma.createFrame();
+    f.name = name;
+    f.resize(100, Math.max(1, h || 48));
+    f.clipsContent = true;
+    if (rounded) f.cornerRadius = rounded;
+    if (h !== null && h <= 4 && !label) {
+      // Thin divider — use border colour as fill
+      f.fills = [colorPaint('--color-neutral-4')];
+      f.strokes = [];
+    } else {
+      f.fills = [colorPaint('--color-neutral-1')];
+      f.strokes = [colorPaint('--color-neutral-4')];
+      f.strokeWeight = 1;
+      f.strokeAlign = 'INSIDE';
+    }
+    if (label && (h === null || h > 10)) {
+      applyAL(f, 'VERTICAL', 0, 8, 4);
+      f.primaryAxisAlignItems = 'CENTER';
+      f.counterAxisAlignItems = 'CENTER';
+      const t = figma.createText();
+      t.fontName = { family: 'Inter', style: 'Regular' };
+      t.fontSize = 12;
+      t.fills = [colorPaint('--color-neutral-6')];
+      t.characters = label;
+      f.appendChild(t);
+      t.layoutSizingHorizontal = 'FIXED';
+      t.layoutSizingVertical = 'FIXED';
+    }
+    phCount++;
+    return f;
+  }
+
+  function addToParent(node, parent, el) {
+    parent.appendChild(node);
+    // Width sizing
+    if (el && el.align === 'center') {
+      node.layoutSizingHorizontal = 'FIXED';
+      node.layoutAlign = 'CENTER';
+    } else if (el && el.w && typeof el.w === 'number') {
+      node.resize(el.w, node.height);
+      node.layoutSizingHorizontal = 'FIXED';
+    } else {
+      node.layoutSizingHorizontal = 'FILL';
+    }
+    // Height sizing
+    if (el && el.kind === 'spacer') {
+      node.layoutSizingVertical = 'FILL';
+      node.layoutGrow = 1;
+    } else {
+      node.layoutSizingVertical = 'FIXED';
+    }
+  }
+
+  async function resolveCompProp(inst, label) {
+    if (!label) return;
+    try {
+      const propKeys = Object.keys(inst.componentProperties || {});
+      const pk = propKeys.find(k => {
+        const base = k.split('#')[0].replace(/^\u21b3/, '').trim().toLowerCase();
+        return ['text', 'label', 'placeholder', 'title', 'value', 'content', 'name', 'caption'].includes(base);
+      });
+      if (pk && inst.componentProperties[pk].type === 'TEXT') {
+        inst.setProperties({ [pk]: label });
+      }
+    } catch {}
+  }
+
+  async function placeComp(el, parent) {
+    const entry = COMP_KEYS[el.componentName.toLowerCase()];
+    if (!entry) {
+      // No key — placeholder fallback
+      const f = makePh(el.componentName + '/' + (el.variant || 'Default'), el.label || el.componentName, 48, 4);
+      addToParent(f, parent, el);
+      return;
+    }
+    try {
+      let inst;
+      try {
+        const set = await figma.importComponentSetByKeyAsync(entry.key);
+        const v = el.variant
+          ? (set.children.find(c => c.name.toLowerCase().includes(el.variant.toLowerCase()))
+             || set.defaultVariant || set.children[0])
+          : (set.defaultVariant || set.children[0]);
+        inst = v.createInstance();
+      } catch {
+        const c = await figma.importComponentByKeyAsync(entry.key);
+        inst = c.createInstance();
+      }
+      inst.name = el.componentName + '/' + (el.variant || 'Default');
+      await resolveCompProp(inst, el.label);
+      addToParent(inst, parent, el);
+      realCount++;
+    } catch {
+      const f = makePh(el.componentName + '/' + (el.variant || 'Default'), el.label || el.componentName, 48, 4);
+      addToParent(f, parent, el);
+    }
+  }
+
+  async function makeText(el) {
+    const t = figma.createText();
+    t.fontName = { family: 'Inter', style: 'Regular' };
+    t.fontSize = el.size || 14;
+    t.characters = el.content;
+    if (el.align) t.textAlignHorizontal = el.align.toUpperCase();
+    if (el.decoration === 'underline') t.textDecoration = 'UNDERLINE';
+    t.fills = [colorPaint(el.color || '--color-neutral-10')];
+    return t;
+  }
+
+  // Recursive element placer
+  async function placeElements(els, parent) {
+    for (const el of els) {
+      if (el.kind === 'ph') {
+        const f = makePh(el.layerName, el.label, el.h, el.rounded);
+        addToParent(f, parent, el);
+
+      } else if (el.kind === 'comp') {
+        await placeComp(el, parent);
+
+      } else if (el.kind === 'row') {
+        const rowGap = sp(el.gap);
+        const row = figma.createFrame();
+        row.name = 'Row';
+        row.fills = [];
+        row.resize(100, 1);
+        applyAL(row, 'HORIZONTAL', rowGap, 0, 0);
+        row.counterAxisAlignItems = 'CENTER';
+        row.counterAxisSizingMode = 'AUTO';
+        parent.appendChild(row);
+        row.layoutSizingHorizontal = 'FILL';
+        row.layoutSizingVertical = 'FIXED';
+        // Place row children
+        for (const child of el.children) {
+          if (child.kind === 'spacer') {
+            const s = figma.createFrame(); s.name = 'Spacer'; s.fills = []; s.resize(1,1);
+            row.appendChild(s);
+            s.layoutSizingHorizontal = 'FILL'; s.layoutGrow = 1;
+            s.layoutSizingVertical = 'FIXED';
+          } else if (child.kind === 'ph') {
+            const f = makePh(child.layerName, child.label, child.h, child.rounded);
+            row.appendChild(f);
+            if (child.grow) { f.layoutSizingHorizontal = 'FILL'; f.layoutGrow = 1; }
+            else if (child.w) { f.resize(child.w, Math.max(1, child.h||48)); f.layoutSizingHorizontal = 'FIXED'; }
+            else { f.layoutSizingHorizontal = 'HUG'; }
+            f.layoutSizingVertical = 'FILL';
+          } else if (child.kind === 'comp') {
+            await placeComp(child, row);
+            const inst = row.children[row.children.length - 1];
+            if (child.grow) { inst.layoutSizingHorizontal = 'FILL'; inst.layoutGrow = 1; }
+            else { inst.layoutSizingHorizontal = 'HUG'; }
+            inst.layoutSizingVertical = 'FILL';
+          } else if (child.kind === 'col') {
+            const colGap = sp(child.gap || '--space-s');
+            const col = figma.createFrame();
+            col.name = 'Column';
+            col.fills = [];
+            col.resize(child.w || 100, 100);
+            applyAL(col, 'VERTICAL', colGap, 0, 0);
+            col.counterAxisSizingMode = 'FIXED';
+            row.appendChild(col);
+            if (child.w) { col.resize(child.w, 100); col.layoutSizingHorizontal = 'FIXED'; }
+            else { col.layoutSizingHorizontal = child.grow ? 'FILL' : 'HUG'; }
+            if (child.grow) col.layoutGrow = 1;
+            col.layoutSizingVertical = 'FILL';
+            for (const cc of child.children) {
+              if (cc.kind === 'spacer') {
+                const s = figma.createFrame(); s.name = 'Spacer'; s.fills = []; s.resize(1,1);
+                col.appendChild(s);
+                s.layoutSizingHorizontal = 'FILL'; s.layoutSizingVertical = 'FILL'; s.layoutGrow = 1;
+              } else if (cc.kind === 'ph') {
+                const f = makePh(cc.layerName, cc.label, cc.h, cc.rounded);
+                col.appendChild(f); f.layoutSizingHorizontal = 'FILL'; f.layoutSizingVertical = 'FIXED';
+              } else if (cc.kind === 'comp') {
+                await placeComp(cc, col);
+                const inst = col.children[col.children.length - 1];
+                inst.layoutSizingHorizontal = 'FILL'; inst.layoutSizingVertical = 'FIXED';
+              }
+            }
+          }
+        }
+
+      } else if (el.kind === 'text') {
+        const t = await makeText(el);
+        parent.appendChild(t);
+        t.layoutSizingHorizontal = 'FILL';
+        t.layoutSizingVertical = 'FIXED';
+
+      } else if (el.kind === 'spacer') {
+        const s = figma.createFrame(); s.name = 'Spacer'; s.fills = []; s.resize(1, 1);
+        parent.appendChild(s);
+        s.layoutSizingHorizontal = 'FILL'; s.layoutSizingVertical = 'FILL'; s.layoutGrow = 1;
+      }
+    }
+  }
+
+  // ── Build screen ─────────────────────────────────────────────
+  const screen = figma.createFrame();
+  screen.name = ${JSON.stringify(screenName)};
+  screen.x = sx; screen.y = 0;
+  screen.resize(${width}, ${height});
+  screen.clipsContent = true;
+  applyAL(screen, 'VERTICAL', 0, 0, 0);
+  screen.fills = [colorPaint('--color-neutral-0')];
+
+  // TopBar
+  const topBarH = TOP_BAR ? TOP_BAR.h : 0;
+  if (TOP_BAR) {
+    const tb = makePh('Navigation/TopBar', TOP_BAR.label, TOP_BAR.h, TOP_BAR.rounded || 0);
+    screen.appendChild(tb);
+    tb.layoutSizingHorizontal = 'FILL';
+    tb.layoutSizingVertical = 'FIXED';
+  }
+
+  // BottomBar (append last — calculate height)
+  const bottomBarH = BOTTOM_BAR ? BOTTOM_BAR.h : 0;
+
+  // Body (fills remaining height between bars)
+  const bodyH = ${height} - topBarH - bottomBarH;
+  const body = figma.createFrame();
+  body.name = 'Body';
+  body.fills = [];
+  body.resize(${width}, bodyH);
+  screen.appendChild(body);
+  body.layoutSizingHorizontal = 'FILL';
+  body.layoutSizingVertical = 'FILL';
+
+  // Content area (inside body — may have sidebar)
+  const gapPx = sp(GAP_TOKEN);
+  const padPx = sp(PAD_TOKEN);
+  let contentParent;
+
+  if (SIDEBAR) {
+    // Horizontal body: sidebar | content
+    applyAL(body, 'HORIZONTAL', 0, 0, 0);
+    const sb = makePh(SIDEBAR.label === 'Sidebar' ? 'Navigation/Sidebar' : 'Brand/Illustration',
+                      SIDEBAR.label, bodyH, SIDEBAR.rounded !== undefined ? SIDEBAR.rounded : 0);
+    sb.resize(SIDEBAR.w, bodyH);
+    body.appendChild(sb);
+    sb.layoutSizingHorizontal = 'FIXED';
+    sb.layoutSizingVertical = 'FILL';
+
+    const cw = figma.createFrame();
+    cw.name = 'Content';
+    cw.fills = [];
+    cw.resize(${width} - SIDEBAR.w, bodyH);
+    applyAL(cw, 'VERTICAL', gapPx, padPx, padPx);
+    body.appendChild(cw);
+    cw.layoutSizingHorizontal = 'FILL';
+    cw.layoutSizingVertical = 'FILL';
+    contentParent = cw;
+  } else {
+    // Body IS the content area
+    applyAL(body, 'VERTICAL', gapPx, padPx, padPx);
+    contentParent = body;
+  }
+
+  // Place elements
+  await placeElements(ELEMENTS, contentParent);
+
+  // BottomBar
+  if (BOTTOM_BAR) {
+    const bb = makePh('Navigation/BottomBar', BOTTOM_BAR.label, BOTTOM_BAR.h, BOTTOM_BAR.rounded || 0);
+    screen.appendChild(bb);
+    bb.layoutSizingHorizontal = 'FILL';
+    bb.layoutSizingVertical = 'FIXED';
+  }
+
+  figma.currentPage.selection = [screen];
+  figma.viewport.scrollAndZoomIntoView([screen]);
+  return JSON.stringify({ id: screen.id, name: screen.name, realCount, placeholderCount: phCount });
+})()`;
+
+      const spinner = ora(`Creating ${screenName}...`).start();
+      let result;
+      try {
+        const raw = await fastEval(code);
+        result = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      } catch (err) {
+        spinner.fail(`Failed to create ${screenName}`);
+        console.error(chalk.red(err.message));
+        process.exit(1);
+      }
+
+      const rc = result?.realCount ?? 0;
+      const pc = result?.placeholderCount ?? 0;
+      const total = rc + pc;
+      spinner.succeed(`Created ${screenName}`);
+      console.log(chalk.gray(`  └─ ${total} elements placed (${rc} real component${rc !== 1 ? 's' : ''}, ${pc} placeholder${pc !== 1 ? 's' : ''})`));
+    }
+  });
+
 // ============ PATTERN ============
 
 const pattern = program

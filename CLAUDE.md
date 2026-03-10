@@ -336,13 +336,15 @@ Navigation/Sidebar/Web
 
 ## Screen Templates
 
-Available screen template types (mobile and web):
-- Dashboards
-- Details
-- Forms
-- Galleries
-- Lists
-- Onboardings
+```bash
+os-figma screen template <template> [--size <mobile|web|both>] [--name <custom-name>]
+```
+
+Available templates: `login`, `list`, `form`, `detail`, `dashboard`
+
+Layer naming: `Screen/{Size}/{Template}` e.g. `Screen/Mobile/Login`
+
+Templates place real library components where available (`pattern add`), and styled placeholder frames for anything not yet in the library. Placeholders follow the `{Component}/{Variant}` naming convention.
 
 ---
 

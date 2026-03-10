@@ -139,6 +139,47 @@ os-figma screen create "User Profile"
 
 ---
 
+## Screen Templates
+
+Stamps out a pre-wired screen with real library components where available, and styled placeholder frames for anything not yet in the library.
+
+```bash
+# Usage
+os-figma screen template <template> [--size <mobile|web|both>] [--name <custom-name>]
+
+# Mobile login screen (default size is mobile)
+os-figma screen template login
+
+# Web list screen
+os-figma screen template list --size web
+
+# Both sizes in one command
+os-figma screen template form --size both
+
+# Custom layer name
+os-figma screen template dashboard --name "Client/Dashboard/Overview"
+```
+
+Available templates: `login`, `list`, `form`, `detail`, `dashboard`
+
+Layer naming (default): `Screen/{Size}/{Template}` e.g. `Screen/Mobile/Login`, `Screen/Web/Dashboard`
+
+### Real components vs placeholders
+
+Templates check `library-config.json → components` (populated by `os-figma pattern scan`):
+- **Real component** — if the component exists in the library, it is imported and placed
+- **Styled placeholder** — if not in the library (or no library configured), a placeholder frame is used
+
+Components that templates use from the library (when available):
+`Button`, `Input`, `Search`, `Dropdown`, `Date Picker`, `Checkbox`, `Tag`
+
+Structural elements always rendered as placeholders:
+`Navigation/TopBar`, `Navigation/BottomBar`, `Navigation/Sidebar`, `Card/Item`,
+`Media/Hero`, `Table/Default`, `Pagination/Default`, `Chart/Default`, `Counter/Default`,
+`Brand/Logo`, `Brand/Illustration`, `List/Item`, `Divider/Default`, `Text/Link`
+
+---
+
 ## Variables
 
 ```bash
