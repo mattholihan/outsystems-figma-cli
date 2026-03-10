@@ -6024,19 +6024,12 @@ program
     const projectName = rawName.trim() || defaultProjectName;
 
     // Prompt: foundations library
-    const rawFoundations = await prompt(chalk.white('  Foundations library name: '));
+    const rawFoundations = await prompt(chalk.white('  Foundations library file name ') + chalk.gray('(e.g. "PDX Template - FOUNDATIONS"): '));
     const foundationsLib = rawFoundations.trim();
 
     // Prompt: components library
-    const rawComponents = await prompt(chalk.white('  Components library name: '));
+    const rawComponents = await prompt(chalk.white('  Components library file name ') + chalk.gray('(e.g. "PDX Template - COMPONENTS"): '));
     const componentsLib = rawComponents.trim();
-
-    // Prompt: platform
-    console.log(chalk.white('\n  Platform:'));
-    console.log(chalk.gray('    1) ODC  — OutSystems Developer Cloud (default)'));
-    console.log(chalk.gray('    2) O11  — OutSystems 11 / Service Studio'));
-    const rawPlatform = await prompt(chalk.white('  Select [1/2]: '));
-    const platform = rawPlatform.trim() === '2' ? 'O11' : 'ODC';
 
     // Check for existing files
     const libraryConfigPath = join(cwd, 'library-config.json');
@@ -6055,7 +6048,6 @@ program
     // Write library-config.json
     const libraryConfig = {
       project: projectName,
-      platform,
       libraries: {
         foundations: foundationsLib,
         components: componentsLib,
@@ -6074,16 +6066,193 @@ program
     };
     writeFileSync(tokensPath, JSON.stringify(tokens, null, 2) + '\n');
 
-    // Summary
+    // ── Interactive walkthrough ──
+
     console.log(chalk.green(`\n  ✔ Project initialised: ${projectName}\n`));
-    console.log(chalk.white('  Files created:'));
-    console.log(`    ${chalk.cyan('library-config.json')}  — Figma library connections`);
-    console.log(`    ${chalk.cyan('tokens.json')}          — Design token values`);
-    console.log(chalk.white('\n  Next steps:'));
-    console.log(chalk.gray('    1. Make sure your Figma libraries are enabled in your working file'));
-    console.log(chalk.gray('    2. Run: ') + chalk.cyan('os-figma tokens pull') + chalk.gray('   — to sync tokens from Figma'));
-    console.log(chalk.gray('    3. Run: ') + chalk.cyan('os-figma tokens push') + chalk.gray('   — to push token values into Figma'));
-    console.log();
+    console.log(chalk.white('  Let\'s get your project set up.'));
+
+    process.once('SIGINT', () => {
+      console.log(chalk.yellow('\n\n  Setup interrupted. Run os-figma init again to restart, or run each command manually.'));
+      process.exit(0);
+    });
+
+    function printStep(n, title) {
+      const prefix = `─ Step ${n} of 4 `;
+      const line = prefix + '─'.repeat(50 - prefix.length);
+      console.log(chalk.gray(`\n  ${line}`));
+      console.log(chalk.white(`  ${title}\n`));
+    }
+
+    async function runRetry(action, skipCommand) {
+      while (true) { // eslint-disable-line no-constant-condition
+        try {
+          await action();
+          return;
+        } catch (err) {
+          console.log(chalk.red(`  ✖ ${err.message}`));
+          const r = await prompt(chalk.white('  Try again? ') + chalk.gray('(Y/n): '));
+          if (r.trim().toLowerCase() === 'n') {
+            console.log(chalk.yellow(`  ⚠ Skipped. You can run this manually later: ${skipCommand}`));
+            return;
+          }
+        }
+      }
+    }
+
+    // ─── Step 1: Connect ───
+    printStep(1, 'Connect to Figma Desktop');
+    console.log(chalk.gray('  Make sure Figma Desktop is running, then press Enter...'));
+    await prompt('');
+
+    {
+      const connectSpinner = ora('Connecting to Figma...').start();
+      try {
+        const cfg = loadConfig();
+        if (!cfg.patched) {
+          connectSpinner.text = 'Configuring Figma...';
+          try {
+            const ps = isPatched();
+            if (ps === false) patchFigma();
+            cfg.patched = true;
+            saveConfig(cfg);
+          } catch (patchErr) {
+            connectSpinner.fail('Could not configure Figma');
+            console.log(chalk.red('  ✖ Connection failed. Check Figma Desktop is running and try os-figma init again.'));
+            process.exit(1);
+          }
+        }
+        stopDaemon();
+        try { killFigma(); await new Promise(r => setTimeout(r, 500)); } catch {}
+        startFigma();
+        connectSpinner.text = 'Waiting for Figma...';
+        let step1Connected = false;
+        for (let i = 0; i < 10; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          const statusResult = figmaUse('status', { silent: true });
+          if (statusResult && statusResult.includes('Connected')) { step1Connected = true; break; }
+        }
+        if (!step1Connected) {
+          connectSpinner.fail('No connection established');
+          console.log(chalk.red('  ✖ Connection failed. Check Figma Desktop is running and try os-figma init again.'));
+          process.exit(1);
+        }
+        try { startDaemon(true, 'auto'); await new Promise(r => setTimeout(r, 1500)); } catch {}
+        connectSpinner.succeed('Connected');
+      } catch (connectErr) {
+        connectSpinner.fail('Connection failed');
+        console.log(chalk.red('  ✖ Connection failed. Check Figma Desktop is running and try os-figma init again.'));
+        process.exit(1);
+      }
+    }
+
+    // ─── Step 2: Tokens pull ───
+    printStep(2, 'Sync your design tokens');
+    console.log(chalk.gray(`  Open "${foundationsLib}" in Figma Desktop, then press Enter...`));
+    await prompt('');
+
+    await runRetry(async () => {
+      const pullSpinner = ora('Connecting to Foundations file...').start();
+      let pullClient;
+      try {
+        const pages = await FigmaClient.listPages();
+        const stripSuffix = t => t.replace(/\s*\u2013\s*Figma\s*$/, '').trim();
+        const designFiles = pages.filter(p => p.url && (p.url.includes('/design/') || p.url.includes('/board/')));
+        const match = designFiles.find(p => stripSuffix(p.title).toLowerCase() === foundationsLib.toLowerCase());
+        if (!match) throw new Error(`"${foundationsLib}" is not open in Figma Desktop`);
+        const matchedName = stripSuffix(match.title);
+        pullClient = new FigmaClient();
+        await pullClient.connect(matchedName);
+      } catch (err) {
+        if (pullClient) pullClient.close();
+        pullSpinner.fail('Could not connect to Foundations file');
+        throw err;
+      }
+      pullSpinner.text = 'Reading variables from Figma...';
+      const pullCode = `(async () => {
+function rgbToHex(r, g, b) {
+  const h = n => Math.round(n * 255).toString(16).padStart(2, '0').toUpperCase();
+  return '#' + h(r) + h(g) + h(b);
+}
+const collections = await figma.variables.getLocalVariableCollectionsAsync();
+if (!collections || collections.length === 0) return null;
+const allVars = await figma.variables.getLocalVariablesAsync();
+const result = {};
+for (const col of collections) {
+  const colVars = allVars.filter(v => v.variableCollectionId === col.id);
+  if (colVars.length === 0) continue;
+  const modeId = col.modes[0].modeId;
+  result[col.name] = {};
+  for (const v of colVars) {
+    const raw = v.valuesByMode[modeId];
+    let value;
+    if (v.resolvedType === 'COLOR') {
+      value = (raw && raw.r !== undefined) ? rgbToHex(raw.r, raw.g, raw.b) : null;
+    } else {
+      value = (typeof raw === 'number') ? raw : null;
+    }
+    const parts = v.name.split('/');
+    const tokenName = parts.pop();
+    const groupName = parts.length ? parts.join('/') : 'Default';
+    if (!result[col.name][groupName]) result[col.name][groupName] = {};
+    result[col.name][groupName][tokenName] = { type: v.resolvedType, value };
+  }
+}
+return result;
+})()`;
+      let figmaData;
+      try {
+        figmaData = await pullClient.eval(pullCode);
+        pullClient.close();
+      } catch (err) {
+        pullClient.close();
+        pullSpinner.fail('Failed to read variables from Figma');
+        throw err;
+      }
+      if (!figmaData || Object.keys(figmaData).length === 0) {
+        pullSpinner.fail('No variables found in Foundations file');
+        throw new Error('No variables found — run os-figma tokens preset first to create token collections');
+      }
+      const newCollections = {};
+      let totalTokens = 0;
+      for (const [colName, groups] of Object.entries(figmaData)) {
+        newCollections[colName] = {};
+        for (const [groupName, tokGroup] of Object.entries(groups)) {
+          newCollections[colName][groupName] = {};
+          for (const [tokenName, tokenData] of Object.entries(tokGroup)) {
+            if (tokenData.value !== null && tokenData.value !== undefined) {
+              newCollections[colName][groupName][tokenName] = tokenData;
+              totalTokens++;
+            }
+          }
+        }
+      }
+      writeFileSync(tokensPath, JSON.stringify({
+        version: '1.0.0',
+        project: projectName,
+        lastSync: new Date().toISOString(),
+        source: 'figma',
+        collections: newCollections,
+      }, null, 2) + '\n');
+      pullSpinner.succeed(`Tokens synced (${totalTokens} tokens)`);
+    }, 'os-figma tokens pull');
+
+    // ─── Step 3: Pattern scan --icons ───
+    printStep(3, 'Index your icon library');
+    console.log(chalk.gray(`  "${foundationsLib}" should still be open in Figma Desktop.`));
+    console.log(chalk.gray('  Press Enter to continue...'));
+    await prompt('');
+
+    await runPatternScan({ icons: true });
+
+    // ─── Step 4: Pattern scan ───
+    printStep(4, 'Index your component library');
+    console.log(chalk.gray(`  Open "${componentsLib}" in Figma Desktop, then press Enter...`));
+    await prompt('');
+
+    await runPatternScan({});
+
+    // Final
+    console.log(chalk.green('\n  ✔ All done. You\'re ready to design.\n'));
   });
 
 // ============ PATTERN ============
@@ -6107,27 +6276,66 @@ function loadLibraryConfig() {
   }
 }
 
-pattern
-  .command('scan')
-  .description('Scan the current Figma document for components and save keys to library-config.json')
-  .option('--icons', 'Scan standalone components as icons (saved to library-config.json → icons)')
-  .action(async (options) => {
-    loadLibraryConfig(); // validates library-config.json exists
+async function runPatternScan(options) {
+  const libConfig = loadLibraryConfig();
 
-    await checkConnection();
+  const isIcons = !!options.icons;
+  const targetKey = isIcons ? 'foundations' : 'components';
+  const targetName = libConfig?.libraries?.[targetKey];
 
-    const isIcons = !!options.icons;
-    const spinner = ora(`Scanning document for ${isIcons ? 'icons' : 'components'}...`).start();
+  if (!targetName) {
+    const label = isIcons ? 'Foundations' : 'Components';
+    console.log(chalk.red(`\n✗ No ${targetKey} library configured in library-config.json.\n`));
+    console.log(chalk.white('  Re-run ') + chalk.cyan('os-figma init') + chalk.white(` and provide a ${label} library name.\n`));
+    process.exit(1);
+  }
 
-    const code = isIcons
-      ? `(function() {
+  const spinner = ora(`Connecting to ${isIcons ? 'Foundations' : 'Components'} file...`).start();
+
+  // Switch CDP connection to the target file
+  let scanClient;
+  {
+    let pages;
+    try {
+      pages = await FigmaClient.listPages();
+    } catch {
+      spinner.fail('Not connected to Figma — run os-figma connect first');
+      process.exit(1);
+    }
+    const designFiles = pages.filter(p =>
+      p.url && (p.url.includes('/design/') || p.url.includes('/board/'))
+    );
+    const stripSuffix = t => t.replace(/\s*\u2013\s*Figma\s*$/, '').trim();
+    const match = designFiles.find(p =>
+      stripSuffix(p.title).toLowerCase() === targetName.toLowerCase()
+    );
+    if (!match) {
+      spinner.fail(`"${targetName}" is not open in Figma Desktop. Please open it and try again.`);
+      process.exit(1);
+    }
+    const matchedName = stripSuffix(match.title);
+    console.log(chalk.gray(`  ℹ Using ${matchedName}`));
+    spinner.text = `Connecting to ${matchedName}...`;
+    scanClient = new FigmaClient();
+    try {
+      await scanClient.connect(matchedName);
+    } catch (err) {
+      spinner.fail(`Could not connect to "${matchedName}": ${err.message}`);
+      process.exit(1);
+    }
+  }
+
+  spinner.text = `Scanning document for ${isIcons ? 'icons' : 'components'}...`;
+
+  const code = isIcons
+    ? `(function() {
   var icons = figma.root.findAllWithCriteria({ types: ['COMPONENT'] })
     .filter(function(n) { return !n.parent || n.parent.type !== 'COMPONENT_SET'; });
   var results = {};
   icons.forEach(function(c) { results[c.name] = c.key; });
   return JSON.stringify(results);
 })()`
-      : `(function() {
+    : `(function() {
   var sets = figma.root.findAllWithCriteria({ types: ['COMPONENT_SET'] });
   var standalone = figma.root.findAllWithCriteria({ types: ['COMPONENT'] })
     .filter(function(n) { return !n.parent || n.parent.type !== 'COMPONENT_SET'; });
@@ -6137,35 +6345,45 @@ pattern
   return JSON.stringify(results);
 })()`;
 
-    let raw;
-    try {
-      raw = await fastEval(code);
-    } catch (err) {
-      spinner.fail(`Failed to scan ${isIcons ? 'icons' : 'components'} from Figma`);
-      console.error(chalk.red(err.message));
-      process.exit(1);
-    }
+  let raw;
+  try {
+    raw = await scanClient.eval(code);
+    scanClient.close();
+  } catch (err) {
+    scanClient.close();
+    spinner.fail(`Failed to scan ${isIcons ? 'icons' : 'components'} from Figma`);
+    console.error(chalk.red(err.message));
+    process.exit(1);
+  }
 
-    const scanned = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    const count = Object.keys(scanned || {}).length;
+  const scanned = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  const count = Object.keys(scanned || {}).length;
 
-    if (!count) {
-      spinner.warn(`No ${isIcons ? 'icons' : 'components'} found — open a file that contains the library ${isIcons ? 'icons' : 'components'} and try again.`);
-      process.exit(0);
-    }
+  if (!count) {
+    spinner.warn(`No ${isIcons ? 'icons' : 'components'} found in "${targetName}". Make sure the correct file is open and try again.`);
+    process.exit(0);
+  }
 
-    // Merge into library-config.json
-    const configPath = join(process.cwd(), 'library-config.json');
-    const libConfig = JSON.parse(readFileSync(configPath, 'utf8'));
-    if (isIcons) {
-      libConfig.icons = scanned;
-    } else {
-      libConfig.components = scanned;
-    }
-    writeFileSync(configPath, JSON.stringify(libConfig, null, 2) + '\n');
+  // Merge into library-config.json
+  const configPath = join(process.cwd(), 'library-config.json');
+  const updatedConfig = JSON.parse(readFileSync(configPath, 'utf8'));
+  if (isIcons) {
+    updatedConfig.icons = scanned;
+  } else {
+    updatedConfig.components = scanned;
+  }
+  writeFileSync(configPath, JSON.stringify(updatedConfig, null, 2) + '\n');
 
-    const label = isIcons ? 'icon' : 'component';
-    spinner.succeed(`Scanned ${count} ${label}${count !== 1 ? 's' : ''} — saved to library-config.json`);
+  const label = isIcons ? 'icon' : 'component';
+  spinner.succeed(`Scanned ${count} ${label}${count !== 1 ? 's' : ''} — saved to library-config.json`);
+}
+
+pattern
+  .command('scan')
+  .description('Scan the current Figma document for components and save keys to library-config.json')
+  .option('--icons', 'Scan standalone components as icons (saved to library-config.json → icons)')
+  .action(async (options) => {
+    await runPatternScan(options);
   });
 
 pattern
