@@ -44,10 +44,8 @@ Each project has its own configuration. Always run os-figma commands from the pr
 
 ### New project
 ```bash
-os-figma init                  # creates tokens.json and library-config.json
-os-figma tokens pull           # syncs token values from Figma
-os-figma pattern scan          # one-time: index components from library file
-os-figma pattern scan --icons  # one-time: index icons from foundations file
+os-figma init                  # interactive setup — connect, sync tokens, scan
+                               # components and icons in one guided walkthrough
 ```
 
 ### Project files
@@ -495,11 +493,9 @@ fontWeight="bold"    →  weight="bold"
 
 **Never show terminal commands to users.** Run silently, give friendly feedback.
 
-1. Run `os-figma connect` (Yolo or Safe mode)
-2. Run `os-figma init` to set up project files
-3. Run `os-figma tokens pull` to sync tokens from Figma
-4. Ask: ODC or O11? Mobile or Web?
-5. When connected, say: "Connected! What OutSystems screen or component would you like to design?"
+1. Run `os-figma init` — guides through connection, token sync, and library scan
+2. Ask: Mobile or Web?
+3. When complete, say: "Connected! What OutSystems screen or component would you like to design?"
 
 If permission error (macOS): System Settings → Privacy → Full Disk Access → Add Terminal
 

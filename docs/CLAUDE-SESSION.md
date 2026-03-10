@@ -34,12 +34,6 @@ os-figma tokens status
 
 ### Pattern Commands
 ```bash
-# One-time: index components (open component library file in Figma first)
-os-figma pattern scan
-
-# One-time: index icons (open icon/foundations library file in Figma first)
-os-figma pattern scan --icons
-
 # List available components (no Figma connection required)
 os-figma pattern list
 
@@ -181,9 +175,9 @@ os-figma fj eval "figma.currentPage.children.length"
 
 7. **Always use OutSystems token variables** — not raw hex values. See `CLAUDE.md` for full token list.
 
-8. **Pattern scan is one-time setup** — run `os-figma pattern scan` and
-   `os-figma pattern scan --icons` once per library. Re-run only if the library
-   is updated. Component and icon keys are stored in `library-config.json`.
+8. **Pattern scan is handled by init** — run `os-figma init` for new projects.
+   To re-scan manually (e.g. after a library update): `os-figma pattern scan`
+   and `os-figma pattern scan --icons`.
 
 ## File Structure
 
@@ -203,12 +197,13 @@ project-directory/           ← Per-project config (one per client/design)
 
 ## Current Session Context
 
-> 💡 At the start of each session:
+> 💡 First time: `os-figma init` (guided setup — connect, tokens, scan all in one)
+>
+> Returning session:
 > 1. `os-figma connect`
 > 2. `cd` to your project directory
-> 3. `os-figma tokens pull`
-> 4. First time only: `os-figma pattern scan` and `os-figma pattern scan --icons`
-> 5. Paste active node IDs below
+> 3. `os-figma tokens pull` (open Foundations file in Figma first)
+> 4. Paste active node IDs below
 
 Active file node IDs:
 (paste your node IDs here)

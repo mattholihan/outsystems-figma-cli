@@ -5,7 +5,8 @@ Full command reference. For quick start, see CLAUDE.md.
 ## Setup & Connection
 
 ```bash
-os-figma init                            # Initialise project (tokens.json + library-config.json)
+os-figma init                            # Interactive setup: connect, sync tokens,
+                                         # scan icons and components in one flow
 os-figma connect                         # Connect (Yolo Mode)
 os-figma connect --safe                  # Connect (Safe Mode, plugin)
 os-figma daemon status                   # Check daemon status

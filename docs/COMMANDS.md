@@ -14,10 +14,18 @@ os-figma connect
 os-figma connect --safe
 
 # Initialise a new project in the current directory
-# Interactive — prompts for project name, library names, and platform (ODC/O11)
-# Creates tokens.json and library-config.json
+# Prompts for project name, Foundations library, and Components library
+# Then runs an interactive walkthrough:
+#   1. Connects to Figma Desktop
+#   2. Pulls tokens from Foundations file
+#   3. Scans icons from Foundations file
+#   4. Scans components from Components file
 os-figma init
 ```
+
+> `init` handles the full project setup in one flow. You do not need to run
+> `tokens pull`, `pattern scan`, or `pattern scan --icons` separately for
+> a new project.
 
 ---
 
