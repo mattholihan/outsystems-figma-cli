@@ -202,7 +202,7 @@ os-figma col create "OutSystems UI Tokens"
 ## Modify Elements
 
 ```bash
-# Set layout sizing on a node (must be child of auto-layout frame)
+# Set layout sizing on a node (must be child of an auto-layout frame)
 os-figma set sizing fill fixed -n "105:41"   # fill width, fixed height
 os-figma set sizing fill fill -n "105:41"    # fill both dimensions
 os-figma set sizing fixed fixed -n "105:41"  # fixed both (default)
@@ -264,6 +264,9 @@ os-figma export png
 
 # Export as SVG
 os-figma export svg
+
+# Export node as PNG to screenshots/ folder, returns absolute path for Claude Code review
+os-figma export node "1:234" --feedback
 ```
 
 ---

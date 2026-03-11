@@ -27,7 +27,7 @@ A CLI that connects directly to Figma Desktop. No API key needed.
 - **Team Libraries** — Import and use components, styles, variables from any library
 - **Analyze Designs** — Colors, typography, spacing, find repeated patterns
 - **Lint & Accessibility** — Contrast checker, touch targets, design rules
-- **Export** — PNG, SVG, JSX, Storybook stories, CSS variables
+- **Export** — PNG, SVG, JSX, Storybook stories, CSS variables; `--feedback` flag saves to `screenshots/` and returns the file path for Claude Code's review loop
 - **Batch Operations** — Rename layers, find/replace text, create 100 variables at once
 - **Works with Claude Code** — Just ask in natural language, Claude knows all the commands
 

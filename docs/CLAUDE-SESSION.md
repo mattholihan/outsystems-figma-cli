@@ -37,6 +37,9 @@ os-figma tokens status
 # List available components (no Figma connection required)
 os-figma pattern list
 
+# Get full schema for a component before placing it — always run before pattern add
+os-figma pattern describe Button --pretty
+
 # Get full schema for a component (variants, states, props)
 os-figma pattern describe Button
 os-figma pattern describe Button --pretty
@@ -61,7 +64,8 @@ os-figma raw query "//FRAME"
 
 ### Export
 ```bash
-os-figma raw export "NODE_ID" --scale 2 --suffix "_export"
+os-figma export node "NODE_ID" --feedback           # Export to screenshots/ and return path for review
+os-figma raw export "NODE_ID" --scale 2 --suffix "_export"   # Raw export
 ```
 
 ## Common OutSystems Operations
@@ -181,6 +185,9 @@ os-figma fj eval "figma.currentPage.children.length"
 8. **Pattern scan is handled by init** — run `os-figma init` for new projects.
    To re-scan manually (e.g. after a library update): `os-figma pattern scan`
    and `os-figma pattern scan --icons`.
+
+9. **Always run pattern describe before pattern add** — never guess prop names,
+   variant names, or state names.
 
 ## File Structure
 

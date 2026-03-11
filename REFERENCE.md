@@ -212,6 +212,9 @@ os-figma set radius 8                             # Corner radius
 os-figma set size 320 200                         # Resize
 os-figma set pos 100 100                          # Move
 os-figma set opacity 0.5                          # Opacity
+os-figma set sizing fill fixed -n "1:234"        # Fill width, fixed height
+os-figma set sizing fill fill -n "1:234"         # Fill both dimensions
+os-figma set sizing fixed fixed -n "1:234"       # Fixed both (default)
 os-figma set autolayout row -g 8 -p 16            # Apply auto-layout
 os-figma set name "Button/Primary/Default"        # Rename (use naming convention)
 ```
@@ -275,6 +278,7 @@ os-figma export screenshot -o out.png    # Viewport screenshot
 os-figma export node "1:234" -o card.png          # Export node by ID
 os-figma export node "1:234" -s 2 -f png          # 2x scale PNG
 os-figma export node "1:234" -f svg -o card.svg   # SVG export
+os-figma export node "1:234" --feedback          # Export to screenshots/ and return path for review
 os-figma export-jsx "1:234"              # Export as JSX
 os-figma export-jsx "1:234" -o Card.jsx --pretty
 os-figma export-storybook "1:234"        # Storybook stories

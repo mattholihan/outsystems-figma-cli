@@ -56,7 +56,8 @@ outsystems-figma-cli/          ← Global CLI tool (installed via npm install -g
 
 project-directory/             ← Per-project files (one per client/project)
 ├── tokens.json                # Project-specific token values, synced with Figma
-└── library-config.json        # Figma library connections, component keys, and icon keys
+├── library-config.json        # Figma library connections, component keys, and icon keys
+└── screenshots/             # PNG exports from os-figma export node --feedback
 ```
 
 ## Project Architecture
