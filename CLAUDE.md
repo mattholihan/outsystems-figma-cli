@@ -14,7 +14,7 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "push tokens to figma" | `os-figma tokens push` |
 | "check token sync status" | `os-figma tokens status` |
 | "create token collections" | `os-figma tokens preset` |
-| "create a screen" / "new screen" | `os-figma screen create Login --size mobile` |
+| "create a screen" / "new screen" | Think → plan → execute (see Composing Screens) |
 | "show colors on canvas" | `os-figma var visualize` |
 | "list variables" | `os-figma var list` |
 | "find nodes named X" | `os-figma find "X"` |
@@ -345,6 +345,31 @@ Navigation/Sidebar/Web
 
 When asked to create a screen, follow this exact workflow every time.
 Deviating from it causes failures that are expensive to recover from.
+
+---
+
+### Think like a designer first
+
+Before running any commands, spend time thinking about the screen as a senior
+product designer would. Do not skip this step.
+
+Ask yourself:
+- What is the primary action on this screen? Everything should support it.
+- What is the visual hierarchy? What does the user see first, second, third?
+- What components from the library best serve each zone?
+- What needs to be a real component vs a placeholder?
+- What is the emotional tone — utility-focused, trust-building, data-dense?
+
+Then write a brief design plan in your thinking. For example:
+
+> "Login screen: trust-building, minimal. Brand zone at top third to establish
+> context. Form zone centred with generous spacing so it feels approachable.
+> Single primary CTA — no competition. Forgot password as low-prominence text
+> link. SSO option below a clear divider so it's available but not competing."
+
+Only after you have a clear design plan should you run `pattern list`,
+`pattern describe`, and begin placing elements. The commands execute your
+design — they are not a substitute for having one.
 
 ---
 
