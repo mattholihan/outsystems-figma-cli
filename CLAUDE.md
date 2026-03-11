@@ -31,6 +31,7 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "scan icons from library" | `os-figma pattern scan --icons` |
 | "list available patterns" | `os-figma pattern list` |
 | "add a button" / "add a card" | `os-figma pattern add Button` |
+| "screenshot the screen" / "check the output" | `os-figma export node "<id>" --feedback` |
 
 **Full command reference:** See REFERENCE.md
 
@@ -459,12 +460,23 @@ os-figma pattern add Button \
   --parent "<screenId>"
 ```
 
-**Step 5 — Verify**
+**Step 5 — Screenshot and evaluate**
 
+After placing all elements, export a screenshot and read it back to evaluate the result against your design plan:
 ```bash
-os-figma export node "<screenId>"
-# Review the exported image to confirm layout
+os-figma export node "<screenId>" --feedback
+# Returns an absolute path — read that file immediately
 ```
+
+When evaluating the screenshot, check:
+- Does the visual hierarchy match your design plan?
+- Is content vertically distributed as intended, or bunched at top/bottom?
+- Do all components have fill-width sizing, or are any at intrinsic width?
+- Is there consistent spacing between elements, or are gaps uneven?
+- Are placeholder frames visible (light grey with label), or invisible?
+- Is the brand/logo zone rendering correctly?
+
+If any issue is found, fix it and re-export before declaring the screen done. Only move on when the screenshot matches the design plan.
 
 ---
 
@@ -673,6 +685,8 @@ Never use hardcoded pixel values for gaps or padding.
 
 ### Critical rules
 
+- **Always screenshot after building** — run `export node --feedback`, read
+  the file, and evaluate before declaring a screen complete
 - **Always use `--parent`** — never place on canvas root
 - **Never use `eval` to create elements** — no smart positioning
 - **Never guess prop names** — always run `pattern describe` first

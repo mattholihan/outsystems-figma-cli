@@ -5341,10 +5341,11 @@ exp
   .option('-o, --output <file>', 'Output file', 'node-export.png')
   .option('-s, --scale <number>', 'Export scale', '2')
   .option('-f, --format <format>', 'Format: png, svg, pdf, jpg', 'png')
+  .option('--feedback', 'Save to screenshots/ dir and print absolute path for Claude Code to read')
   .action((nodeId, options) => {
     checkConnection();
     const format = options.format.toUpperCase();
-    const scale = parseFloat(options.scale);
+    const scale = options.feedback ? 2 : parseFloat(options.scale);
     const code = `(async () => {
 const node = await figma.getNodeByIdAsync('${nodeId}');
 if (!node) return { error: 'Node not found: ${nodeId}' };
@@ -5364,11 +5365,22 @@ return {
       process.exit(1);
     }
     const buffer = Buffer.from(result.bytes);
-    const outputFile = options.output === 'node-export.png' && format !== 'PNG'
-      ? `node-export.${format.toLowerCase()}`
-      : options.output;
+    let outputFile;
+    if (options.feedback) {
+      const screenshotsDir = join(process.cwd(), 'screenshots');
+      if (!existsSync(screenshotsDir)) mkdirSync(screenshotsDir, { recursive: true });
+      const safeName = result.name.replace(/[\s/\\]+/g, '-').toLowerCase();
+      outputFile = join(screenshotsDir, `${safeName}.png`);
+    } else {
+      outputFile = options.output === 'node-export.png' && format !== 'PNG'
+        ? `node-export.${format.toLowerCase()}`
+        : options.output;
+    }
     writeFileSync(outputFile, buffer);
-    console.log(chalk.green('✓'), `Exported ${result.name} (${result.width}x${result.height}) to ${outputFile}`);
+    console.log(chalk.green('✓'), `Exported ${result.name} (${result.width}x${result.height})`);
+    if (options.feedback) {
+      console.log(`Screenshot: ${resolve(outputFile)}`);
+    }
   });
 
 exp
@@ -6127,6 +6139,18 @@ program
           console.log(chalk.gray(`  Skipping ${label}`));
           return;
         }
+      }
+    }
+
+    // Write .gitignore
+    const gitignorePath = join(cwd, '.gitignore');
+    const gitignoreEntries = 'node_modules/\n.env\nscreenshots/\n';
+    if (!existsSync(gitignorePath)) {
+      writeFileSync(gitignorePath, gitignoreEntries);
+    } else {
+      const existing = readFileSync(gitignorePath, 'utf8');
+      if (!existing.includes('screenshots/')) {
+        writeFileSync(gitignorePath, existing.endsWith('\n') ? existing + 'screenshots/\n' : existing + '\nscreenshots/\n');
       }
     }
 
