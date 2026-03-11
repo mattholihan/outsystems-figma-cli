@@ -294,6 +294,15 @@ Connects to Figma Desktop via Chrome DevTools Protocol (CDP). No API key needed 
 - Components from frames, component instances, component sets with variants
 - Slots — flexible content areas in components (add, reset, clear slot content in instances)
 
+### Inspect & Evaluate
+
+- Inspect any node — geometry, layout, auto-layout, fills, strokes, effects, children
+- Design system warnings — flags unbound fills, unbound strokes, missing text styles,
+  missing effect styles
+- `--summary` mode for quick human-readable output during the agent evaluate loop
+- `--deep` for full recursive child tree inspection
+- Powers the agentic evaluate cycle: build → inspect → fix → re-inspect
+
 ### Export
 
 - Export nodes as PNG, SVG (with scale factor)

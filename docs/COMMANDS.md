@@ -462,3 +462,20 @@ os-figma daemon status
 # Restart daemon
 os-figma daemon restart
 ```
+
+---
+
+## Dev Tools
+
+```bash
+# Audit Figma API coverage — cross-references src/ against FIGMA-API-COVERAGE.md
+node scripts/audit-coverage.js
+
+# Output audit results as JSON
+node scripts/audit-coverage.js --json
+
+# Auto-update FIGMA-API-COVERAGE.md from findings (backs up before writing)
+node scripts/audit-coverage.js --fix
+```
+
+Run the audit at the start and end of every development session. Any new `runCode()` call must have a `@figma-api` comment above it — see FIGMA-API-COVERAGE.md for the annotation convention.

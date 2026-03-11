@@ -258,3 +258,25 @@ os-figma node inspect
 The `--summary` output highlights design system violations inline so you can
 spot and fix them without parsing JSON. After fixing bindings with `os-figma bind`,
 re-run `node inspect --summary` to confirm the warnings are cleared.
+
+### Inspect → fix → re-inspect loop
+
+After building a screen or component, use this cycle to ensure all nodes
+are correctly bound to design system variables:
+
+```bash
+# 1. Inspect and read warnings
+os-figma node inspect "<screenId>" --summary
+
+# 2. Fix each warning
+os-figma bind fill "--color-neutral-0" -n "<nodeId>"   # unbound fill
+os-figma bind stroke "--color-neutral-4" -n "<nodeId>" # unbound stroke
+
+# 3. Re-inspect to confirm warnings cleared
+os-figma node inspect "<screenId>" --summary
+```
+
+For deeply nested screens, use `--deep` to surface warnings on child nodes:
+```bash
+os-figma node inspect "<screenId>" --deep | grep -A2 '"warnings"'
+```

@@ -68,6 +68,21 @@ os-figma export node "NODE_ID" --feedback           # Export to screenshots/ and
 os-figma raw export "NODE_ID" --scale 2 --suffix "_export"   # Raw export
 ```
 
+### Inspect Nodes
+```bash
+# Full JSON — geometry, layout, fills, strokes, effects, children, warnings
+os-figma node inspect "<id>"
+
+# Human-readable summary with design system warnings
+os-figma node inspect "<id>" --summary
+
+# Recursive child tree
+os-figma node inspect "<id>" --deep
+
+# Inspect current Figma selection
+os-figma node inspect
+```
+
 ## Common OutSystems Operations
 
 ### Create a Screen
@@ -166,6 +181,13 @@ os-figma fj nodes
 os-figma fj eval "figma.currentPage.children.length"
 ```
 
+## Session Hygiene
+
+- Run `node scripts/audit-coverage.js` at the start and end of every session
+- Any new `runCode()` block must have a `@figma-api` comment immediately above it
+- After building a screen, always run both `export node --feedback` (visual check)
+  and `node inspect --summary` (structural check) before declaring it complete
+
 ## Important Notes
 
 1. **Eval often returns no output** but code still executes. Verify with queries.
@@ -188,6 +210,11 @@ os-figma fj eval "figma.currentPage.children.length"
 
 9. **Always run pattern describe before pattern add** — never guess prop names,
    variant names, or state names.
+
+10. **Always inspect after building** — run `os-figma node inspect "<id>" --summary`
+   after placing all components. The Warnings section flags unbound fills, unbound
+   strokes, and missing style bindings. Fix each warning with `os-figma bind` and
+   re-run inspect to confirm warnings are cleared before declaring a screen done.
 
 ## File Structure
 

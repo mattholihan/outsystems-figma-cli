@@ -32,7 +32,9 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "list available patterns" | `os-figma pattern list` |
 | "add a button" / "add a card" | `os-figma pattern add Button` |
 | "screenshot the screen" / "check the output" | `os-figma export node "<id>" --feedback` |
-| "inspect a node" / "check node properties" | `os-figma node inspect "<id>"` |
+| "inspect a node" | `os-figma node inspect "<id>"` |
+| "inspect current selection" | `os-figma node inspect` |
+| "deep node tree" | `os-figma node inspect "<id>" --deep` |
 | "check design system warnings" | `os-figma node inspect "<id>" --summary` |
 
 **Full command reference:** See REFERENCE.md
@@ -470,6 +472,22 @@ os-figma export node "<screenId>" --feedback
 # Returns an absolute path — read that file immediately
 ```
 
+Then inspect the screen for design system violations:
+```bash
+os-figma node inspect "<screenId>" --summary
+```
+Read the Warnings section of the output. Fix each violation before moving on:
+```bash
+# Fix unbound fill on a child node
+os-figma bind fill "--color-primary" -n "<nodeId>"
+
+# Fix unbound stroke
+os-figma bind stroke "--color-neutral-4" -n "<nodeId>"
+
+# Re-inspect to confirm warnings cleared
+os-figma node inspect "<screenId>" --summary
+```
+
 When evaluating the screenshot, check:
 - Does the visual hierarchy match your design plan?
 - Is content vertically distributed as intended, or bunched at top/bottom?
@@ -689,6 +707,7 @@ Never use hardcoded pixel values for gaps or padding.
 
 - **Always screenshot after building** — run `export node --feedback`, read
   the file, and evaluate before declaring a screen complete
+- **Always inspect after building** — run `os-figma node inspect "<id>" --summary` after placing components; fix all warnings with `os-figma bind` before declaring a screen done
 - **Always use `--parent`** — never place on canvas root
 - **Never use `eval` to create elements** — no smart positioning
 - **Never guess prop names** — always run `pattern describe` first
