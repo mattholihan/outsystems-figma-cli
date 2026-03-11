@@ -127,6 +127,12 @@ os-figma pattern add Button --variant Primary --state Default \
   --prop "Text=Sign In" \
   --prop "Show icon (L)=true" \
   --prop "Icon (L)=arrow-left"
+
+# Add component inside a specific parent frame
+os-figma pattern add Input --state Default --prop "Label=Email" --parent "94:10"
+
+# Add at specific position inside parent
+os-figma pattern add Button --variant Primary --parent "94:10" --x 32 --y 400
 ```
 
 > **First-time setup:** Run `os-figma pattern scan` once with your component library
@@ -223,6 +229,9 @@ os-figma render '<Frame name="Card/Default" w={320} bg="var:--color-neutral-0" r
     <Text size={14} color="var:--color-neutral-7" w="fill">Card description text.</Text>
   </Frame>
 </Frame>'
+
+# Render JSX as a child of an existing frame
+os-figma render --parent "94:10" "<Frame name='Header/Nav' w='fill' h={56} bg='var:--color-neutral-1' />"
 
 # Create multiple components at once
 os-figma render-batch '[...]'

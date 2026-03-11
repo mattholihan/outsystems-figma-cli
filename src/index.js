@@ -5122,7 +5122,34 @@ program
       if (jsx.includes('var:')) {
         const { FigmaClient } = await import('./figma-client.js');
         const client = new FigmaClient();
-        const code = client.parseJSX(jsx);
+        let code = client.parseJSX(jsx);
+
+        // If --parent specified, wrap code to reparent rendered node into target frame
+        if (options.parent) {
+          const parentId = JSON.stringify(options.parent);
+          const targetX = options.x !== undefined ? options.x : 0;
+          const targetY = options.y !== undefined ? options.y : 0;
+          // Detect fill dimensions in JSX so we can apply them after appendChild
+          const wantFillW = /\bw=["']fill["']/.test(jsx);
+          const wantFillH = /\bh=["']fill["']/.test(jsx);
+          code = `(async function() {
+            const rendered = await (${code});
+            const parent = figma.getNodeById(${parentId});
+            if (!parent) throw new Error('Parent node ' + ${parentId} + ' not found');
+            if (!('appendChild' in parent)) throw new Error('Node ' + ${parentId} + ' cannot accept children');
+            const node = figma.getNodeById(rendered.id);
+            parent.appendChild(node);
+            if (parent.layoutMode && parent.layoutMode !== 'NONE') {
+              if (${wantFillW}) node.layoutSizingHorizontal = 'FILL';
+              if (${wantFillH}) node.layoutSizingVertical = 'FILL';
+            } else {
+              node.x = ${targetX};
+              node.y = ${targetY};
+            }
+            return { id: node.id, name: node.name };
+          })()`;
+        }
+
         const result = await daemonExec('eval', { code });
         if (result && result.id) {
           console.log(chalk.green('✓ Rendered: ' + result.id));
@@ -6767,8 +6794,9 @@ pattern
   .description('Insert a component instance by name using keys from library-config.json')
   .option('--variant <name>', 'Component variant (e.g. Primary)')
   .option('--state <name>', 'Component state (e.g. Default, Hover, Disabled)')
-  .option('--x <number>', 'X position on canvas', parseFloat)
-  .option('--y <number>', 'Y position on canvas', parseFloat)
+  .option('--x <number>', 'X position', parseFloat)
+  .option('--y <number>', 'Y position', parseFloat)
+  .option('--parent <nodeId>', 'Parent frame node ID — places the component inside this frame')
   .option('--prop <key=value>', 'Set a component property — repeatable (e.g. --prop "Text=Sign In")', (val, acc) => { acc.push(val); return acc; }, [])
   .action(async (patternName, options) => {
     const libConfig = loadLibraryConfig();
@@ -6829,6 +6857,7 @@ pattern
   var wantVariant = ${JSON.stringify(wantVariant)};
   var wantState = ${JSON.stringify(wantState)};
   var resolvedProps = ${JSON.stringify(resolvedProps)};
+  var parentNodeId = ${JSON.stringify(options.parent || null)};
 
   async function loadInstanceFonts(inst) {
     var fontNodes = inst.findAll(function(n) { return n.type === 'TEXT'; });
@@ -6900,11 +6929,26 @@ pattern
       var propWarnings = await applyProps(inst, resolvedProps);
       var hasX = ${options.x !== undefined};
       var hasY = ${options.y !== undefined};
-      if (hasX) { inst.x = ${options.x !== undefined ? options.x : 0}; }
-      else { var vb = figma.viewport.bounds; inst.x = vb.x + vb.width / 2 - inst.width / 2; }
-      if (hasY) { inst.y = ${options.y !== undefined ? options.y : 0}; }
-      else { var vb2 = figma.viewport.bounds; inst.y = vb2.y + vb2.height / 2 - inst.height / 2; }
-      figma.currentPage.appendChild(inst);
+      if (parentNodeId) {
+        var parentNode = figma.getNodeById(parentNodeId);
+        if (parentNode && 'appendChild' in parentNode) {
+          parentNode.appendChild(inst);
+          if (!parentNode.layoutMode || parentNode.layoutMode === 'NONE') {
+            inst.x = hasX ? ${options.x !== undefined ? options.x : 0} : 0;
+            inst.y = hasY ? ${options.y !== undefined ? options.y : 0} : 0;
+          } else if (hasX) {
+            inst.x = ${options.x !== undefined ? options.x : 0};
+          }
+        } else {
+          figma.currentPage.appendChild(inst);
+        }
+      } else {
+        if (hasX) { inst.x = ${options.x !== undefined ? options.x : 0}; }
+        else { var vb = figma.viewport.bounds; inst.x = vb.x + vb.width / 2 - inst.width / 2; }
+        if (hasY) { inst.y = ${options.y !== undefined ? options.y : 0}; }
+        else { var vb2 = figma.viewport.bounds; inst.y = vb2.y + vb2.height / 2 - inst.height / 2; }
+        figma.currentPage.appendChild(inst);
+      }
       figma.currentPage.selection = [inst];
       figma.viewport.scrollAndZoomIntoView([inst]);
       return { componentName: comp.name, variantName: null, propWarnings };
@@ -6932,12 +6976,26 @@ pattern
   var propWarnings = await applyProps(instance, resolvedProps);
   var hasX = ${options.x !== undefined};
   var hasY = ${options.y !== undefined};
-  if (hasX) { instance.x = ${options.x !== undefined ? options.x : 0}; }
-  else { var b = figma.viewport.bounds; instance.x = b.x + b.width / 2 - instance.width / 2; }
-  if (hasY) { instance.y = ${options.y !== undefined ? options.y : 0}; }
-  else { var b2 = figma.viewport.bounds; instance.y = b2.y + b2.height / 2 - instance.height / 2; }
-
-  figma.currentPage.appendChild(instance);
+  if (parentNodeId) {
+    var parentNode2 = figma.getNodeById(parentNodeId);
+    if (parentNode2 && 'appendChild' in parentNode2) {
+      parentNode2.appendChild(instance);
+      if (!parentNode2.layoutMode || parentNode2.layoutMode === 'NONE') {
+        instance.x = hasX ? ${options.x !== undefined ? options.x : 0} : 0;
+        instance.y = hasY ? ${options.y !== undefined ? options.y : 0} : 0;
+      } else if (hasX) {
+        instance.x = ${options.x !== undefined ? options.x : 0};
+      }
+    } else {
+      figma.currentPage.appendChild(instance);
+    }
+  } else {
+    if (hasX) { instance.x = ${options.x !== undefined ? options.x : 0}; }
+    else { var b = figma.viewport.bounds; instance.x = b.x + b.width / 2 - instance.width / 2; }
+    if (hasY) { instance.y = ${options.y !== undefined ? options.y : 0}; }
+    else { var b2 = figma.viewport.bounds; instance.y = b2.y + b2.height / 2 - instance.height / 2; }
+    figma.currentPage.appendChild(instance);
+  }
   figma.currentPage.selection = [instance];
   figma.viewport.scrollAndZoomIntoView([instance]);
   return { componentName: componentSet.name, variantName: variant.name, propWarnings };

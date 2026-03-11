@@ -375,12 +375,18 @@ export class FigmaClient {
       frameProps._type = 'frame';
       frameProps._index = match.index;
 
-      // Get content between opening and matching closing tag
-      const afterOpen = childrenStr.slice(match.index + match[0].length);
-      const innerContent = this.extractContent(afterOpen, 'Frame');
-
-      // Calculate full frame length
-      const fullLength = match[0].length + innerContent.length + '</Frame>'.length;
+      // Detect self-closing frames like <Frame ... /> — they have no children or </Frame>
+      const isSelfClosing = match[0].endsWith('/>');
+      let innerContent, fullLength;
+      if (isSelfClosing) {
+        innerContent = '';
+        fullLength = match[0].length;
+      } else {
+        // Get content between opening and matching closing tag
+        const afterOpen = childrenStr.slice(match.index + match[0].length);
+        innerContent = this.extractContent(afterOpen, 'Frame');
+        fullLength = match[0].length + innerContent.length + '</Frame>'.length;
+      }
 
       // Recursively parse children of nested frame
       frameProps._children = this.parseChildren(innerContent);
@@ -468,8 +474,10 @@ export class FigmaClient {
 
   generateCode(props, children) {
     const name = props.name || 'Frame';
-    const width = props.w || props.width || 320;
-    const height = props.h || props.height || 200;
+    const fillWidth = (props.w || props.width) === 'fill';
+    const fillHeight = (props.h || props.height) === 'fill';
+    const width = fillWidth ? 100 : (props.w || props.width || 320);
+    const height = fillHeight ? 100 : (props.h || props.height || 200);
     const bg = props.bg || props.fill || '#ffffff';
     const stroke = props.stroke || null;
     const rounded = props.rounded || props.radius || 0;
