@@ -4792,6 +4792,45 @@ else {
     figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
+set
+  .command('sizing <horizontal> <vertical>')
+  .description('Set layout sizing on a node (fill or fixed)')
+  .option('-n, --node <id>', 'Node ID (uses selection if omitted)')
+  .action(async (horizontal, vertical, options) => {
+    await checkConnection();
+    const h = horizontal.toLowerCase();
+    const v = vertical.toLowerCase();
+    if (h !== 'fill' && h !== 'fixed') {
+      console.log(chalk.red(`✗ Invalid horizontal value "${horizontal}" — use fill or fixed`));
+      process.exit(1);
+    }
+    if (v !== 'fill' && v !== 'fixed') {
+      console.log(chalk.red(`✗ Invalid vertical value "${vertical}" — use fill or fixed`));
+      process.exit(1);
+    }
+    const hVal = h.toUpperCase();
+    const vVal = v.toUpperCase();
+    const nodeId = options.node ? JSON.stringify(options.node) : null;
+    const code = `(async () => {
+      const node = ${nodeId ? `figma.getNodeById(${nodeId})` : `figma.currentPage.selection[0]`};
+      if (!node) throw new Error(${nodeId ? `'Node not found: ' + ${nodeId}` : `'No node selected'`});
+      if (!('layoutSizingHorizontal' in node)) throw new Error('Node does not support sizing: ' + node.type);
+      const parentHasLayout = node.parent && node.parent.layoutMode && node.parent.layoutMode !== 'NONE';
+      const warning = parentHasLayout ? null : 'parent has no auto-layout — fill sizing may have no effect';
+      node.layoutSizingHorizontal = '${hVal}';
+      node.layoutSizingVertical = '${vVal}';
+      return { id: node.id, layoutSizingHorizontal: node.layoutSizingHorizontal, layoutSizingVertical: node.layoutSizingVertical, warning };
+    })()`;
+    try {
+      const result = await fastEval(code);
+      if (result?.warning) console.log(chalk.yellow(`  ⚠ ${result.warning}`));
+      console.log(chalk.green(`✓ Sizing set: horizontal=${result?.layoutSizingHorizontal}, vertical=${result?.layoutSizingVertical}`));
+    } catch (err) {
+      console.log(chalk.red('✗ ' + err.message));
+      process.exit(1);
+    }
+  });
+
 // ============ ARRANGE ============
 
 program
@@ -6404,6 +6443,16 @@ frame.name = ${JSON.stringify(layerName)};
 frame.x = smartX;
 frame.y = 0;
 frame.resize(${width}, ${height});
+frame.layoutMode = 'VERTICAL';
+frame.primaryAxisSizingMode = 'FIXED';
+frame.counterAxisSizingMode = 'FIXED';
+frame.itemSpacing = 0;
+frame.paddingTop = 0;
+frame.paddingBottom = 0;
+frame.paddingLeft = 0;
+frame.paddingRight = 0;
+frame.primaryAxisAlignItems = 'MIN';
+frame.counterAxisAlignItems = 'MIN';
 figma.currentPage.selection = [frame];
 figma.viewport.scrollAndZoomIntoView([frame]);
 return frame.id;

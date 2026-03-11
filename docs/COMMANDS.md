@@ -199,6 +199,17 @@ os-figma col create "OutSystems UI Tokens"
 
 ---
 
+## Modify Elements
+
+```bash
+# Set layout sizing on a node (must be child of auto-layout frame)
+os-figma set sizing fill fixed -n "105:41"   # fill width, fixed height
+os-figma set sizing fill fill -n "105:41"    # fill both dimensions
+os-figma set sizing fixed fixed -n "105:41"  # fixed both (default)
+```
+
+---
+
 ## Create Elements
 
 ```bash

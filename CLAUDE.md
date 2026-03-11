@@ -421,6 +421,21 @@ os-figma export node "<screenId>"
 
 ---
 
+### Sizing components after placement
+
+`pattern add --parent` places components at their intrinsic width. After
+placing any component that should fill the screen width, set fill sizing:
+
+```bash
+os-figma set sizing fill fixed -n "<componentId>"
+```
+
+Use `fill fixed` for most screen components (inputs, buttons, search, dropdowns) — fill width, fixed height. Only use `fill fill` for containers that should expand in both dimensions.
+
+Screen frames from `screen create` are already set to vertical auto-layout with fixed dimensions — do not change their sizing mode.
+
+---
+
 ### Component placement rules
 
 - Always run `pattern describe` first — never guess prop names
