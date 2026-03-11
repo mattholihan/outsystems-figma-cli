@@ -32,6 +32,8 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "list available patterns" | `os-figma pattern list` |
 | "add a button" / "add a card" | `os-figma pattern add Button` |
 | "screenshot the screen" / "check the output" | `os-figma export node "<id>" --feedback` |
+| "inspect a node" / "check node properties" | `os-figma node inspect "<id>"` |
+| "check design system warnings" | `os-figma node inspect "<id>" --summary` |
 
 **Full command reference:** See REFERENCE.md
 

@@ -5603,6 +5603,279 @@ node
     runFigmaUse(cmd);
   });
 
+node
+  .command('inspect [nodeId]')
+  .description('Inspect a node — geometry, layout, fills, effects, children, and design system warnings')
+  .option('--deep', 'Recursively include full child tree')
+  .option('--summary', 'Human-readable output instead of JSON')
+  .action(async (nodeId, options) => {
+    await checkConnection();
+
+    const code = `
+(function() {
+  const targetId = ${nodeId ? JSON.stringify(nodeId) : 'null'};
+  const deep = ${options.deep ? 'true' : 'false'};
+
+  const node = targetId
+    ? figma.getNodeById(targetId)
+    : figma.currentPage.selection[0];
+
+  if (!node) {
+    return JSON.stringify({ __error: targetId ? 'Node ' + targetId + ' not found' : 'No node selected' });
+  }
+
+  function buildFills(n) {
+    const fills = (n.fills && Array.isArray(n.fills))
+      ? n.fills.map(fill => ({
+          type: fill.type,
+          hex: fill.type === 'SOLID'
+            ? '#' + Math.round(fill.color.r * 255).toString(16).padStart(2, '0')
+              + Math.round(fill.color.g * 255).toString(16).padStart(2, '0')
+              + Math.round(fill.color.b * 255).toString(16).padStart(2, '0')
+            : null,
+          opacity: fill.opacity !== undefined ? fill.opacity : 1,
+          variable: null,
+          bound: false,
+        }))
+      : [];
+
+    if (n.boundVariables && n.boundVariables.fills) {
+      n.boundVariables.fills.forEach((binding, i) => {
+        if (binding && fills[i]) {
+          try {
+            const v = figma.variables.getVariableById(binding.id);
+            if (v) {
+              fills[i].variable = v.name;
+              fills[i].bound = true;
+            }
+          } catch(e) {}
+        }
+      });
+    }
+    return fills;
+  }
+
+  function buildStrokes(n) {
+    const strokes = (n.strokes && Array.isArray(n.strokes))
+      ? n.strokes.map(stroke => ({
+          type: stroke.type,
+          hex: stroke.type === 'SOLID'
+            ? '#' + Math.round(stroke.color.r * 255).toString(16).padStart(2, '0')
+              + Math.round(stroke.color.g * 255).toString(16).padStart(2, '0')
+              + Math.round(stroke.color.b * 255).toString(16).padStart(2, '0')
+            : null,
+          opacity: stroke.opacity !== undefined ? stroke.opacity : 1,
+          variable: null,
+          bound: false,
+        }))
+      : [];
+
+    if (n.boundVariables && n.boundVariables.strokes) {
+      n.boundVariables.strokes.forEach((binding, i) => {
+        if (binding && strokes[i]) {
+          try {
+            const v = figma.variables.getVariableById(binding.id);
+            if (v) {
+              strokes[i].variable = v.name;
+              strokes[i].bound = true;
+            }
+          } catch(e) {}
+        }
+      });
+    }
+    return strokes;
+  }
+
+  function inspectNode(n, recurse) {
+    const result = {
+      id: n.id,
+      name: n.name,
+      type: n.type,
+      parentId: n.parent ? n.parent.id : null,
+      parentName: n.parent ? n.parent.name : null,
+      visible: n.visible,
+      locked: n.locked !== undefined ? n.locked : false,
+    };
+
+    if ('x' in n) {
+      result.geometry = {
+        x: n.x,
+        y: n.y,
+        w: n.width,
+        h: n.height,
+        rotation: n.rotation !== undefined ? n.rotation : 0,
+        constraints: n.constraints !== undefined ? n.constraints : null,
+      };
+    }
+
+    if (n.layoutMode !== undefined) {
+      result.layout = {
+        mode: n.layoutMode,
+        padding: {
+          top: n.paddingTop,
+          right: n.paddingRight,
+          bottom: n.paddingBottom,
+          left: n.paddingLeft,
+        },
+        gap: n.itemSpacing,
+        primaryAlign: n.primaryAxisAlignItems,
+        counterAlign: n.counterAxisAlignItems,
+        widthMode: n.layoutSizingHorizontal !== undefined ? n.layoutSizingHorizontal : null,
+        heightMode: n.layoutSizingVertical !== undefined ? n.layoutSizingVertical : null,
+        layoutWrap: n.layoutWrap !== undefined ? n.layoutWrap : null,
+      };
+    }
+
+    result.fills = buildFills(n);
+
+    result.strokes = buildStrokes(n);
+    result.strokeWeight = n.strokeWeight !== undefined ? n.strokeWeight : null;
+    result.strokeAlign = n.strokeAlign !== undefined ? n.strokeAlign : null;
+
+    result.effects = (n.effects && Array.isArray(n.effects))
+      ? n.effects.map(e => ({
+          type: e.type,
+          visible: e.visible,
+          radius: e.radius !== undefined ? e.radius : null,
+          offset: e.offset !== undefined ? e.offset : null,
+          color: e.color !== undefined ? e.color : null,
+          spread: e.spread !== undefined ? e.spread : null,
+        }))
+      : [];
+    result.effectStyleId = n.effectStyleId !== undefined ? n.effectStyleId : null;
+
+    if (n.type === 'TEXT') {
+      result.typography = {
+        content: n.characters,
+        fontSize: n.fontSize,
+        fontFamily: n.fontName && n.fontName.family ? n.fontName.family : null,
+        fontWeight: n.fontName && n.fontName.style ? n.fontName.style : null,
+        lineHeight: n.lineHeight,
+        letterSpacing: n.letterSpacing,
+        textAlign: n.textAlignHorizontal,
+        textStyleId: n.textStyleId !== undefined ? n.textStyleId : null,
+      };
+    }
+
+    if (n.type === 'INSTANCE') {
+      result.component = {
+        key: n.mainComponent && n.mainComponent.key ? n.mainComponent.key : null,
+        name: n.mainComponent && n.mainComponent.name ? n.mainComponent.name : null,
+        properties: n.componentProperties !== undefined ? n.componentProperties : {},
+      };
+    }
+
+    result.children = ('children' in n)
+      ? n.children.map(c => recurse ? inspectNode(c, true) : { id: c.id, name: c.name, type: c.type })
+      : [];
+
+    const warnings = [];
+
+    result.fills.forEach((f, i) => {
+      if (f.type === 'SOLID' && !f.bound) {
+        warnings.push({ property: 'fills[' + i + ']', issue: 'raw hex ' + f.hex + ' — not bound to a variable' });
+      }
+    });
+
+    result.strokes.forEach((s, i) => {
+      if (s.type === 'SOLID' && !s.bound) {
+        warnings.push({ property: 'strokes[' + i + ']', issue: 'raw hex ' + s.hex + ' — not bound to a variable' });
+      }
+    });
+
+    if (result.type === 'TEXT' && result.typography && !result.typography.textStyleId) {
+      warnings.push({ property: 'typography.textStyleId', issue: 'no text style bound — consider applying a library text style' });
+    }
+
+    if (result.effects.length > 0 && !result.effectStyleId) {
+      warnings.push({ property: 'effectStyleId', issue: 'effects present but no effect style bound' });
+    }
+
+    result.warnings = warnings;
+    return result;
+  }
+
+  return JSON.stringify(inspectNode(node, deep));
+})()`;
+
+    try {
+      const raw = await daemonExec('eval', { code });
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+
+      if (parsed && parsed.__error) {
+        console.error(chalk.red(`\nError: ${parsed.__error}\n`));
+        process.exit(1);
+      }
+
+      if (options.summary) {
+        console.log(formatInspectSummary(parsed));
+      } else {
+        console.log(JSON.stringify(parsed, null, 2));
+      }
+    } catch (err) {
+      console.error(chalk.red(`\nError: ${err.message}\n`));
+      process.exit(1);
+    }
+  });
+
+function formatInspectSummary(r) {
+  const lines = [];
+
+  lines.push(`[${r.type}] ${r.name}  (${r.id})`);
+
+  if (r.geometry) {
+    lines.push(`  Geometry : ${r.geometry.w} × ${r.geometry.h} at (${r.geometry.x}, ${r.geometry.y})`);
+  }
+
+  if (r.layout) {
+    const l = r.layout;
+    const pad = `pad:${l.padding.top}/${l.padding.right}/${l.padding.bottom}/${l.padding.left}`;
+    lines.push(`  Layout   : ${l.mode}  ${pad}  gap:${l.gap}  width:${l.widthMode || '?'}  height:${l.heightMode || '?'}`);
+  }
+
+  if (r.fills && r.fills.length > 0) {
+    const fillStrs = r.fills.map(f => f.bound ? `${f.variable} (bound)` : `${f.hex} (unbound ⚠)`);
+    lines.push(`  Fills    : ${fillStrs.join(', ')}`);
+  }
+
+  if (r.strokes && r.strokes.length > 0) {
+    const strokeStrs = r.strokes.map(s => s.bound ? `${s.variable} (bound)` : `${s.hex} (unbound ⚠)`);
+    const weightStr = r.strokeWeight != null ? `  weight:${r.strokeWeight}` : '';
+    lines.push(`  Strokes  : ${strokeStrs.join(', ')}${weightStr}`);
+  }
+
+  if (r.effects && r.effects.length > 0) {
+    const effectStrs = r.effects.map(e => `${e.type}${r.effectStyleId ? '' : ' (unbound ⚠)'}`);
+    lines.push(`  Effects  : ${effectStrs.join(', ')}`);
+  }
+
+  if (r.typography) {
+    const t = r.typography;
+    lines.push(`  Text     : "${t.content}"  font:${t.fontFamily} ${t.fontWeight}  size:${t.fontSize}`);
+  }
+
+  if (r.component) {
+    lines.push(`  Component: ${r.component.name || r.component.key || 'unknown'}`);
+  }
+
+  if (r.children && r.children.length > 0) {
+    lines.push(`  Children : ${r.children.length} children`);
+    r.children.forEach(c => {
+      lines.push(`    ↳ [${c.type}]  ${c.name}  (${c.id})`);
+    });
+  }
+
+  if (r.warnings && r.warnings.length > 0) {
+    lines.push('');
+    lines.push(`  Warnings (${r.warnings.length}):`);
+    r.warnings.forEach(w => {
+      lines.push(`  ⚠  ${w.property} — ${w.issue}`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
 // ============ SLOT OPERATIONS ============
 
 const slot = program

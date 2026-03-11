@@ -232,3 +232,29 @@ node.children.map(c => c.name + ' (' + c.type + ')').join(', ');
 ```bash
 os-figma raw query "//*[@name^='Screen/']"
 ```
+
+---
+
+## Node Inspection
+
+Use `node inspect` to read back what the agent built. The `warnings` array flags
+unbound fills/strokes and missing style bindings — use this output in the evaluate
+phase of the agentic loop before calling `os-figma bind` to fix violations.
+
+```bash
+# Full JSON output (all properties, shallow children)
+os-figma node inspect "123:456"
+
+# Recursive child tree
+os-figma node inspect "123:456" --deep
+
+# Human-readable summary with warnings
+os-figma node inspect "123:456" --summary
+
+# Inspect current selection
+os-figma node inspect
+```
+
+The `--summary` output highlights design system violations inline so you can
+spot and fix them without parsing JSON. After fixing bindings with `os-figma bind`,
+re-run `node inspect --summary` to confirm the warnings are cleared.

@@ -330,6 +330,31 @@ os-figma fj sticky "Note" -p "My Board" -x 100 -y 100
 
 ---
 
+## Node Operations
+
+```bash
+# Show the node tree structure
+os-figma node tree "123:456"
+os-figma node tree "123:456" --depth 5
+
+# Show variable bindings for a node
+os-figma node bindings "123:456"
+
+# Inspect a node — geometry, layout, fills, effects, children, and design system warnings
+os-figma node inspect "123:456"            # JSON output
+os-figma node inspect "123:456" --deep     # include full recursive child tree
+os-figma node inspect "123:456" --summary  # human-readable condensed output
+os-figma node inspect                      # inspect current Figma selection
+
+# Convert frames to components
+os-figma node to-component "123:456"
+
+# Delete nodes by ID
+os-figma node delete "123:456"
+```
+
+---
+
 ## Slots
 
 Slots are component properties that create flexible content areas within components. Designers can add, remove, and rearrange content in instances without detaching.
