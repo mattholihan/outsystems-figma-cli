@@ -343,121 +343,222 @@ Navigation/Sidebar/Web
 
 ## Composing Screens
 
-When asked to create a screen, do not use a fixed template. Instead:
+When asked to create a screen, follow this exact workflow every time.
+Deviating from it causes failures that are expensive to recover from.
 
-1. Run `os-figma pattern list` to see available components
-2. Run `os-figma pattern describe <Component>` for each component you plan
-   to use — this gives you exact variants, states, and prop names
-3. Run `os-figma screen create <Name> --size <mobile|web>` to create the
-   screen frame
-4. Place real components using `os-figma pattern add` with correct props
-5. Use `os-figma render` for any UI element not available as a component
+---
 
-### Placement rules
+### Workflow
 
-- Always place components inside the screen frame, not on the root canvas
-- After creating the screen frame, get its node ID and use it as the parent
-  for all placed components
-- Real components via `pattern add` take precedence over placeholders always
-- Use `os-figma render` for structural elements: nav bars, cards, dividers,
-  hero images, stat counters, tables, sidebars
+**Step 1 — Gather component schemas**
 
-### Layout and spacing
-
-- Screen frames must use auto-layout (`flex="col"`)
-- Always use spacing variables for gaps and padding — never hardcoded pixels:
-  - Between major sections: `--space-l` or `--space-xl`
-  - Between form fields: `--space-m`
-  - Between tightly grouped elements: `--space-s` or `--space-base`
-  - Screen edge padding (mobile): `--space-l`
-  - Screen edge padding (web): `--space-xl`
-
-### Component placement
-
-Always run `pattern describe` before placing a component. Use the schema to:
-- Pass the correct `--variant` (only if the component has variants)
-- Pass the correct `--state` (use `Default` unless a specific state is needed)
-- Pass `--prop` for all meaningful text content (labels, button text,
-  placeholder text)
-
-Examples:
+Before touching Figma, run:
 ```bash
-# Button — has variants
-os-figma pattern add Button --variant Primary --state Default --prop "Text=Sign In"
-
-# Input — no variants, only states
-os-figma pattern add Input --state Default --prop "Label=Email" --prop "Placeholder text=Enter your email"
-
-# Tag — has variants, no states
-os-figma pattern add Tag --variant Info --prop "Text=Active"
+os-figma pattern list
+os-figma pattern describe <Component> --pretty   # for each component you plan to use
 ```
 
-### Placeholder frames (render)
+Use the schema to determine:
+- Whether to pass `--variant` (only if the component has a Variants row)
+- Whether to pass `--state` (only if the component has a States row)
+- The exact `--prop` key names for labels, text, and booleans
 
-Use `os-figma render` for UI elements not in the component library.
+**Step 2 — Create the screen frame**
+
+```bash
+os-figma screen create <Name> --size <mobile|web>
+os-figma find "Screen/<Size>/<Name>"
+# Note the returned node ID — you will use it as --parent for everything
+```
+
+**Step 3 — Render structural placeholders into the screen**
+
+Use `os-figma render --parent <screenId>` to place structural elements
+(nav bars, hero images, cards, dividers, stat counters, etc.) inside the
+screen frame. Each `render` call places one element as a direct child.
+
+```bash
+os-figma render --parent "<screenId>" "<Frame name='Navigation/TopBar' w='fill' h={56} flex='row' items='center' px={16} bg='var:--color-neutral-1' stroke='var:--color-neutral-4' strokeWidth={1}><Text size={12} color='var:--color-neutral-6'>Navigation/TopBar</Text></Frame>"
+```
+
+**Step 4 — Place real components into the screen**
+
+Use `os-figma pattern add --parent <screenId>` for every component available
+in the library. Pass correct props from the schema.
+
+```bash
+os-figma pattern add Input \
+  --state Default \
+  --prop "Label=Email" \
+  --prop "Placeholder text=Enter your email" \
+  --parent "<screenId>"
+
+os-figma pattern add Button \
+  --variant Primary \
+  --state Default \
+  --prop "Text=Sign In" \
+  --parent "<screenId>"
+```
+
+**Step 5 — Verify**
+
+```bash
+os-figma export node "<screenId>"
+# Review the exported image to confirm layout
+```
+
+---
+
+### --parent rules
+
+- Always use `--parent <screenId>` for both `render` and `pattern add`
+- `--parent` places the node as a direct child of the target frame
+- If the screen frame has auto-layout, children are ordered by insertion sequence
+- If you need a specific position within an absolute-layout frame, combine
+  `--parent` with `--x` and `--y`
+- Never place components at canvas root and try to move them later —
+  there is no reparent command
+
+---
+
+### Component placement rules
+
+- Always run `pattern describe` first — never guess prop names
+- Only pass `--variant` if the schema shows a Variants row
+- Only pass `--state` if the schema shows a States row
+- Always pass `--prop` for meaningful text content (labels, button text,
+  placeholder text, error messages)
+- Use `Default` state unless a specific state is required
+
+```bash
+# Button — has Variants and States
+os-figma pattern add Button --variant Primary --state Default \
+  --prop "Text=Sign In" --parent "<screenId>"
+
+# Input — States only, no Variants
+os-figma pattern add Input --state Default \
+  --prop "Label=Email" \
+  --prop "Placeholder text=Enter your email" \
+  --parent "<screenId>"
+
+# Tag — Variants only, no States
+os-figma pattern add Tag --variant Success \
+  --prop "Text=Active" --parent "<screenId>"
+
+# Search — check schema first, may have neither
+os-figma pattern add Search --parent "<screenId>"
+```
+
+---
+
+### Placeholder rules
+
+Use `os-figma render --parent` for any element not in the component library.
+
 Placeholders must:
-- Use `bg="var:--color-neutral-1"` and `stroke="var:--color-neutral-4"`
+- Use `bg='var:--color-neutral-1'` and `stroke='var:--color-neutral-4'`
   with `strokeWidth={1}`
-- Include a `<Text>` label naming the element, colour `var:--color-neutral-6`,
-  size 12
-- Follow layer naming convention: `{Component}/{Variant}`
-  e.g. `Navigation/TopBar`, `Card/Item`, `Media/Hero`
+- Include a `<Text>` label with `color='var:--color-neutral-6'` and `size={12}`
+- Follow layer naming: `{Component}/{Variant}` e.g. `Card/Item`, `Media/Hero`
 
-```jsx
-<Frame
-  name="Navigation/TopBar"
-  w="fill" h={56}
-  flex="row" items="center"
-  px={16} gap={16}
-  bg="var:--color-neutral-1"
-  stroke="var:--color-neutral-4"
-  strokeWidth={1}
->
-  <Text size={12} color="var:--color-neutral-6">Navigation/TopBar</Text>
-</Frame>
+```bash
+# Nav bar placeholder
+os-figma render --parent "<screenId>" "<Frame name='Navigation/TopBar' w='fill' h={56} flex='row' items='center' px={16} gap={8} bg='var:--color-neutral-1' stroke='var:--color-neutral-4' strokeWidth={1}><Text size={12} color='var:--color-neutral-6'>Navigation/TopBar</Text></Frame>"
+
+# Card placeholder
+os-figma render --parent "<screenId>" "<Frame name='Card/Item' w='fill' h={72} flex='row' items='center' px={16} gap={12} bg='var:--color-neutral-1' stroke='var:--color-neutral-4' strokeWidth={1}><Text size={12} color='var:--color-neutral-6'>Card/Item</Text></Frame>"
 ```
 
-### Text links
+### Placeholder sizing reference
 
-For text links (e.g. "Forgot password?"), use a plain Text element — no
-background, no stroke:
-```jsx
-<Text
-  size={14}
-  color="var:--color-primary"
-  decoration="underline"
-  w="fill"
-  align="center"
->Forgot password?</Text>
-```
+| Element | Width | Height |
+|---------|-------|--------|
+| Navigation/TopBar | fill | 56 |
+| Navigation/BottomBar | fill | 64 |
+| Navigation/Sidebar | 240 | fill |
+| Card/Item | fill | 72 |
+| Card/Action | fill | 120 |
+| Media/Hero | fill | 200 |
+| Counter/Default | fill | 80 |
+| Chart/Default | fill | 240 |
+| Divider/Default | fill | 1 |
+| Brand/Logo | 80 | 80 |
+| Table/Default | fill | 240 |
+| Pagination/Default | fill | 48 |
 
-### Screen size reference
+---
 
-| Size   | Width | Height |
-|--------|-------|--------|
-| mobile | 390   | 844    |
-| web    | 1440  | 900    |
+### Screen archetypes
 
-Web screens use different structural patterns from mobile — not just wider:
-- Mobile: single column, bottom nav bar, top bar
-- Web: top nav bar, optional left sidebar (~240px), main content area
+Use these structural patterns as a guide for each screen type.
+Always adapt to what components are actually available in the library.
 
-### Layer naming for screens
+**Login / Onboarding** (mobile)
+Top spacer → logo → title text → Input (email) → Input (password) →
+Button (primary) → text link (forgot password) → Divider → Button (secondary SSO)
 
-```
-Screen/Mobile/Login
-Screen/Web/Dashboard
-Navigation/TopBar
-Navigation/BottomBar
-Navigation/Sidebar
-Card/Item
-Card/Action
-Media/Hero
-Counter/Default
-Chart/Default
-Divider/Default
-Brand/Logo
-```
+**Login / Onboarding** (web)
+Two columns: left = Brand/Illustration placeholder (~50% width),
+right = centred form (logo, inputs, buttons, max-width ~400px)
+
+**List** (mobile)
+Navigation/TopBar → Search → repeated Card/Item → Navigation/BottomBar
+
+**List** (web)
+Navigation/TopBar → page header row (title + Button "Add" + Button "Filter" + Search) →
+Table/Default → Pagination/Default
+
+**Form** (mobile)
+Navigation/TopBar → Input fields → Dropdown → Date Picker → Checkbox →
+Button (primary, "Save")
+
+**Form** (web)
+Navigation/TopBar → two-column form (labels left, inputs right) →
+footer row (Button "Save" + Button "Cancel", right-aligned)
+
+**Detail** (mobile)
+Navigation/TopBar → Media/Hero → title + Tag → body text →
+Divider → repeated key/value rows → Button (primary action)
+
+**Detail** (web)
+Navigation/TopBar → two columns: left = content (hero, title, body, details),
+right = Card/Action (buttons, Tag, metadata)
+
+**Dashboard** (mobile)
+Navigation/TopBar → row of Counter/Default × 2 → section heading →
+repeated Card/Item → Navigation/BottomBar
+
+**Dashboard** (web)
+Navigation/TopBar → Navigation/Sidebar (left, 240px) → main content:
+row of Counter/Default × 4 → two columns: Chart/Default (left ~60%) +
+repeated Card/Item (right ~40%)
+
+---
+
+### Spacing variables
+
+Never use hardcoded pixel values for gaps or padding.
+
+| Token | Typical use |
+|-------|-------------|
+| `--space-xs` | icon gaps, tight labels |
+| `--space-s` | between related elements |
+| `--space-base` | default component gap |
+| `--space-m` | between form fields |
+| `--space-l` | between sections, screen padding (mobile) |
+| `--space-xl` | large section gaps, screen padding (web) |
+| `--space-xxl` | hero spacing, top padding on login |
+
+---
+
+### Critical rules
+
+- **Always use `--parent`** — never place on canvas root
+- **Never use `eval` to create elements** — no smart positioning
+- **Never guess prop names** — always run `pattern describe` first
+- **Never hardcode pixel gaps** — always use spacing variables
+- **If daemon times out** — run `os-figma connect` once, then retry
+- **If a command fails** — check `REFERENCE.md` for correct syntax before retrying
 
 ---
 
