@@ -359,6 +359,9 @@ Ask yourself:
 - What components from the library best serve each zone?
 - What needs to be a real component vs a placeholder?
 - What is the emotional tone — utility-focused, trust-building, data-dense?
+- Where does content sit vertically? Centred, top-weighted, or evenly distributed?
+- Does every zone have breathing room from the screen edges?
+- Are spacing gaps between elements consistent and intentional?
 
 Then write a brief design plan in your thinking. For example:
 
@@ -395,6 +398,37 @@ os-figma screen create <Name> --size <mobile|web>
 os-figma find "Screen/<Size>/<Name>"
 # Note the returned node ID — you will use it as --parent for everything
 ```
+
+**Step 2b — Set screen padding**
+
+After creating the screen frame, apply padding using spacing variables.
+Do this before placing any children:
+
+```bash
+os-figma padding 32 32 48 32 -n "<screenId>"
+# top=32, right=32, bottom=48, left=32 (mobile)
+# For web: os-figma padding 48 80 64 80 -n "<screenId>"
+```
+
+Never place content flush against the screen edges.
+
+**Step 2c — Plan vertical distribution**
+
+For screens where content should be vertically centred (login, empty states,
+confirmation screens), wrap the content zone in grow spacers so it sits in
+the middle of the screen rather than bunching at the top:
+
+```bash
+# Top spacer — pushes content down
+os-figma render --parent "<screenId>" "<Frame name='Spacer/Top' w={326} grow={1} />"
+
+# ... place content elements here ...
+
+# Bottom spacer — pushes content up
+os-figma render --parent "<screenId>" "<Frame name='Spacer/Bottom' w={326} grow={1} />"
+```
+
+For screens where content flows from the top (list, dashboard, form), skip this step — content should start immediately below any nav bar.
 
 **Step 3 — Render structural placeholders into the screen**
 
@@ -438,26 +472,61 @@ os-figma export node "<screenId>"
 
 - Always use `--parent <screenId>` for both `render` and `pattern add`
 - `--parent` places the node as a direct child of the target frame
-- If the screen frame has auto-layout, children are ordered by insertion sequence
-- If you need a specific position within an absolute-layout frame, combine
-  `--parent` with `--x` and `--y`
-- Never place components at canvas root and try to move them later —
-  there is no reparent command
-
----
+- Children are ordered by insertion sequence in auto-layout frames
+- Never place components at canvas root — there is no reparent command
 
 ### Sizing components after placement
 
 `pattern add --parent` places components at their intrinsic width. After
-placing any component that should fill the screen width, set fill sizing:
+placing any component that should fill the screen width, immediately apply:
 
 ```bash
 os-figma set sizing fill fixed -n "<componentId>"
 ```
 
-Use `fill fixed` for most screen components (inputs, buttons, search, dropdowns) — fill width, fixed height. Only use `fill fill` for containers that should expand in both dimensions.
+Use `fill fixed` for all full-width components: Input, Button, Search,
+Dropdown, Date Picker, Alert, Accordion.
 
-Screen frames from `screen create` are already set to vertical auto-layout with fixed dimensions — do not change their sizing mode.
+Do not use `set sizing` on placeholder frames rendered via `render --parent`
+— use `w={326}` (mobile content width) or `w={1280}` (web content width)
+as fixed values instead, since `w='fill'` is unreliable on root-level
+render frames.
+
+**Mobile content width:** 390 − (32 + 32 padding) = **326px**
+**Web content width:** 1440 − (80 + 80 padding) = **1280px**
+
+---
+
+### Vertical spacing between elements
+
+The screen frame's `itemSpacing` controls the gap between all direct children.
+Set it once after creating the screen:
+
+```bash
+os-figma gap 16 -n "<screenId>"    # mobile default
+os-figma gap 24 -n "<screenId>"    # web default
+```
+
+For sections that need more breathing room (e.g. between the logo area and
+the form, or between the form and a secondary action), insert an explicit
+spacer frame:
+
+```bash
+os-figma render --parent "<screenId>" "<Frame name='Spacer' w={326} h={24} />"
+```
+
+Use these spacing values as a guide:
+
+| Gap context | Value |
+|-------------|-------|
+| Between form fields | `gap 16` on screen |
+| Logo to title | spacer h={16} |
+| Title to first field | spacer h={8} |
+| Last field to primary button | spacer h={8} |
+| Primary button to text link | spacer h={4} |
+| Text link to divider | spacer h={16} |
+| Divider to secondary button | spacer h={16} |
+| Top of screen to logo (login) | spacer h={80} |
 
 ---
 
@@ -507,6 +576,9 @@ os-figma render --parent "<screenId>" "<Frame name='Navigation/TopBar' w='fill' 
 
 # Card placeholder
 os-figma render --parent "<screenId>" "<Frame name='Card/Item' w='fill' h={72} flex='row' items='center' px={16} gap={12} bg='var:--color-neutral-1' stroke='var:--color-neutral-4' strokeWidth={1}><Text size={12} color='var:--color-neutral-6'>Card/Item</Text></Frame>"
+
+# Brand/Logo placeholder — coloured rounded square with centred initial
+os-figma render --parent "<screenId>" "<Frame name='Brand/Logo' w={64} h={64} rounded={16} bg='var:--color-primary' flex='row' justify='center' items='center'><Text size={24} weight='bold' color='var:--color-neutral-0'>A</Text></Frame>"
 ```
 
 ### Placeholder sizing reference
@@ -534,8 +606,16 @@ Use these structural patterns as a guide for each screen type.
 Always adapt to what components are actually available in the library.
 
 **Login / Onboarding** (mobile)
-Top spacer → logo → title text → Input (email) → Input (password) →
-Button (primary) → text link (forgot password) → Divider → Button (secondary SSO)
+Spacer (h=80) → Brand/Logo (w=80, h=80, centred) → Spacer (h=16) →
+title text (h2, bold) + subtitle text (base, neutral-6) → Spacer (h=8) →
+Input (email, fill width) → Input (password, fill width) →
+Spacer (h=8) → Button (primary, fill width, "Sign In") →
+Link/ForgotPassword (text only, primary colour, centred) →
+Spacer (h=16) → Divider/Default (fill width, h=24, "or" label) →
+Spacer (h=16) → Button (secondary, fill width, "Continue with SSO")
+
+Centre the logo horizontally using `items='center'` on the screen frame
+or wrap it in a fill-width container with `flex='row' justify='center'`.
 
 **Login / Onboarding** (web)
 Two columns: left = Brand/Illustration placeholder (~50% width),
@@ -599,6 +679,14 @@ Never use hardcoded pixel values for gaps or padding.
 - **Never hardcode pixel gaps** — always use spacing variables
 - **If daemon times out** — run `os-figma connect` once, then retry
 - **If a command fails** — check `REFERENCE.md` for correct syntax before retrying
+
+**Known limitations:**
+- `w='fill'` fails on root-level `render --parent` frames (resize NaN error)
+  — use explicit pixel widths instead: `w={326}` mobile, `w={1280}` web
+- `pattern add` always places at intrinsic width — always follow with
+  `os-figma set sizing fill fixed -n "<id>"` for full-width components
+- `os-figma find` returns all matching nodes — use `| tail -1` or `| grep INSTANCE`
+  to get the most recently added component ID reliably
 
 ---
 
