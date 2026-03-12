@@ -6661,13 +6661,18 @@ node
     for (const fix of resolvable) {
       let code;
       if (fix.type === 'bind-fill') {
+        const resolved = resolveTokenKey(fix.varName);
+        if (!resolved.key) {
+          console.log(chalk.red(`  ✗ fills[0] on "${fix.nodeName}" — No variable key found for ${fix.varName}.\n    Run 'os-figma tokens pull' to sync variable keys, then retry.`));
+          failed++;
+          continue;
+        }
         code = `(async () => {
-// @figma-api — delegates to bind fill
+// @figma-api figma.variables.importVariableByKeyAsync
 const node = await figma.getNodeByIdAsync(${JSON.stringify(fix.nodeId)});
 if (!node) throw new Error('Node not found: ${fix.nodeId}');
-const vars = await figma.variables.getLocalVariablesAsync();
-const v = vars.find(v => v.name === ${JSON.stringify(fix.varName)} || v.name.endsWith(${JSON.stringify('/' + fix.varName)}));
-if (!v) throw new Error('Variable not found: ${fix.varName}');
+const v = await figma.variables.importVariableByKeyAsync(${JSON.stringify(resolved.key)});
+if (!v) throw new Error('Could not import variable ${fix.varName} (key: ${resolved.key}). Is the Foundations library file open in Figma Desktop?');
 if ('fills' in node && node.fills.length > 0) {
   const newFill = figma.variables.setBoundVariableForPaint(node.fills[0], 'color', v);
   node.fills = [newFill];
@@ -6675,13 +6680,18 @@ if ('fills' in node && node.fills.length > 0) {
 return JSON.stringify({ ok: true });
 })()`;
       } else if (fix.type === 'bind-stroke') {
+        const resolved = resolveTokenKey(fix.varName);
+        if (!resolved.key) {
+          console.log(chalk.red(`  ✗ strokes[0] on "${fix.nodeName}" — No variable key found for ${fix.varName}.\n    Run 'os-figma tokens pull' to sync variable keys, then retry.`));
+          failed++;
+          continue;
+        }
         code = `(async () => {
-// @figma-api — delegates to bind stroke
+// @figma-api figma.variables.importVariableByKeyAsync
 const node = await figma.getNodeByIdAsync(${JSON.stringify(fix.nodeId)});
 if (!node) throw new Error('Node not found: ${fix.nodeId}');
-const vars = await figma.variables.getLocalVariablesAsync();
-const v = vars.find(v => v.name === ${JSON.stringify(fix.varName)} || v.name.endsWith(${JSON.stringify('/' + fix.varName)}));
-if (!v) throw new Error('Variable not found: ${fix.varName}');
+const v = await figma.variables.importVariableByKeyAsync(${JSON.stringify(resolved.key)});
+if (!v) throw new Error('Could not import variable ${fix.varName} (key: ${resolved.key}). Is the Foundations library file open in Figma Desktop?');
 if ('strokes' in node) {
   const stroke = node.strokes[0] || { type: 'SOLID', color: { r: 0, g: 0, b: 0 } };
   const newStroke = figma.variables.setBoundVariableForPaint(stroke, 'color', v);
