@@ -125,36 +125,14 @@ async function daemonExec(action, data = {}) {
   return result.result;
 }
 
-// Fast eval via daemon (falls back to direct connection)
+// Fast eval via daemon
 async function fastEval(code) {
-  // Try daemon first
-  if (isDaemonRunning()) {
-    try {
-      return await daemonExec('eval', { code });
-    } catch (e) {
-      // Continue to fallback
-    }
-  }
-
-  // Fall back to direct connection
-  const client = await getFigmaClient();
-  return await client.eval(code);
+  return await daemonExec('eval', { code });
 }
 
-// Fast render via daemon (falls back to direct connection)
+// Fast render via daemon
 async function fastRender(jsx) {
-  // Try daemon first
-  if (isDaemonRunning()) {
-    try {
-      return await daemonExec('render', { jsx });
-    } catch (e) {
-      // Continue to fallback
-    }
-  }
-
-  // Fall back to direct connection
-  const client = await getFigmaClient();
-  return await client.render(jsx);
+  return await daemonExec('render', { jsx });
 }
 
 // Helper: run figma-use commands with Node 20+ compatibility warning
@@ -5718,29 +5696,48 @@ program
         }
       }
 
-      // Extract props that figma-use doesn't handle correctly
+      // Extract props that need post-processing
       const postProcessFixes = extractPostProcessFixes(jsx);
 
-      // Use figma-use render directly - it has full JSX support
-      let cmd = 'figma-use render --stdin --json';
-      if (options.parent) cmd += ` --parent "${options.parent}"`;
-      if (posX !== undefined) cmd += ` --x ${posX}`;
-      cmd += ` --y ${posY}`;
+      // Parse JSX to Figma code using our own renderer (no var: keyMap needed)
+      const { FigmaClient } = await import('./figma-client.js');
+      const client = new FigmaClient();
+      let code = client.parseJSX(jsx, null);
 
-      const output = execSync(cmd, {
-        input: jsx,
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        timeout: 30000
-      });
+      // If --parent specified, wrap code to reparent rendered node into target frame
+      if (options.parent) {
+        const parentId = JSON.stringify(options.parent);
+        const targetX = posX !== undefined ? posX : 0;
+        const targetY = posY !== undefined ? posY : 0;
+        const wantFillW = /\bw=["']fill["']/.test(jsx);
+        const wantFillH = /\bh=["']fill["']/.test(jsx);
+        code = `(async function() {
+          const rendered = await (${code});
+          const parent = figma.getNodeById(${parentId});
+          if (!parent) throw new Error('Parent node ' + ${parentId} + ' not found');
+          if (!('appendChild' in parent)) throw new Error('Node ' + ${parentId} + ' cannot accept children');
+          const node = figma.getNodeById(rendered.id);
+          parent.appendChild(node);
+          if (parent.layoutMode && parent.layoutMode !== 'NONE') {
+            if (${wantFillW}) node.layoutSizingHorizontal = 'FILL';
+            if (${wantFillH}) node.layoutSizingVertical = 'FILL';
+          } else {
+            node.x = ${targetX};
+            node.y = ${targetY};
+          }
+          return { id: node.id, name: node.name };
+        })()`;
+      }
 
-      const result = JSON.parse(output.trim());
-      console.log(chalk.green('✓ Rendered: ' + result.id));
-      if (result.name) console.log(chalk.gray('  name: ' + result.name));
+      const result = await daemonExec('eval', { code });
+      if (result && result.id) {
+        console.log(chalk.green('✓ Rendered: ' + result.id));
+        if (result.name) console.log(chalk.gray('  name: ' + result.name));
 
-      // Post-process to fix properties figma-use doesn't set correctly
-      if (postProcessFixes.length > 0) {
-        await applyPostProcessFixes(result.id, postProcessFixes);
+        // Post-process to fix properties not set by JSX renderer
+        if (postProcessFixes.length > 0) {
+          await applyPostProcessFixes(result.id, postProcessFixes);
+        }
       }
     } catch (e) {
       console.log(chalk.red('✗ Render failed: ' + (e.stderr || e.message)));
