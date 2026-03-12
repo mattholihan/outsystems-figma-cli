@@ -134,12 +134,12 @@ Tracks which Figma Plugin API calls are used by this CLI.
 | [x] | `.textStyleId` | Bound text style |
 | [x] | `figma.loadFontAsync()` | Load font before editing |
 | [ ] | `.textAlignVertical` | Vertical text alignment |
-| [ ] | `.textDecoration` | Underline / strikethrough |
-| [ ] | `.textCase` | Text case transformation |
+| [x] | `.textDecoration` | Underline / strikethrough |
+| [x] | `.textCase` | Text case transformation |
 | [ ] | `.paragraphSpacing` | Spacing between paragraphs |
 | [ ] | `.paragraphIndent` | Paragraph indent |
-| [ ] | `figma.getLocalTextStyles()` | Read local text styles |
-| [ ] | `figma.importStyleByKeyAsync()` | Import style from library |
+| [~] | `figma.getLocalTextStyles()` | Sync version — use Async variant instead |
+| [~] | `figma.importStyleByKeyAsync()` | See Styles section |
 
 ---
 
@@ -185,11 +185,15 @@ Tracks which Figma Plugin API calls are used by this CLI.
 
 | Status | API | Notes |
 |--------|-----|-------|
-| [x] | `figma.getLocalTextStyles()` | Read local text styles |
-| [x] | `figma.getLocalEffectStyles()` | Read local effect styles |
+| [x] | `figma.getLocalTextStyles()` | Read local text styles (sync) |
+| [x] | `figma.getLocalTextStylesAsync()` | Read local text styles (async) — styles pull |
+| [x] | `figma.getLocalEffectStyles()` | Read local effect styles (sync) |
+| [x] | `figma.getLocalEffectStylesAsync()` | Read local effect styles (async) — styles pull |
 | [x] | `figma.getLocalPaintStyles()` | Read local paint styles |
 | [x] | `figma.getLocalGridStyles()` | Read local grid styles |
-| [x] | `figma.importStyleByKeyAsync()` | Import style from library |
+| [x] | `figma.importStyleByKeyAsync()` | Import style from library — bind effect, bind text-style |
+| [x] | `node.setEffectStyleIdAsync()` | Apply effect style — bind effect |
+| [x] | `node.setTextStyleIdAsync()` | Apply text style — bind text-style |
 | [ ] | `figma.createPaintStyle()` | Create paint style |
 | [ ] | `figma.createTextStyle()` | Create text style |
 | [ ] | `figma.createEffectStyle()` | Create effect style |

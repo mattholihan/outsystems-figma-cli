@@ -3044,6 +3044,257 @@ return 'Created ' + type.toLowerCase() + ' token: ${name}';
     }
   });
 
+// ============ STYLES ============
+
+const styles = program
+  .command('styles')
+  .description('Sync Figma effect and text styles from the Foundations library');
+
+/**
+ * Fetch text and effect styles from the Foundations file.
+ * Returns { textStyles, effectStyles } as parsed objects.
+ */
+async function fetchStylesFromFigma(foundationsName, spinnerRef) {
+  const { client, matchedName } = await resolveFoundationsClient(foundationsName, spinnerRef);
+
+  // @figma-api figma.getLocalTextStylesAsync, figma.getLocalEffectStylesAsync
+  const fetchCode = `(async () => {
+const [textStyles, effectStyles] = await Promise.all([
+  figma.getLocalTextStylesAsync(),
+  figma.getLocalEffectStylesAsync(),
+]);
+
+const text = textStyles.map(s => ({
+  key: s.key,
+  name: s.name,
+  fontSize: s.fontSize,
+  fontFamily: s.fontName.family,
+  fontStyle: s.fontName.style,
+  lineHeight: s.lineHeight,
+  letterSpacing: s.letterSpacing,
+  paragraphSpacing: s.paragraphSpacing,
+  textCase: s.textCase,
+  textDecoration: s.textDecoration,
+  description: s.description ?? '',
+}));
+
+const effects = effectStyles.map(s => ({
+  key: s.key,
+  name: s.name,
+  description: s.description ?? '',
+  effects: s.effects.map(e => ({
+    type: e.type,
+    visible: e.visible,
+    radius: e.radius,
+    color: e.color ? {
+      r: Math.round(e.color.r * 255),
+      g: Math.round(e.color.g * 255),
+      b: Math.round(e.color.b * 255),
+      a: Math.round(e.color.a * 100) / 100,
+    } : null,
+    offset: e.offset ?? null,
+    spread: e.spread ?? null,
+  })),
+}));
+
+return JSON.stringify({ textStyles: text, effectStyles: effects });
+})()`;
+
+  let raw;
+  try {
+    raw = await client.eval(fetchCode);
+    client.close();
+  } catch (err) {
+    client.close();
+    throw err;
+  }
+
+  const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  return { data: parsed, matchedName };
+}
+
+styles
+  .command('pull')
+  .description('Pull text and effect styles from the Foundations file into styles.json')
+  .option('--file <name>', 'Target Figma file name (overrides library-config.json)')
+  .action(async (options) => {
+    const cwd = process.cwd();
+    const libraryConfigPath = join(cwd, 'library-config.json');
+    const stylesPath = join(cwd, 'styles.json');
+
+    if (!existsSync(libraryConfigPath)) {
+      console.log(chalk.red('\nError: No library-config.json found. Run os-figma init first.\n'));
+      process.exit(1);
+    }
+
+    let libConfig;
+    try {
+      libConfig = JSON.parse(readFileSync(libraryConfigPath, 'utf8'));
+    } catch {
+      console.log(chalk.red('\n✗ Could not parse library-config.json — run os-figma init to recreate it.\n'));
+      process.exit(1);
+    }
+
+    const foundationsName = options.file || libConfig?.libraries?.foundations;
+    if (!foundationsName) {
+      console.log(chalk.red('\n✗ No foundations library configured in library-config.json.\n'));
+      console.log(chalk.white('  Re-run ') + chalk.cyan('os-figma init') + chalk.white(' and provide a Foundations library name, or use ') + chalk.cyan('--file') + chalk.white('.\n'));
+      process.exit(1);
+    }
+
+    const spinner = ora('Connecting to Figma...').start();
+    let fetchResult;
+    try {
+      fetchResult = await fetchStylesFromFigma(foundationsName, spinner);
+    } catch (err) {
+      spinner.fail(`Failed to read styles from Figma`);
+      console.error(chalk.red(err.message));
+      process.exit(1);
+    }
+
+    const { data, matchedName } = fetchResult;
+    const { textStyles = [], effectStyles = [] } = data;
+
+    spinner.stop();
+
+    if (textStyles.length === 0) {
+      console.log(chalk.yellow(`\n⚠ No text styles found in "${matchedName}". Make sure the file has published styles.`));
+    }
+    if (effectStyles.length === 0) {
+      console.log(chalk.yellow(`\n⚠ No effect styles found in "${matchedName}".`));
+    }
+
+    // Build styles.json structure
+    const textMap = {};
+    for (const s of textStyles) {
+      const { name, ...rest } = s;
+      textMap[name] = rest;
+    }
+
+    const effectsMap = {};
+    for (const s of effectStyles) {
+      const { name, ...rest } = s;
+      effectsMap[name] = rest;
+    }
+
+    const now = new Date().toISOString();
+    const output = {
+      meta: {
+        source: matchedName,
+        pulledAt: now,
+        textStyleCount: textStyles.length,
+        effectStyleCount: effectStyles.length,
+      },
+      text: textMap,
+      effects: effectsMap,
+    };
+
+    writeFileSync(stylesPath, JSON.stringify(output, null, 2) + '\n');
+
+    console.log(chalk.green(`\n✓ Pulled styles from ${matchedName}`));
+    console.log(`  Text styles  : ${chalk.bold(textStyles.length)}`);
+    console.log(`  Effect styles: ${chalk.bold(effectStyles.length)}`);
+    console.log(`  Written to   : ${chalk.cyan(stylesPath)}`);
+    console.log();
+  });
+
+styles
+  .command('status')
+  .description('Compare styles.json against the Foundations file')
+  .option('--file <name>', 'Target Figma file name (overrides library-config.json)')
+  .action(async (options) => {
+    const cwd = process.cwd();
+    const libraryConfigPath = join(cwd, 'library-config.json');
+    const stylesPath = join(cwd, 'styles.json');
+
+    if (!existsSync(libraryConfigPath)) {
+      console.log(chalk.red('\nError: No library-config.json found. Run os-figma init first.\n'));
+      process.exit(1);
+    }
+
+    if (!existsSync(stylesPath)) {
+      console.log(chalk.red('\n✗ No styles.json found.\n'));
+      console.log(chalk.white('  Run ') + chalk.cyan('os-figma styles pull') + chalk.white(' first.\n'));
+      process.exit(1);
+    }
+
+    let libConfig, localStyles;
+    try {
+      libConfig = JSON.parse(readFileSync(libraryConfigPath, 'utf8'));
+    } catch {
+      console.log(chalk.red('\n✗ Could not parse library-config.json.\n'));
+      process.exit(1);
+    }
+    try {
+      localStyles = JSON.parse(readFileSync(stylesPath, 'utf8'));
+    } catch {
+      console.log(chalk.red('\n✗ Could not parse styles.json — run os-figma styles pull to recreate it.\n'));
+      process.exit(1);
+    }
+
+    const foundationsName = options.file || libConfig?.libraries?.foundations;
+    if (!foundationsName) {
+      console.log(chalk.red('\n✗ No foundations library configured in library-config.json.\n'));
+      process.exit(1);
+    }
+
+    const spinner = ora('Connecting to Figma...').start();
+    let fetchResult;
+    try {
+      fetchResult = await fetchStylesFromFigma(foundationsName, spinner);
+    } catch (err) {
+      spinner.fail('Failed to read styles from Figma');
+      console.error(chalk.red(err.message));
+      process.exit(1);
+    }
+
+    const { data, matchedName } = fetchResult;
+    const { textStyles: remoteText = [], effectStyles: remoteEffects = [] } = data;
+
+    spinner.stop();
+
+    const localTextNames = new Set(Object.keys(localStyles.text || {}));
+    const localEffectNames = new Set(Object.keys(localStyles.effects || {}));
+    const remoteTextNames = new Set(remoteText.map(s => s.name));
+    const remoteEffectNames = new Set(remoteEffects.map(s => s.name));
+
+    const newText = [...remoteTextNames].filter(n => !localTextNames.has(n));
+    const newEffects = [...remoteEffectNames].filter(n => !localEffectNames.has(n));
+    const removedText = [...localTextNames].filter(n => !remoteTextNames.has(n));
+    const removedEffects = [...localEffectNames].filter(n => !remoteEffectNames.has(n));
+
+    const textInSync = newText.length === 0 && removedText.length === 0 && localTextNames.size === remoteTextNames.size;
+    const effectsInSync = newEffects.length === 0 && removedEffects.length === 0 && localEffectNames.size === remoteEffectNames.size;
+
+    console.log(`\nStyles status vs ${chalk.bold(matchedName)}\n`);
+
+    const textStatus = textInSync
+      ? chalk.green('✓ in sync')
+      : chalk.red(`✗ ${newText.length > 0 ? `${newText.length} new` : ''}${removedText.length > 0 ? ` / ${removedText.length} removed` : ''} (run styles pull)`);
+    console.log(`Text styles    : ${localTextNames.size} local / ${remoteTextNames.size} remote  ${textStatus}`);
+
+    const effectsStatus = effectsInSync
+      ? chalk.green('✓ in sync')
+      : chalk.red(`✗ ${newEffects.length > 0 ? `${newEffects.length} new` : ''}${removedEffects.length > 0 ? ` / ${removedEffects.length} removed` : ''} (run styles pull)`);
+    console.log(`Effect styles  : ${localEffectNames.size} local / ${remoteEffectNames.size} remote  ${effectsStatus}`);
+
+    const additions = [...newText.map(n => ({ section: 'text', name: n })), ...newEffects.map(n => ({ section: 'effects', name: n }))];
+    const removals = [...removedText.map(n => ({ section: 'text', name: n })), ...removedEffects.map(n => ({ section: 'effects', name: n }))];
+
+    if (additions.length > 0) {
+      console.log(chalk.green('\nNew in Figma (not in styles.json):'));
+      for (const { name } of additions) console.log(chalk.green(`  + ${name}`));
+    }
+    if (removals.length > 0) {
+      console.log(chalk.yellow('\nRemoved from Figma (still in styles.json):'));
+      for (const { name } of removals) console.log(chalk.yellow(`  - ${name}`));
+    }
+
+    console.log();
+
+    if (!textInSync || !effectsInSync) process.exit(1);
+  });
+
 // ============ CREATE ============
 
 const create = program
@@ -4371,6 +4622,160 @@ nodes.forEach(n => {
 return 'Bound ' + v.name + ' to padding on ' + nodes.length + ' elements';
 })()`;
     figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+  });
+
+bind
+  .command('effect <styleName>')
+  .description('Apply an effect style (shadow, blur) from styles.json to a node')
+  .option('-n, --node <id>', 'Node ID (uses selection if not set)')
+  .action(async (styleName, options) => {
+    await checkConnection();
+
+    const stylesPath = join(process.cwd(), 'styles.json');
+    if (!existsSync(stylesPath)) {
+      console.error(chalk.red('\nError: No styles.json found. Run os-figma styles pull first.\n'));
+      process.exit(1);
+    }
+
+    let stylesJson;
+    try {
+      stylesJson = JSON.parse(readFileSync(stylesPath, 'utf8'));
+    } catch {
+      console.error(chalk.red('\n✗ Could not parse styles.json — run os-figma styles pull to recreate it.\n'));
+      process.exit(1);
+    }
+
+    const effectsSection = stylesJson.effects || {};
+    let matchedKey = Object.keys(effectsSection).find(k => k === styleName);
+    if (!matchedKey) {
+      matchedKey = Object.keys(effectsSection).find(k => k.toLowerCase() === styleName.toLowerCase());
+    }
+    if (!matchedKey) {
+      const available = Object.keys(effectsSection).join(', ') || '(none)';
+      console.error(chalk.red(`\nError: Effect style "${styleName}" not found in styles.json.`));
+      console.error(chalk.gray(`Available: ${available}\n`));
+      process.exit(1);
+    }
+
+    const styleEntry = effectsSection[matchedKey];
+    const styleKey = styleEntry.key;
+    const nodeId = options.node || null;
+
+    if (!nodeId) {
+      // Validate selection exists before running Figma code
+    }
+
+    const code = `(async () => {
+  // @figma-api figma.importStyleByKeyAsync, node.setEffectStyleIdAsync
+  const nodeId = ${nodeId ? JSON.stringify(nodeId) : 'null'};
+  const node = nodeId
+    ? await figma.getNodeByIdAsync(nodeId)
+    : figma.currentPage.selection[0];
+
+  if (!node) throw new Error(nodeId ? 'Node not found: ' + nodeId : 'No node selected — pass a node ID with -n or select a node in Figma');
+
+  const style = await figma.importStyleByKeyAsync(${JSON.stringify(styleKey)});
+  if (!style) throw new Error('Could not import style with key: ${styleKey}');
+
+  await node.setEffectStyleIdAsync(style.id);
+
+  return JSON.stringify({ nodeId: node.id, nodeName: node.name, styleId: style.id, styleName: style.name });
+})()`;
+
+    try {
+      const raw = await daemonExec('eval', { code });
+      const result = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      console.log(chalk.green('\n✓ Effect style applied'));
+      console.log(`  Node  : ${result.nodeName} (${result.nodeId})`);
+      console.log(`  Style : ${matchedKey}\n`);
+    } catch (err) {
+      console.error(chalk.red(`\nError: ${err.message}\n`));
+      process.exit(1);
+    }
+  });
+
+bind
+  .command('text-style <styleName>')
+  .description('Apply a text style from styles.json to a TEXT node')
+  .option('-n, --node <id>', 'Node ID (uses selection if not set)')
+  .action(async (styleName, options) => {
+    await checkConnection();
+
+    const stylesPath = join(process.cwd(), 'styles.json');
+    if (!existsSync(stylesPath)) {
+      console.error(chalk.red('\nError: No styles.json found. Run os-figma styles pull first.\n'));
+      process.exit(1);
+    }
+
+    let stylesJson;
+    try {
+      stylesJson = JSON.parse(readFileSync(stylesPath, 'utf8'));
+    } catch {
+      console.error(chalk.red('\n✗ Could not parse styles.json — run os-figma styles pull to recreate it.\n'));
+      process.exit(1);
+    }
+
+    const textSection = stylesJson.text || {};
+    let matchedKey = Object.keys(textSection).find(k => k === styleName);
+    if (!matchedKey) {
+      matchedKey = Object.keys(textSection).find(k => k.toLowerCase() === styleName.toLowerCase());
+    }
+    if (!matchedKey) {
+      const available = Object.keys(textSection).join(', ') || '(none)';
+      console.error(chalk.red(`\nError: Text style "${styleName}" not found in styles.json.`));
+      console.error(chalk.gray(`Available: ${available}\n`));
+      process.exit(1);
+    }
+
+    const styleEntry = textSection[matchedKey];
+    const styleKey = styleEntry.key;
+    const nodeId = options.node || null;
+
+    const code = `(async () => {
+  // @figma-api figma.importStyleByKeyAsync, figma.loadFontAsync, node.setTextStyleIdAsync
+  const nodeId = ${nodeId ? JSON.stringify(nodeId) : 'null'};
+  const node = nodeId
+    ? await figma.getNodeByIdAsync(nodeId)
+    : figma.currentPage.selection[0];
+
+  if (!node) throw new Error(nodeId ? 'Node not found: ' + nodeId : 'No node selected — pass a node ID with -n or select a node in Figma');
+  if (node.type !== 'TEXT') throw new Error('WRONG_TYPE:' + node.type + ':' + node.name + ':' + node.id);
+
+  const style = await figma.importStyleByKeyAsync(${JSON.stringify(styleKey)});
+  if (!style) throw new Error('Could not import style with key: ${styleKey}');
+
+  await figma.loadFontAsync({ family: style.fontName.family, style: style.fontName.style });
+  await node.setTextStyleIdAsync(style.id);
+
+  return JSON.stringify({
+    nodeId: node.id,
+    nodeName: node.name,
+    styleId: style.id,
+    styleName: style.name,
+    fontFamily: style.fontName.family,
+    fontStyle: style.fontName.style,
+    fontSize: style.fontSize,
+  });
+})()`;
+
+    try {
+      const raw = await daemonExec('eval', { code });
+      const result = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      console.log(chalk.green('\n✓ Text style applied'));
+      console.log(`  Node  : ${result.nodeName} (${result.nodeId})`);
+      console.log(`  Style : ${matchedKey} (${result.fontFamily} ${result.fontStyle} ${result.fontSize}px)\n`);
+    } catch (err) {
+      const msg = err.message || '';
+      if (msg.startsWith('WRONG_TYPE:')) {
+        const [, type, name, id] = msg.split(':');
+        console.error(chalk.red(`\nError: bind text-style requires a TEXT node.`));
+        console.error(chalk.gray(`  Node "${name}" (${id}) is type ${type}.`));
+        console.error(chalk.gray('  Select a text layer or pass a text node ID with -n.\n'));
+      } else {
+        console.error(chalk.red(`\nError: ${msg}\n`));
+      }
+      process.exit(1);
+    }
   });
 
 bind
@@ -5784,11 +6189,11 @@ node
     });
 
     if (result.type === 'TEXT' && result.typography && !result.typography.textStyleId) {
-      warnings.push({ property: 'typography.textStyleId', issue: 'no text style bound — consider applying a library text style' });
+      warnings.push({ property: 'typography.textStyleId', issue: 'no text style bound — fix with: os-figma bind text-style "Style/Name" -n ' + node.id });
     }
 
     if (result.effects.length > 0 && !result.effectStyleId) {
-      warnings.push({ property: 'effectStyleId', issue: 'effects present but no effect style bound' });
+      warnings.push({ property: 'effectStyleId', issue: 'effects present but no effect style bound — fix with: os-figma bind effect "Style/Name" -n ' + node.id });
     }
 
     result.warnings = warnings;
@@ -6527,9 +6932,10 @@ program
       }
     }
 
-    // ─── Step 2: Tokens pull ───
-    printStep(2, 'Sync your design tokens');
+    // ─── Step 2: Tokens + Styles pull ───
+    printStep(2, 'Sync your design tokens and styles');
     console.log(chalk.gray(`  Open "${foundationsLib}" in Figma Desktop, then press Enter...`));
+    console.log(chalk.gray('  This will sync your tokens and styles in one step.'));
     await prompt('');
 
     await runRetry(async () => {
@@ -6584,13 +6990,13 @@ return result;
       let figmaData;
       try {
         figmaData = await pullClient.eval(pullCode);
-        pullClient.close();
       } catch (err) {
         pullClient.close();
         pullSpinner.fail('Failed to read variables from Figma');
         throw err;
       }
       if (!figmaData || Object.keys(figmaData).length === 0) {
+        pullClient.close();
         pullSpinner.fail('No variables found in Foundations file');
         throw new Error('No variables found — run os-figma tokens preset first to create token collections');
       }
@@ -6616,7 +7022,84 @@ return result;
         collections: newCollections,
       }, null, 2) + '\n');
       pullSpinner.succeed(`Tokens synced (${totalTokens} tokens)`);
-    }, 'os-figma tokens pull');
+
+      // ── Styles pull (same Foundations file connection) ──
+      const stylesSpinner = ora('Reading styles from Figma...').start();
+      const stylesPath = join(cwd, 'styles.json');
+      try {
+        // @figma-api figma.getLocalTextStylesAsync, figma.getLocalEffectStylesAsync
+        const stylesData = await pullClient.eval(`(async () => {
+    const [textStyles, effectStyles] = await Promise.all([
+      figma.getLocalTextStylesAsync(),
+      figma.getLocalEffectStylesAsync(),
+    ]);
+    return JSON.stringify({
+      text: textStyles.map(s => ({
+        key: s.key,
+        name: s.name,
+        fontSize: s.fontSize,
+        fontFamily: s.fontName.family,
+        fontStyle: s.fontName.style,
+        lineHeight: s.lineHeight,
+        letterSpacing: s.letterSpacing,
+        paragraphSpacing: s.paragraphSpacing,
+        textCase: s.textCase,
+        textDecoration: s.textDecoration,
+        description: s.description ?? '',
+      })),
+      effects: effectStyles.map(s => ({
+        key: s.key,
+        name: s.name,
+        description: s.description ?? '',
+        effects: s.effects.map(e => ({
+          type: e.type,
+          visible: e.visible,
+          radius: e.radius,
+          color: e.color ? {
+            r: Math.round(e.color.r * 255),
+            g: Math.round(e.color.g * 255),
+            b: Math.round(e.color.b * 255),
+            a: Math.round(e.color.a * 100) / 100,
+          } : null,
+          offset: e.offset ?? null,
+          spread: e.spread ?? null,
+        })),
+      })),
+    });
+  })()`);
+
+        const parsed = JSON.parse(stylesData);
+
+        // Index by name for fast lookup
+        const textByName = {};
+        for (const s of parsed.text) textByName[s.name] = s;
+
+        const effectsByName = {};
+        for (const s of parsed.effects) effectsByName[s.name] = s;
+
+        writeFileSync(stylesPath, JSON.stringify({
+          meta: {
+            source: foundationsLib,
+            pulledAt: new Date().toISOString(),
+            textStyleCount: parsed.text.length,
+            effectStyleCount: parsed.effects.length,
+          },
+          text: textByName,
+          effects: effectsByName,
+        }, null, 2) + '\n');
+
+        const parts = [];
+        if (parsed.text.length) parts.push(`${parsed.text.length} text`);
+        if (parsed.effects.length) parts.push(`${parsed.effects.length} effect`);
+        const summary = parts.length ? parts.join(', ') + ' styles' : 'no styles found';
+        stylesSpinner.succeed(`Styles synced (${summary})`);
+      } catch (stylesErr) {
+        stylesSpinner.warn(`Styles skipped — ${stylesErr.message}`);
+        // Non-fatal: tokens were already written successfully
+      }
+
+      pullClient.close();
+    }, 'os-figma tokens pull && os-figma styles pull');
 
     // ─── Step 3: Pattern scan --icons ───
     printStep(3, 'Index your icon library');

@@ -17,7 +17,7 @@ os-figma connect --safe
 # Prompts for project name, Foundations library, and Components library
 # Then runs an interactive walkthrough:
 #   1. Connects to Figma Desktop
-#   2. Pulls tokens from Foundations file
+#   2. Pulls tokens and styles from Foundations file
 #   3. Scans icons from Foundations file
 #   4. Scans components from Components file
 os-figma init
@@ -69,6 +69,26 @@ os-figma tokens status
 # Override target file
 os-figma tokens status --file "PDX Template - FOUNDATIONS"
 ```
+
+---
+
+## Styles
+
+```bash
+# Pull text and effect styles from the Foundations file into styles.json
+# Foundations file must be open in Figma Desktop
+os-figma styles pull
+
+# Override target file
+os-figma styles pull --file "PDX Template - FOUNDATIONS"
+
+# Compare styles.json against the Foundations file
+os-figma styles status
+os-figma styles status --file "PDX Template - FOUNDATIONS"
+```
+
+> `styles pull` must be run with the Foundations library file open in
+> Figma Desktop. Re-run whenever styles are added or updated in the library.
 
 ---
 
@@ -206,6 +226,14 @@ os-figma col create "OutSystems UI Tokens"
 os-figma set sizing fill fixed -n "105:41"   # fill width, fixed height
 os-figma set sizing fill fill -n "105:41"    # fill both dimensions
 os-figma set sizing fixed fixed -n "105:41"  # fixed both (default)
+
+# Apply effect style (shadow, blur) from styles.json
+os-figma bind effect "Shadow/Card"               # selected node
+os-figma bind effect "Shadow/Card" -n "1:234"    # specific node
+
+# Apply text style from styles.json (node must be type TEXT)
+os-figma bind text-style "Heading/H1"            # selected node
+os-figma bind text-style "Body/Base" -n "1:234"  # specific node
 ```
 
 ---

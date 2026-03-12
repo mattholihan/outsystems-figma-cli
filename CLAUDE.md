@@ -14,6 +14,8 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "push tokens to figma" | `os-figma tokens push` |
 | "check token sync status" | `os-figma tokens status` |
 | "create token collections" | `os-figma tokens preset` |
+| "sync styles from figma" | `os-figma styles pull` |
+| "check styles sync status" | `os-figma styles status` |
 | "create a screen" / "new screen" | Think → plan → execute (see Composing Screens) |
 | "show colors on canvas" | `os-figma var visualize` |
 | "list variables" | `os-figma var list` |
@@ -36,6 +38,8 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "inspect current selection" | `os-figma node inspect` |
 | "deep node tree" | `os-figma node inspect "<id>" --deep` |
 | "check design system warnings" | `os-figma node inspect "<id>" --summary` |
+| "apply shadow to node" | `os-figma bind effect "Shadow/Card" -n "<id>"` |
+| "apply text style to node" | `os-figma bind text-style "Heading/H1" -n "<id>"` |
 
 **Full command reference:** See REFERENCE.md
 
@@ -47,8 +51,8 @@ Each project has its own configuration. Always run os-figma commands from the pr
 
 ### New project
 ```bash
-os-figma init                  # interactive setup — connect, sync tokens, scan
-                               # components and icons in one guided walkthrough
+os-figma init                  # interactive setup — connect, sync tokens and styles,
+                               # scan components and icons in one guided walkthrough
 ```
 
 ### Project files
@@ -319,6 +323,46 @@ os-figma create text "Label" -c "var:--color-neutral-10"
 
 ---
 
+## Design Styles
+
+Style keys and properties are synced from the Foundations library and stored
+in `styles.json` in the project directory. Run `os-figma styles pull` once
+per project, then re-run after any library updates.
+
+### Effect styles
+Named shadows and blurs. Keys stored in `styles.json → effects`.
+
+Common names to expect:
+- `Shadow/Card` — elevation 1, cards and panels
+- `Shadow/Overlay` — elevation 3, modals and drawers
+- `Shadow/Dropdown` — elevation 2, dropdowns and tooltips
+- `Blur/Modal` — background blur for modal overlays
+
+Apply with: `os-figma bind effect "Shadow/Card" -n "<nodeId>"`
+
+### Text styles
+Named type ramp entries. Keys stored in `styles.json → text`.
+
+Apply with: `os-figma bind text-style "Heading/H1" -n "<nodeId>"`
+
+### Applying styles
+
+```bash
+# Apply shadow/blur to any node
+os-figma bind effect "Shadow/Card" -n "<nodeId>"
+
+# Apply text style to a TEXT node
+os-figma bind text-style "Heading/H1" -n "<nodeId>"
+```
+
+Style names must match `styles.json` exactly (case-insensitive match is attempted as a fallback). Run `os-figma styles pull` if a style is missing.
+
+> Always run `os-figma styles pull` when starting a new project or after
+> library updates. Token values are project-specific — never assume styles
+> from one project match another.
+
+---
+
 ## Screen Sizes
 
 Standard frame sizes:
@@ -483,6 +527,12 @@ os-figma bind fill "--color-primary" -n "<nodeId>"
 
 # Fix unbound stroke
 os-figma bind stroke "--color-neutral-4" -n "<nodeId>"
+
+# Fix missing effect style
+os-figma bind effect "Shadow/Card" -n "<nodeId>"
+
+# Fix missing text style
+os-figma bind text-style "Heading/H1" -n "<nodeId>"
 
 # Re-inspect to confirm warnings cleared
 os-figma node inspect "<screenId>" --summary

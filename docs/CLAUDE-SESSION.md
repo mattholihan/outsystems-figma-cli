@@ -28,6 +28,12 @@ os-figma tokens push
 
 # Check diff between local tokens.json and Figma
 os-figma tokens status
+
+# Sync effect and text styles from the Foundations file
+os-figma styles pull
+
+# Check if styles.json is in sync with Figma
+os-figma styles status
 ```
 
 > Token values are project-specific — always run `os-figma tokens pull` after switching projects or starting a new session.
@@ -216,6 +222,11 @@ os-figma fj eval "figma.currentPage.children.length"
    strokes, and missing style bindings. Fix each warning with `os-figma bind` and
    re-run inspect to confirm warnings are cleared before declaring a screen done.
 
+11. **Styles are separate from tokens** — run `os-figma styles pull` in
+    addition to `os-figma tokens pull` when starting a session. Effect style
+    keys (shadows, blurs) and text style keys (type ramp) live in `styles.json`,
+    not `tokens.json`.
+
 ## File Structure
 
 ```
@@ -239,7 +250,7 @@ project-directory/           ← Per-project config (one per client/design)
 > Returning session:
 > 1. `os-figma connect`
 > 2. `cd` to your project directory
-> 3. `os-figma tokens pull` (open Foundations file in Figma first)
+> 3. `os-figma tokens pull && os-figma styles pull` (open Foundations file in Figma first)
 > 4. Paste active node IDs below
 
 Active file node IDs:

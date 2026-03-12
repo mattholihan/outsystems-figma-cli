@@ -280,3 +280,37 @@ For deeply nested screens, use `--deep` to surface warnings on child nodes:
 ```bash
 os-figma node inspect "<screenId>" --deep | grep -A2 '"warnings"'
 ```
+
+---
+
+## Applying Library Styles
+
+Effect and text style keys are stored in `styles.json` after running
+`os-figma styles pull`. To apply them to nodes in a working file, the CLI
+imports the style by key using `figma.importStyleByKeyAsync()` then applies
+the returned style ID using the async setters introduced in API v87.
+
+### Important: async style setters
+
+Never assign `node.textStyleId` or `node.effectStyleId` directly — these
+are deprecated and will throw in dynamic-page mode. Always use:
+
+```js
+// Correct
+const style = await figma.importStyleByKeyAsync(key);
+await node.setTextStyleIdAsync(style.id);
+await node.setEffectStyleIdAsync(style.id);
+
+// Deprecated — do not use
+node.textStyleId = style.id;
+node.effectStyleId = style.id;
+```
+
+### Font loading for text styles
+
+When applying a text style to a text node, the font must be loaded first:
+```js
+const style = await figma.importStyleByKeyAsync(key);
+await figma.loadFontAsync({ family: style.fontName.family, style: style.fontName.style });
+await node.setTextStyleIdAsync(style.id);
+```
