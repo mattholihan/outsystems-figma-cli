@@ -54,18 +54,71 @@ function isDaemonRunning() {
   }
 }
 
+// Timestamp of last successful daemon liveness check — used to skip redundant polls
+let _lastEnsureOkAt = 0;
+const ENSURE_COOLDOWN_MS = 5000;
+
+// Silently ensure the daemon is running, starting it if needed.
+// Resolves immediately if the daemon is alive.
+// Throws a user-friendly error if the daemon cannot be started within 10 seconds.
+async function ensureDaemon() {
+  // Skip re-check if we confirmed liveness recently
+  if (Date.now() - _lastEnsureOkAt < ENSURE_COOLDOWN_MS) return;
+
+  const pingAlive = async () => {
+    try {
+      const token = getDaemonToken();
+      const headers = {};
+      if (token) headers['X-Daemon-Token'] = token;
+      const res = await fetch(`http://localhost:${DAEMON_PORT}/health`, {
+        headers,
+        signal: AbortSignal.timeout(1500)
+      });
+      if (res.ok) { _lastEnsureOkAt = Date.now(); return true; }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  if (await pingAlive()) return;
+
+  // Daemon is not responding — start it silently
+  startDaemon();
+
+  // Poll every 500ms for up to 10 seconds
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 500));
+    if (await pingAlive()) return;
+  }
+
+  throw new Error(`✗ Could not start the speed daemon. Run 'os-figma connect' to reconnect.`);
+}
+
 // Send command to daemon (uses native fetch in Node 18+)
 async function daemonExec(action, data = {}) {
+  await ensureDaemon();
+
   const token = getDaemonToken();
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['X-Daemon-Token'] = token;
 
-  const response = await fetch(`http://localhost:${DAEMON_PORT}/exec`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ action, ...data }),
-    signal: AbortSignal.timeout(60000)
-  });
+  let response;
+  try {
+    response = await fetch(`http://localhost:${DAEMON_PORT}/exec`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action, ...data }),
+      signal: AbortSignal.timeout(60000)
+    });
+  } catch (err) {
+    const msg = (err?.message || '') + (err?.cause?.message || '');
+    if (msg.includes('ECONNREFUSED') || msg.includes('fetch failed') || msg.includes('ETIMEDOUT')) {
+      throw new Error(`✗ Lost connection to Figma. Run 'os-figma connect' to reconnect.`);
+    }
+    throw err;
+  }
 
   const result = await response.json();
   if (result.error) throw new Error(result.error);
@@ -4493,6 +4546,47 @@ if (children.length === 0) {
 
 // ============ BIND (Variables) ============
 
+/**
+ * Look up a token entry from tokens.json and return its Figma variable key.
+ * Accepts both "--color-primary" and "color-primary" forms.
+ * Exits with a clear error if the token is not found or has no key.
+ */
+function resolveTokenKey(rawName) {
+  const tokensPath = join(process.cwd(), 'tokens.json');
+  if (!existsSync(tokensPath)) {
+    console.error(chalk.red(`\n✗ tokens.json not found. Run 'os-figma tokens pull' first.\n`));
+    process.exit(1);
+  }
+  let tokens;
+  try {
+    tokens = JSON.parse(readFileSync(tokensPath, 'utf8'));
+  } catch {
+    console.error(chalk.red('\n✗ Could not parse tokens.json.\n'));
+    process.exit(1);
+  }
+  // Accept both "color-primary" and "--color-primary"
+  const candidates = new Set([rawName]);
+  if (rawName.startsWith('--')) candidates.add(rawName.slice(2));
+  else candidates.add(`--${rawName}`);
+  for (const groups of Object.values(tokens.collections || {})) {
+    for (const tokenMap of Object.values(groups)) {
+      for (const [tokenName, tokenData] of Object.entries(tokenMap)) {
+        if (candidates.has(tokenName)) {
+          if (!tokenData.key) {
+            console.error(chalk.red(`\n✗ No variable key found for ${rawName}.`));
+            console.error(chalk.gray(`  Run 'os-figma tokens pull' to sync variable keys, then retry.\n`));
+            process.exit(1);
+          }
+          return { key: tokenData.key, name: tokenName };
+        }
+      }
+    }
+  }
+  console.error(chalk.red(`\n✗ Token not found: ${rawName}.`));
+  console.error(chalk.gray(`  Check tokens.json or run 'os-figma tokens pull' to resync.\n`));
+  process.exit(1);
+}
+
 const bind = program
   .command('bind')
   .description('Bind variables to node properties');
@@ -4503,14 +4597,14 @@ bind
   .option('-n, --node <id>', 'Node ID (uses selection if not set)')
   .action((varName, options) => {
     checkConnection();
+    const { key, name } = resolveTokenKey(varName);
     const nodeSelector = options.node
       ? `const node = await figma.getNodeByIdAsync('${options.node}'); const nodes = node ? [node] : [];`
       : `const nodes = figma.currentPage.selection;`;
     let code = `(async () => {
 ${nodeSelector}
-const vars = await figma.variables.getLocalVariablesAsync();
-const v = vars.find(v => v.name === '${varName}' || v.name.endsWith('/${varName}'));
-if (!v) return 'Variable not found: ${varName}';
+const v = await figma.variables.importVariableByKeyAsync('${key}');
+if (!v) return 'Could not import variable ${name} (key: ${key}). Is the Foundations library open in Figma?';
 if (nodes.length === 0) return 'No node selected';
 nodes.forEach(n => {
   if ('fills' in n && n.fills.length > 0) {
@@ -4529,14 +4623,14 @@ bind
   .option('-n, --node <id>', 'Node ID')
   .action((varName, options) => {
     checkConnection();
+    const { key, name } = resolveTokenKey(varName);
     const nodeSelector = options.node
       ? `const node = await figma.getNodeByIdAsync('${options.node}'); const nodes = node ? [node] : [];`
       : `const nodes = figma.currentPage.selection;`;
     let code = `(async () => {
 ${nodeSelector}
-const vars = await figma.variables.getLocalVariablesAsync();
-const v = vars.find(v => v.name === '${varName}' || v.name.endsWith('/${varName}'));
-if (!v) return 'Variable not found: ${varName}';
+const v = await figma.variables.importVariableByKeyAsync('${key}');
+if (!v) return 'Could not import variable ${name} (key: ${key}). Is the Foundations library open in Figma?';
 if (nodes.length === 0) return 'No node selected';
 nodes.forEach(n => {
   if ('strokes' in n) {
@@ -4556,14 +4650,14 @@ bind
   .option('-n, --node <id>', 'Node ID')
   .action((varName, options) => {
     checkConnection();
+    const { key, name } = resolveTokenKey(varName);
     const nodeSelector = options.node
       ? `const node = await figma.getNodeByIdAsync('${options.node}'); const nodes = node ? [node] : [];`
       : `const nodes = figma.currentPage.selection;`;
     let code = `(async () => {
 ${nodeSelector}
-const vars = await figma.variables.getLocalVariablesAsync();
-const v = vars.find(v => v.name === '${varName}' || v.name.endsWith('/${varName}'));
-if (!v) return 'Variable not found: ${varName}';
+const v = await figma.variables.importVariableByKeyAsync('${key}');
+if (!v) return 'Could not import variable ${name} (key: ${key}). Is the Foundations library open in Figma?';
 if (nodes.length === 0) return 'No node selected';
 nodes.forEach(n => {
   if ('cornerRadius' in n) n.setBoundVariable('cornerRadius', v);
@@ -4579,14 +4673,14 @@ bind
   .option('-n, --node <id>', 'Node ID')
   .action((varName, options) => {
     checkConnection();
+    const { key, name } = resolveTokenKey(varName);
     const nodeSelector = options.node
       ? `const node = await figma.getNodeByIdAsync('${options.node}'); const nodes = node ? [node] : [];`
       : `const nodes = figma.currentPage.selection;`;
     let code = `(async () => {
 ${nodeSelector}
-const vars = await figma.variables.getLocalVariablesAsync();
-const v = vars.find(v => v.name === '${varName}' || v.name.endsWith('/${varName}'));
-if (!v) return 'Variable not found: ${varName}';
+const v = await figma.variables.importVariableByKeyAsync('${key}');
+if (!v) return 'Could not import variable ${name} (key: ${key}). Is the Foundations library open in Figma?';
 if (nodes.length === 0) return 'No node selected';
 nodes.forEach(n => {
   if ('itemSpacing' in n) n.setBoundVariable('itemSpacing', v);
@@ -4603,6 +4697,7 @@ bind
   .option('-s, --side <side>', 'Side: top, right, bottom, left, all', 'all')
   .action((varName, options) => {
     checkConnection();
+    const { key, name } = resolveTokenKey(varName);
     const nodeSelector = options.node
       ? `const node = await figma.getNodeByIdAsync('${options.node}'); const nodes = node ? [node] : [];`
       : `const nodes = figma.currentPage.selection;`;
@@ -4611,9 +4706,8 @@ bind
       : [`padding${options.side.charAt(0).toUpperCase() + options.side.slice(1)}`];
     let code = `(async () => {
 ${nodeSelector}
-const vars = await figma.variables.getLocalVariablesAsync();
-const v = vars.find(v => v.name === '${varName}' || v.name.endsWith('/${varName}'));
-if (!v) return 'Variable not found: ${varName}';
+const v = await figma.variables.importVariableByKeyAsync('${key}');
+if (!v) return 'Could not import variable ${name} (key: ${key}). Is the Foundations library open in Figma?';
 if (nodes.length === 0) return 'No node selected';
 const sides = ${JSON.stringify(sides)};
 nodes.forEach(n => {
@@ -5564,9 +5658,17 @@ program
 
       // Check if JSX uses variable syntax (var:name) - use our own renderer
       if (jsx.includes('var:')) {
+        // Extract all var: token names and resolve their keys from tokens.json before touching Figma
+        const varRefs = [...new Set([...jsx.matchAll(/var:([\w-]+)/g)].map(m => m[1]))];
+        const varKeyMap = {};
+        for (const varName of varRefs) {
+          const resolved = resolveTokenKey(varName);
+          varKeyMap[resolved.name] = resolved.key;
+        }
+
         const { FigmaClient } = await import('./figma-client.js');
         const client = new FigmaClient();
-        let code = client.parseJSX(jsx);
+        let code = client.parseJSX(jsx, varKeyMap);
 
         // If --parent specified, wrap code to reparent rendered node into target frame
         if (options.parent) {
@@ -8231,5 +8333,26 @@ pattern
       console.log(chalk.yellow(`  ⚠ ${w}`));
     }
   });
+
+// Pre-process argv: strip leading -- from token name arguments in bind subcommands
+// so Commander.js doesn't interpret CSS variable names like "--color-primary" as flags.
+{
+  const bindIdx = process.argv.indexOf('bind');
+  if (bindIdx !== -1) {
+    const bindSubcmds = new Set(['fill', 'stroke', 'radius', 'gap', 'padding']);
+    const subcmdIdx = process.argv.findIndex((a, i) => i > bindIdx && bindSubcmds.has(a));
+    if (subcmdIdx !== -1) {
+      const tokenArgIdx = subcmdIdx + 1;
+      if (
+        tokenArgIdx < process.argv.length &&
+        process.argv[tokenArgIdx].startsWith('--') &&
+        process.argv[tokenArgIdx] !== '--node' &&
+        process.argv[tokenArgIdx] !== '--side'
+      ) {
+        process.argv[tokenArgIdx] = process.argv[tokenArgIdx].slice(2);
+      }
+    }
+  }
+}
 
 program.parse();

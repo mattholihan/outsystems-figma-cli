@@ -287,7 +287,7 @@ export class FigmaClient {
   /**
    * Parse JSX-like syntax to Figma Plugin API code
    */
-  parseJSX(jsx) {
+  parseJSX(jsx, keyMap = null) {
     // Find opening Frame tag
     const openMatch = jsx.match(/<Frame\s+([^>]*)>/);
     if (!openMatch) {
@@ -315,7 +315,7 @@ export class FigmaClient {
     }
 
     // Generate code
-    return this.generateCode(props, childElements);
+    return this.generateCode(props, childElements, keyMap);
   }
 
   /**
@@ -472,7 +472,7 @@ export class FigmaClient {
     return children;
   }
 
-  generateCode(props, children) {
+  generateCode(props, children, keyMap = null) {
     const name = props.name || 'Frame';
     const fillWidth = (props.w || props.width) === 'fill';
     const fillHeight = (props.h || props.height) === 'fill';
@@ -501,10 +501,10 @@ export class FigmaClient {
     const wrap = props.wrap === true || props.wrap === 'true';
     const wrapGap = Number(props.wrapGap || props.counterAxisSpacing || 0);
 
-    // Track variable usage for fast binding
-    let usesVars = false;
+    // Track variable usage for fast binding — collect actual var names used
+    const usedVarNames = new Set();
     const checkVarUsage = (value) => {
-      if (this.isVarRef(value)) usesVars = true;
+      if (this.isVarRef(value)) usedVarNames.add(this.getVarName(value));
     };
 
     // Check root frame for var usage
@@ -730,8 +730,26 @@ export class FigmaClient {
     const rootStrokeCode = stroke ? this.generateStrokeCode(stroke, 'frame') : { code: '', usesVars: false };
 
     // Variable loading code (only if any vars used)
-    const varLoadCode = usesVars ? `
-        // Load variables from all collections
+    const usesVars = usedVarNames.size > 0;
+    let varLoadCode = '';
+    if (usesVars) {
+      const boundFillHelper = `const boundFill = (variable) => figma.variables.setBoundVariableForPaint(
+          { type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5 } }, 'color', variable
+        );`;
+      if (keyMap) {
+        // Import each variable by key — works across library files
+        const importLines = Array.from(usedVarNames).map(varName => {
+          const key = keyMap[varName];
+          return `vars[${JSON.stringify(varName)}] = await figma.variables.importVariableByKeyAsync(${JSON.stringify(key)});`;
+        }).join('\n        ');
+        varLoadCode = `
+        const vars = {};
+        ${importLines}
+        ${boundFillHelper}
+        `;
+      } else {
+        // Fallback: load from local collections (only works in the Foundations file itself)
+        varLoadCode = `
         const collections = await figma.variables.getLocalVariableCollectionsAsync();
         const vars = {};
         for (const col of collections) {
@@ -740,10 +758,10 @@ export class FigmaClient {
             if (v) vars[v.name] = v;
           }
         }
-        const boundFill = (variable) => figma.variables.setBoundVariableForPaint(
-          { type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5 } }, 'color', variable
-        );
-    ` : '';
+        ${boundFillHelper}
+        `;
+      }
+    }
 
     return `
       (async function() {
