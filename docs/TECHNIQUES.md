@@ -255,14 +255,15 @@ os-figma node inspect "123:456" --summary
 os-figma node inspect
 ```
 
-The `--summary` output highlights design system violations inline so you can
-spot and fix them without parsing JSON. After fixing bindings with `os-figma bind`,
-re-run `node inspect --summary` to confirm the warnings are cleared.
+`node inspect` is a read-only debugging tool. Use it when you need to understand
+a node's structure or isolate a specific warning. Do not use it as the primary
+evaluate step — use `node fix` instead (see below).
 
-### Preferred: node fix
+### node fix — use this in the evaluate loop
 
-After building a screen or component, use `node fix` to resolve all warnings
-in one pass:
+`node fix` is the primary evaluate command after building a screen or component.
+It detects and resolves all warnings in one pass. Use `node inspect` only for
+targeted debugging when `node fix` output alone is insufficient.
 
 ```bash
 # Preview the fix plan without applying

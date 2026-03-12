@@ -37,13 +37,35 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "inspect a node" | `os-figma node inspect "<id>"` |
 | "inspect current selection" | `os-figma node inspect` |
 | "deep node tree" | `os-figma node inspect "<id>" --deep` |
-| "check design system warnings" | `os-figma node inspect "<id>" --summary` |
-| "fix design system warnings" | `os-figma node fix "<id>"` |
-| "fix all warnings on screen" | `os-figma node fix "<id>" --deep` |
+| "fix design system warnings" | `os-figma node fix "<id>" --deep` — **prefer this in the evaluate loop** |
+| "inspect without fixing (debug only)" | `os-figma node inspect "<id>" --summary` |
 | "apply shadow to node" | `os-figma bind effect "Shadow/Card" -n "<id>"` |
 | "apply text style to node" | `os-figma bind text-style "Heading/H1" -n "<id>"` |
 
 **Full command reference:** See REFERENCE.md
+
+---
+
+## Session Start
+
+**New project:** Run `os-figma init` — handles connection, token sync, style
+sync, and library scan in one guided flow. No other setup commands needed.
+
+**Returning session (run every time before designing):**
+```bash
+os-figma connect
+os-figma tokens pull    # open Foundations file in Figma first
+os-figma styles pull    # Foundations file must still be active
+```
+
+Token and style values are project-specific and stored in `tokens.json` and `styles.json` in the project directory. Never assume these files are in sync from a previous session — always pull before designing.
+
+> **Why the order matters:** `tokens pull` and `styles pull` both require
+> the Foundations library file to be the active tab in Figma Desktop. Run
+> them together at session start while that file is open. Once you switch
+> to your working design file, do not attempt to pull again — use
+> `os-figma tokens status` and `os-figma styles status` to check sync
+> state without requiring the Foundations file to be active.
 
 ---
 
@@ -429,13 +451,29 @@ design — they are not a substitute for having one.
 
 ### Workflow
 
-**Step 1 — Gather component schemas**
+**Step 0 — Verify project state**
 
-Before touching Figma, run:
+Before designing, confirm local config is ready. These commands are
+read-only and do not require the Foundations file to be active:
+```bash
+os-figma tokens status    # confirms tokens.json exists and is not empty
+os-figma styles status    # confirms styles.json exists and is not empty
+os-figma pattern list     # confirms library-config.json has indexed components
+```
+If `tokens status` or `styles status` reports missing or empty files, stop and ask the user to run the session-start sync before proceeding. Do not attempt `tokens pull` or `styles pull` here — those require the Foundations library file to be active in Figma, which it is not during design.
+
+**Step 1 — Gather component schemas (required output)**
+
+For every component you plan to place, run `pattern describe` and record:
+- Whether it has a Variants row (determines if `--variant` is valid)
+- Whether it has a States row (determines if `--state` is valid)
+- The exact `--prop` key names as returned (do not guess or abbreviate)
+
 ```bash
 os-figma pattern list
-os-figma pattern describe <Component> --pretty   # for each component you plan to use
+os-figma pattern describe <Component> --pretty   # repeat for every component you plan to use
 ```
+Do not proceed to Step 2 until you have `describe` output for every component you intend to place. Guessing prop names causes silent failures that are expensive to recover from.
 
 Use the schema to determine:
 - Whether to pass `--variant` (only if the component has a Variants row)
@@ -510,38 +548,72 @@ os-figma pattern add Button \
   --parent "<screenId>"
 ```
 
-**Step 5 — Screenshot, fix, and evaluate**
+**Step 4b — Set fill-width sizing**
 
-After placing all elements, export a screenshot and read it back to evaluate the result against your design plan:
+After placing any component that should span the full screen width,
+immediately run:
 ```bash
-os-figma export node "<screenId>" --feedback
-# Returns an absolute path — read that file immediately
+os-figma set sizing fill fixed -n "<componentId>"
 ```
 
-Then fix design system violations automatically:
+Apply this to every full-width component before moving on to the next one.
+Do not batch this step — apply sizing immediately after each placement.
+
+Full-width components: Input, Button, Search, Dropdown, Date Picker,
+Alert, Accordion.
+
+Components placed as decorative or inline elements (Tag, Avatar, Icon)
+do not need fill sizing.
+
+**Step 5 — Evaluate and fix (loop until clean)**
+
+This step repeats until all warnings are cleared and the screenshot matches
+the design plan. Do not exit this loop early.
+
+**Loop:**
+
+1. Export a screenshot and read the file immediately:
+   ```bash
+   os-figma export node "<screenId>" --feedback
+   ```
+2. Evaluate the screenshot against your design plan:
+
+   - Does the visual hierarchy match your plan?
+   - Is content vertically distributed as intended, or bunched at top/bottom?
+   - Do all full-width components span the screen correctly?
+   - Is spacing between elements consistent and intentional?
+   - Are placeholder frames visible (light grey with label)?
+   - Is the brand/logo zone rendering correctly?
+
+3. Run the auto-fixer across the full node tree:
+
+   ```bash
+   os-figma node fix "<screenId>" --deep
+   ```
+
+4. If `node fix` exits with code 1 (unresolved warnings remain), apply those bindings manually then re-run:
+
+   ```bash
+   os-figma bind fill "--color-neutral-0" -n "<nodeId>"
+   os-figma bind stroke "--color-neutral-4" -n "<nodeId>"
+   os-figma bind effect "Shadow/Card" -n "<nodeId>"
+   os-figma bind text-style "Heading/H1" -n "<nodeId>"
+   os-figma node fix "<screenId>" --deep   # re-run to confirm all clear
+   ```
+
+5. Return to step 1 and re-export.
+
+**Exit condition:** `node fix --deep` exits with code 0 (no warnings) AND the screenshot matches the design plan. Both conditions must be true. Only then is the screen complete.
+
+**Step 5b — Commit undo boundary**
+
+After the evaluate loop exits clean, run:
+
 ```bash
-os-figma node fix "<screenId>" --deep
+os-figma eval "figma.commitUndo()"
 ```
 
-`node fix --deep` inspects every descendant, resolves unbound fills and strokes to
-token variables, matches effect/text styles by node name and font size, and applies
-all fixable warnings in one pass. Use `--dry-run` first to preview the plan:
-```bash
-os-figma node fix "<screenId>" --deep --dry-run
-```
-
-If any warnings are unresolved after `node fix`, apply them manually with
-`os-figma bind` then re-run `node fix` to confirm all warnings are cleared.
-
-When evaluating the screenshot, check:
-- Does the visual hierarchy match your design plan?
-- Is content vertically distributed as intended, or bunched at top/bottom?
-- Do all components have fill-width sizing, or are any at intrinsic width?
-- Is there consistent spacing between elements, or are gaps uneven?
-- Are placeholder frames visible (light grey with label), or invisible?
-- Is the brand/logo zone rendering correctly?
-
-If any issue is found, fix it and re-export before declaring the screen done. Only move on when the screenshot matches the design plan.
+This creates a discrete undo checkpoint so the user can undo screen creation as a single step rather than stepping back through every individual command.
 
 ---
 
@@ -753,6 +825,7 @@ Never use hardcoded pixel values for gaps or padding.
 - **Always screenshot after building** — run `export node --feedback`, read
   the file, and evaluate before declaring a screen complete
 - **Always fix after building** — run `os-figma node fix "<id>" --deep` after placing all components; all warnings must be cleared before declaring a screen done
+- **Prefer `node fix` over `node inspect` in the evaluate loop** — `node fix` detects and applies fixes in one pass; `node inspect` is read-only and should only be used for targeted debugging
 - **Always use `--parent`** — never place on canvas root
 - **Never use `eval` to create elements** — no smart positioning
 - **Never guess prop names** — always run `pattern describe` first

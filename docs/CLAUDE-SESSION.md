@@ -36,7 +36,14 @@ os-figma styles pull
 os-figma styles status
 ```
 
-> Token values are project-specific — always run `os-figma tokens pull` after switching projects or starting a new session.
+> **Session start:** `tokens pull` and `styles pull` both require the Foundations
+> library file to be the active tab in Figma Desktop. Run them together at session
+> start while that file is open, then switch to your working design file.
+>
+> **During design:** Do not re-run `tokens pull` or `styles pull` mid-session —
+> the Foundations file will not be active. Use `os-figma tokens status` and
+> `os-figma styles status` instead to check sync state without requiring the
+> Foundations file to be open.
 
 ### Pattern Commands
 ```bash
@@ -189,10 +196,14 @@ os-figma fj eval "figma.currentPage.children.length"
 
 ## Session Hygiene
 
-- Run `node scripts/audit-coverage.js` at the start and end of every session
+- Run `node scripts/audit-coverage.js` at the start and end of every development session
 - Any new `runCode()` block must have a `@figma-api` comment immediately above it
-- After building a screen, always run `export node --feedback` (visual check) then
-  `node fix "<id>" --deep` (structural check) before declaring it complete
+- After building a screen, run the evaluate loop until clean:
+  1. `os-figma export node "<id>" --feedback` — export and read the screenshot
+  2. `os-figma node fix "<id>" --deep` — apply all auto-fixable warnings
+  3. If `node fix` exits with code 1, apply remaining warnings manually with `os-figma bind`, then re-run `node fix`
+  4. Re-export and re-evaluate. Repeat until `node fix` exits with code 0 and the screenshot matches the design plan
+- After the evaluate loop exits clean, commit an undo boundary: `os-figma eval "figma.commitUndo()"`
 
 ## Important Notes
 
@@ -214,8 +225,11 @@ os-figma fj eval "figma.currentPage.children.length"
    To re-scan manually (e.g. after a library update): `os-figma pattern scan`
    and `os-figma pattern scan --icons`.
 
-9. **Always run pattern describe before pattern add** — never guess prop names,
-   variant names, or state names.
+9. **`pattern describe` is a hard gate before `pattern add`** — for every component
+   you plan to place, run `pattern describe <Component> --pretty` and record whether
+   it has Variants, States, and the exact `--prop` key names as returned. Do not
+   proceed to `pattern add` until you have describe output for every component.
+   Guessing prop names causes silent failures that are expensive to recover from.
 
 10. **Always fix after building** — run `os-figma node fix "<id>" --deep` after
    placing all components. It inspects every descendant, resolves unbound fills/
@@ -227,6 +241,11 @@ os-figma fj eval "figma.currentPage.children.length"
     addition to `os-figma tokens pull` when starting a session. Effect style
     keys (shadows, blurs) and text style keys (type ramp) live in `styles.json`,
     not `tokens.json`.
+
+12. **Always commit an undo boundary after completing a screen** — after the evaluate
+    loop exits clean, run `os-figma eval "figma.commitUndo()"`. This creates a single
+    undo checkpoint so the user can undo screen creation as one step rather than
+    stepping back through every individual command.
 
 ## File Structure
 
@@ -251,8 +270,10 @@ project-directory/           ← Per-project config (one per client/design)
 > Returning session:
 > 1. `os-figma connect`
 > 2. `cd` to your project directory
-> 3. `os-figma tokens pull && os-figma styles pull` (open Foundations file in Figma first)
-> 4. Paste active node IDs below
+> 3. Open the Foundations library file in Figma Desktop
+> 4. `os-figma tokens pull && os-figma styles pull`
+> 5. Switch back to your working design file in Figma Desktop
+> 6. Paste active node IDs below
 
 Active file node IDs:
 (paste your node IDs here)
