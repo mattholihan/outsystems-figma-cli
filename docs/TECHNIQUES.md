@@ -259,26 +259,33 @@ The `--summary` output highlights design system violations inline so you can
 spot and fix them without parsing JSON. After fixing bindings with `os-figma bind`,
 re-run `node inspect --summary` to confirm the warnings are cleared.
 
-### Inspect → fix → re-inspect loop
+### Preferred: node fix
 
-After building a screen or component, use this cycle to ensure all nodes
-are correctly bound to design system variables:
+After building a screen or component, use `node fix` to resolve all warnings
+in one pass:
 
 ```bash
-# 1. Inspect and read warnings
-os-figma node inspect "<screenId>" --summary
+# Preview the fix plan without applying
+os-figma node fix "<screenId>" --deep --dry-run
 
-# 2. Fix each warning
-os-figma bind fill "--color-neutral-0" -n "<nodeId>"   # unbound fill
-os-figma bind stroke "--color-neutral-4" -n "<nodeId>" # unbound stroke
-
-# 3. Re-inspect to confirm warnings cleared
-os-figma node inspect "<screenId>" --summary
+# Apply all auto-fixable warnings across the full node tree
+os-figma node fix "<screenId>" --deep
 ```
 
-For deeply nested screens, use `--deep` to surface warnings on child nodes:
+`node fix` inspects every descendant, matches unbound hex fills/strokes to token
+variables from `tokens.json`, matches effect styles and text styles by node name
+and font size from `styles.json`, and applies each fix sequentially. Exit code 0
+means all warnings are cleared; exit code 1 means unresolved warnings remain.
+
+For unresolved warnings, apply manually with `os-figma bind` then re-run:
 ```bash
-os-figma node inspect "<screenId>" --deep | grep -A2 '"warnings"'
+os-figma bind fill "--color-neutral-0" -n "<nodeId>"   # unbound fill
+os-figma bind stroke "--color-neutral-4" -n "<nodeId>" # unbound stroke
+os-figma bind effect "Shadow/Card" -n "<nodeId>"       # missing effect style
+os-figma bind text-style "Heading/H1" -n "<nodeId>"    # missing text style
+
+# Confirm all cleared
+os-figma node fix "<screenId>" --deep
 ```
 
 ---

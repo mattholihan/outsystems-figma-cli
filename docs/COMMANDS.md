@@ -377,6 +377,12 @@ os-figma node inspect "123:456" --deep     # include full recursive child tree
 os-figma node inspect "123:456" --summary  # human-readable condensed output
 os-figma node inspect                      # inspect current Figma selection
 
+# Automatically fix design system warnings found by inspect
+os-figma node fix "123:456"                # inspect and apply all auto-fixable warnings
+os-figma node fix "123:456" --dry-run      # print fix plan without applying
+os-figma node fix "123:456" --deep         # fix warnings on all descendant nodes
+os-figma node fix                          # fix current Figma selection
+
 # Convert frames to components
 os-figma node to-component "123:456"
 

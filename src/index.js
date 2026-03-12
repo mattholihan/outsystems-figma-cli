@@ -6281,6 +6281,376 @@ function formatInspectSummary(r) {
   return lines.join('\n');
 }
 
+node
+  .command('fix [nodeId]')
+  .description('Inspect and automatically fix design system warnings on a node')
+  .option('--dry-run', 'Print fix plan without applying changes')
+  .option('--deep', 'Recursively fix all descendant nodes')
+  .action(async (nodeId, options) => {
+    await checkConnection();
+
+    const cwd = process.cwd();
+    const tokensPath = join(cwd, 'tokens.json');
+    const stylesPath = join(cwd, 'styles.json');
+
+    // Build hex → CSS variable name map from tokens.json COLOR entries
+    const hexToToken = {};
+    if (existsSync(tokensPath)) {
+      try {
+        const tokensData = JSON.parse(readFileSync(tokensPath, 'utf8'));
+        for (const groups of Object.values(tokensData.collections || {})) {
+          for (const entries of Object.values(groups)) {
+            for (const [name, entry] of Object.entries(entries)) {
+              if (entry.type === 'COLOR' && entry.value) {
+                hexToToken[entry.value.toLowerCase()] = name;
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // Load styles.json for effect/text style name matching
+    let stylesJson = {};
+    if (existsSync(stylesPath)) {
+      try { stylesJson = JSON.parse(readFileSync(stylesPath, 'utf8')); } catch {}
+    }
+    const effectStyles = stylesJson.effects || {};
+    const textStyles = stylesJson.text || {};
+
+    // --- Step 1: Run inspect internally ---
+    const inspectCode = `
+(function() {
+  const targetId = ${nodeId ? JSON.stringify(nodeId) : 'null'};
+  const deep = ${options.deep ? 'true' : 'false'};
+
+  const node = targetId
+    ? figma.getNodeById(targetId)
+    : figma.currentPage.selection[0];
+
+  if (!node) {
+    return JSON.stringify({ __error: targetId ? 'Node ' + targetId + ' not found' : 'No node selected' });
+  }
+
+  function buildFills(n) {
+    const fills = (n.fills && Array.isArray(n.fills))
+      ? n.fills.map(fill => ({
+          type: fill.type,
+          hex: fill.type === 'SOLID'
+            ? '#' + Math.round(fill.color.r * 255).toString(16).padStart(2, '0')
+              + Math.round(fill.color.g * 255).toString(16).padStart(2, '0')
+              + Math.round(fill.color.b * 255).toString(16).padStart(2, '0')
+            : null,
+          opacity: fill.opacity !== undefined ? fill.opacity : 1,
+          variable: null,
+          bound: false,
+        }))
+      : [];
+    if (n.boundVariables && n.boundVariables.fills) {
+      n.boundVariables.fills.forEach((binding, i) => {
+        if (binding && fills[i]) {
+          try {
+            const v = figma.variables.getVariableById(binding.id);
+            if (v) { fills[i].variable = v.name; fills[i].bound = true; }
+          } catch(e) {}
+        }
+      });
+    }
+    return fills;
+  }
+
+  function buildStrokes(n) {
+    const strokes = (n.strokes && Array.isArray(n.strokes))
+      ? n.strokes.map(stroke => ({
+          type: stroke.type,
+          hex: stroke.type === 'SOLID'
+            ? '#' + Math.round(stroke.color.r * 255).toString(16).padStart(2, '0')
+              + Math.round(stroke.color.g * 255).toString(16).padStart(2, '0')
+              + Math.round(stroke.color.b * 255).toString(16).padStart(2, '0')
+            : null,
+          opacity: stroke.opacity !== undefined ? stroke.opacity : 1,
+          variable: null,
+          bound: false,
+        }))
+      : [];
+    if (n.boundVariables && n.boundVariables.strokes) {
+      n.boundVariables.strokes.forEach((binding, i) => {
+        if (binding && strokes[i]) {
+          try {
+            const v = figma.variables.getVariableById(binding.id);
+            if (v) { strokes[i].variable = v.name; strokes[i].bound = true; }
+          } catch(e) {}
+        }
+      });
+    }
+    return strokes;
+  }
+
+  function inspectNode(n, recurse) {
+    const result = { id: n.id, name: n.name, type: n.type };
+
+    result.fills = buildFills(n);
+    result.strokes = buildStrokes(n);
+
+    result.effects = (n.effects && Array.isArray(n.effects))
+      ? n.effects.map(e => ({ type: e.type, visible: e.visible }))
+      : [];
+    result.effectStyleId = n.effectStyleId !== undefined ? n.effectStyleId : null;
+
+    if (n.type === 'TEXT') {
+      result.typography = {
+        fontSize: n.fontSize,
+        fontFamily: n.fontName && n.fontName.family ? n.fontName.family : null,
+        fontStyle: n.fontName && n.fontName.style ? n.fontName.style : null,
+        textStyleId: n.textStyleId !== undefined ? n.textStyleId : null,
+      };
+    }
+
+    result.children = ('children' in n)
+      ? n.children.map(c => recurse ? inspectNode(c, true) : { id: c.id, name: c.name, type: c.type })
+      : [];
+
+    const warnings = [];
+    result.fills.forEach((f, i) => {
+      if (f.type === 'SOLID' && !f.bound) warnings.push({ property: 'fills[' + i + ']', hex: f.hex });
+    });
+    result.strokes.forEach((s, i) => {
+      if (s.type === 'SOLID' && !s.bound) warnings.push({ property: 'strokes[' + i + ']', hex: s.hex });
+    });
+    if (result.type === 'TEXT' && result.typography && !result.typography.textStyleId) {
+      warnings.push({ property: 'typography.textStyleId', fontSize: n.fontSize });
+    }
+    if (result.effects.length > 0 && !result.effectStyleId) {
+      warnings.push({ property: 'effectStyleId' });
+    }
+    result.warnings = warnings;
+    return result;
+  }
+
+  return JSON.stringify(inspectNode(node, deep));
+})()`;
+
+    const spinner = ora('Inspecting...').start();
+    let inspectResult;
+    try {
+      const raw = await daemonExec('eval', { code: inspectCode });
+      inspectResult = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch (err) {
+      spinner.fail('Inspect failed');
+      console.error(chalk.red(`\nError: ${err.message}\n`));
+      process.exit(1);
+    }
+    spinner.stop();
+
+    if (inspectResult.__error) {
+      console.error(chalk.red(`\nError: ${inspectResult.__error}\n`));
+      process.exit(1);
+    }
+
+    // --- Step 2: Collect all nodes with warnings (recurse for --deep) ---
+    function collectNodesWithWarnings(n) {
+      const collected = [];
+      if (n.warnings && n.warnings.length > 0) collected.push(n);
+      if (n.children) {
+        for (const child of n.children) {
+          if (child.warnings !== undefined) collected.push(...collectNodesWithWarnings(child));
+        }
+      }
+      return collected;
+    }
+
+    const nodesWithWarnings = collectNodesWithWarnings(inspectResult);
+    const totalWarnings = nodesWithWarnings.reduce((sum, n) => sum + n.warnings.length, 0);
+
+    if (totalWarnings === 0) {
+      console.log(chalk.green(`\n✓ No warnings — "${inspectResult.name}" is clean.\n`));
+      return;
+    }
+
+    // --- Step 3: Resolve each warning to a fix action ---
+    function resolveFixForWarning(nodeData, warning) {
+      const prop = warning.property;
+
+      const fillMatch = prop.match(/^fills\[(\d+)\]$/);
+      if (fillMatch) {
+        const varName = warning.hex ? hexToToken[warning.hex.toLowerCase()] : null;
+        if (varName) return { type: 'bind-fill', nodeId: nodeData.id, nodeName: nodeData.name, prop, varName, hex: warning.hex };
+        return { type: 'unresolved', nodeId: nodeData.id, nodeName: nodeData.name, prop, reason: `no token match for ${warning.hex || 'unknown hex'}` };
+      }
+
+      const strokeMatch = prop.match(/^strokes\[(\d+)\]$/);
+      if (strokeMatch) {
+        const varName = warning.hex ? hexToToken[warning.hex.toLowerCase()] : null;
+        if (varName) return { type: 'bind-stroke', nodeId: nodeData.id, nodeName: nodeData.name, prop, varName, hex: warning.hex };
+        return { type: 'unresolved', nodeId: nodeData.id, nodeName: nodeData.name, prop, reason: `no token match for ${warning.hex || 'unknown hex'}` };
+      }
+
+      if (prop === 'effectStyleId') {
+        const nodeParts = nodeData.name.toLowerCase().split('/');
+        const nameKey = Object.keys(effectStyles).find(k => {
+          const kParts = k.toLowerCase().split('/');
+          return kParts.some(kp => nodeParts.some(np => np.includes(kp) || kp.includes(np)));
+        });
+        if (nameKey) return { type: 'bind-effect', nodeId: nodeData.id, nodeName: nodeData.name, prop, styleName: nameKey, styleKey: effectStyles[nameKey].key };
+        return { type: 'unresolved', nodeId: nodeData.id, nodeName: nodeData.name, prop, reason: 'no matching effect style in styles.json' };
+      }
+
+      if (prop === 'typography.textStyleId') {
+        let nameKey = null;
+        if (warning.fontSize) nameKey = Object.keys(textStyles).find(k => textStyles[k].fontSize === warning.fontSize);
+        if (!nameKey) {
+          const nodeParts = nodeData.name.toLowerCase().split('/');
+          nameKey = Object.keys(textStyles).find(k => {
+            const kParts = k.toLowerCase().split('/');
+            return kParts.some(kp => nodeParts.some(np => np.includes(kp) || kp.includes(np)));
+          });
+        }
+        if (nameKey) {
+          return { type: 'bind-text-style', nodeId: nodeData.id, nodeName: nodeData.name, prop, styleName: nameKey, styleKey: textStyles[nameKey].key, fontFamily: textStyles[nameKey].fontFamily, fontStyle: textStyles[nameKey].fontStyle || 'Regular' };
+        }
+        return { type: 'unresolved', nodeId: nodeData.id, nodeName: nodeData.name, prop, reason: `no text style match for ${warning.fontSize ? warning.fontSize + 'px' : 'unknown size'}` };
+      }
+
+      return { type: 'unresolved', nodeId: nodeData.id, nodeName: nodeData.name, prop, reason: 'unknown warning type' };
+    }
+
+    const fixPlan = [];
+    for (const nodeData of nodesWithWarnings) {
+      for (const warning of nodeData.warnings) {
+        fixPlan.push(resolveFixForWarning(nodeData, warning));
+      }
+    }
+
+    const resolvable = fixPlan.filter(f => f.type !== 'unresolved');
+    const unresolved = fixPlan.filter(f => f.type === 'unresolved');
+
+    // --- Print fix plan ---
+    const deepLabel = options.deep ? ' (deep)' : '';
+    console.log(`\n"${inspectResult.name}"${deepLabel} — ${totalWarnings} warning${totalWarnings !== 1 ? 's' : ''}\n`);
+
+    for (const fix of fixPlan) {
+      const label = `[${fix.nodeName}]`;
+      if (fix.type === 'unresolved') {
+        console.log(`  ${chalk.yellow('?')} ${label} ${fix.prop} — ${chalk.yellow('unresolved:')} ${fix.reason}`);
+      } else if (fix.type === 'bind-fill') {
+        console.log(`  ${chalk.green('✓')} ${label} fills — ${fix.hex} → ${chalk.cyan(fix.varName)}`);
+      } else if (fix.type === 'bind-stroke') {
+        console.log(`  ${chalk.green('✓')} ${label} strokes — ${fix.hex} → ${chalk.cyan(fix.varName)}`);
+      } else if (fix.type === 'bind-effect') {
+        console.log(`  ${chalk.green('✓')} ${label} effectStyleId → ${chalk.cyan(fix.styleName)}`);
+      } else if (fix.type === 'bind-text-style') {
+        console.log(`  ${chalk.green('✓')} ${label} textStyleId → ${chalk.cyan(fix.styleName)}`);
+      }
+    }
+
+    if (options.dryRun) {
+      console.log('');
+      if (unresolved.length > 0) {
+        console.log(chalk.yellow(`${unresolved.length} unresolved — resolve manually then re-run.\n`));
+        process.exit(1);
+      } else {
+        console.log(chalk.green(`All ${resolvable.length} fix${resolvable.length !== 1 ? 'es' : ''} resolvable — run without --dry-run to apply.\n`));
+      }
+      return;
+    }
+
+    // --- Step 4: Apply fixes sequentially ---
+    console.log('\nApplying fixes...');
+    let fixed = 0;
+    let failed = 0;
+
+    for (const fix of resolvable) {
+      let code;
+      if (fix.type === 'bind-fill') {
+        code = `(async () => {
+// @figma-api — delegates to bind fill
+const node = await figma.getNodeByIdAsync(${JSON.stringify(fix.nodeId)});
+if (!node) throw new Error('Node not found: ${fix.nodeId}');
+const vars = await figma.variables.getLocalVariablesAsync();
+const v = vars.find(v => v.name === ${JSON.stringify(fix.varName)} || v.name.endsWith(${JSON.stringify('/' + fix.varName)}));
+if (!v) throw new Error('Variable not found: ${fix.varName}');
+if ('fills' in node && node.fills.length > 0) {
+  const newFill = figma.variables.setBoundVariableForPaint(node.fills[0], 'color', v);
+  node.fills = [newFill];
+}
+return JSON.stringify({ ok: true });
+})()`;
+      } else if (fix.type === 'bind-stroke') {
+        code = `(async () => {
+// @figma-api — delegates to bind stroke
+const node = await figma.getNodeByIdAsync(${JSON.stringify(fix.nodeId)});
+if (!node) throw new Error('Node not found: ${fix.nodeId}');
+const vars = await figma.variables.getLocalVariablesAsync();
+const v = vars.find(v => v.name === ${JSON.stringify(fix.varName)} || v.name.endsWith(${JSON.stringify('/' + fix.varName)}));
+if (!v) throw new Error('Variable not found: ${fix.varName}');
+if ('strokes' in node) {
+  const stroke = node.strokes[0] || { type: 'SOLID', color: { r: 0, g: 0, b: 0 } };
+  const newStroke = figma.variables.setBoundVariableForPaint(stroke, 'color', v);
+  node.strokes = [newStroke];
+}
+return JSON.stringify({ ok: true });
+})()`;
+      } else if (fix.type === 'bind-effect') {
+        code = `(async () => {
+// @figma-api — delegates to bind effect
+const node = await figma.getNodeByIdAsync(${JSON.stringify(fix.nodeId)});
+if (!node) throw new Error('Node not found: ${fix.nodeId}');
+const style = await figma.importStyleByKeyAsync(${JSON.stringify(fix.styleKey)});
+if (!style) throw new Error('Could not import style: ${fix.styleKey}');
+await node.setEffectStyleIdAsync(style.id);
+return JSON.stringify({ ok: true });
+})()`;
+      } else if (fix.type === 'bind-text-style') {
+        code = `(async () => {
+// @figma-api — delegates to bind text-style
+const node = await figma.getNodeByIdAsync(${JSON.stringify(fix.nodeId)});
+if (!node) throw new Error('Node not found: ${fix.nodeId}');
+if (node.type !== 'TEXT') throw new Error('Not a text node: ' + node.type);
+const style = await figma.importStyleByKeyAsync(${JSON.stringify(fix.styleKey)});
+if (!style) throw new Error('Could not import style: ${fix.styleKey}');
+await figma.loadFontAsync({ family: style.fontName.family, style: style.fontName.style });
+await node.setTextStyleIdAsync(style.id);
+return JSON.stringify({ ok: true });
+})()`;
+      }
+
+      try {
+        await daemonExec('eval', { code });
+        fixed++;
+        if (fix.type === 'bind-fill') {
+          console.log(`  ${chalk.green('✓')} fills on "${fix.nodeName}" → ${fix.varName}`);
+        } else if (fix.type === 'bind-stroke') {
+          console.log(`  ${chalk.green('✓')} strokes on "${fix.nodeName}" → ${fix.varName}`);
+        } else if (fix.type === 'bind-effect') {
+          console.log(`  ${chalk.green('✓')} effectStyleId on "${fix.nodeName}" → ${fix.styleName}`);
+        } else if (fix.type === 'bind-text-style') {
+          console.log(`  ${chalk.green('✓')} textStyleId on "${fix.nodeName}" → ${fix.styleName}`);
+        }
+      } catch (err) {
+        failed++;
+        console.log(`  ${chalk.red('✗')} ${fix.prop} on "${fix.nodeName}" — ${err.message}`);
+      }
+    }
+
+    // --- Step 5: Summary ---
+    console.log('');
+    const parts = [];
+    if (fixed > 0) parts.push(chalk.green(`${fixed} fixed`));
+    if (failed > 0) parts.push(chalk.red(`${failed} failed`));
+    if (unresolved.length > 0) parts.push(chalk.yellow(`${unresolved.length} unresolved`));
+    console.log(`Summary: ${parts.join(', ')}`);
+
+    if (unresolved.length > 0) {
+      console.log(chalk.gray('\nUnresolved:'));
+      for (const u of unresolved) {
+        console.log(chalk.gray(`  [${u.nodeName}] ${u.prop} — ${u.reason}`));
+      }
+    }
+    console.log('');
+
+    if (unresolved.length > 0 || failed > 0) process.exit(1);
+  });
+
 // ============ SLOT OPERATIONS ============
 
 const slot = program

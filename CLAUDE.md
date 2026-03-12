@@ -38,6 +38,8 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "inspect current selection" | `os-figma node inspect` |
 | "deep node tree" | `os-figma node inspect "<id>" --deep` |
 | "check design system warnings" | `os-figma node inspect "<id>" --summary` |
+| "fix design system warnings" | `os-figma node fix "<id>"` |
+| "fix all warnings on screen" | `os-figma node fix "<id>" --deep` |
 | "apply shadow to node" | `os-figma bind effect "Shadow/Card" -n "<id>"` |
 | "apply text style to node" | `os-figma bind text-style "Heading/H1" -n "<id>"` |
 
@@ -508,7 +510,7 @@ os-figma pattern add Button \
   --parent "<screenId>"
 ```
 
-**Step 5 — Screenshot and evaluate**
+**Step 5 — Screenshot, fix, and evaluate**
 
 After placing all elements, export a screenshot and read it back to evaluate the result against your design plan:
 ```bash
@@ -516,27 +518,20 @@ os-figma export node "<screenId>" --feedback
 # Returns an absolute path — read that file immediately
 ```
 
-Then inspect the screen for design system violations:
+Then fix design system violations automatically:
 ```bash
-os-figma node inspect "<screenId>" --summary
+os-figma node fix "<screenId>" --deep
 ```
-Read the Warnings section of the output. Fix each violation before moving on:
+
+`node fix --deep` inspects every descendant, resolves unbound fills and strokes to
+token variables, matches effect/text styles by node name and font size, and applies
+all fixable warnings in one pass. Use `--dry-run` first to preview the plan:
 ```bash
-# Fix unbound fill on a child node
-os-figma bind fill "--color-primary" -n "<nodeId>"
-
-# Fix unbound stroke
-os-figma bind stroke "--color-neutral-4" -n "<nodeId>"
-
-# Fix missing effect style
-os-figma bind effect "Shadow/Card" -n "<nodeId>"
-
-# Fix missing text style
-os-figma bind text-style "Heading/H1" -n "<nodeId>"
-
-# Re-inspect to confirm warnings cleared
-os-figma node inspect "<screenId>" --summary
+os-figma node fix "<screenId>" --deep --dry-run
 ```
+
+If any warnings are unresolved after `node fix`, apply them manually with
+`os-figma bind` then re-run `node fix` to confirm all warnings are cleared.
 
 When evaluating the screenshot, check:
 - Does the visual hierarchy match your design plan?
@@ -757,7 +752,7 @@ Never use hardcoded pixel values for gaps or padding.
 
 - **Always screenshot after building** — run `export node --feedback`, read
   the file, and evaluate before declaring a screen complete
-- **Always inspect after building** — run `os-figma node inspect "<id>" --summary` after placing components; fix all warnings with `os-figma bind` before declaring a screen done
+- **Always fix after building** — run `os-figma node fix "<id>" --deep` after placing all components; all warnings must be cleared before declaring a screen done
 - **Always use `--parent`** — never place on canvas root
 - **Never use `eval` to create elements** — no smart positioning
 - **Never guess prop names** — always run `pattern describe` first

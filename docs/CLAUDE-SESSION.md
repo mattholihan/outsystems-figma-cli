@@ -191,8 +191,8 @@ os-figma fj eval "figma.currentPage.children.length"
 
 - Run `node scripts/audit-coverage.js` at the start and end of every session
 - Any new `runCode()` block must have a `@figma-api` comment immediately above it
-- After building a screen, always run both `export node --feedback` (visual check)
-  and `node inspect --summary` (structural check) before declaring it complete
+- After building a screen, always run `export node --feedback` (visual check) then
+  `node fix "<id>" --deep` (structural check) before declaring it complete
 
 ## Important Notes
 
@@ -217,10 +217,11 @@ os-figma fj eval "figma.currentPage.children.length"
 9. **Always run pattern describe before pattern add** — never guess prop names,
    variant names, or state names.
 
-10. **Always inspect after building** — run `os-figma node inspect "<id>" --summary`
-   after placing all components. The Warnings section flags unbound fills, unbound
-   strokes, and missing style bindings. Fix each warning with `os-figma bind` and
-   re-run inspect to confirm warnings are cleared before declaring a screen done.
+10. **Always fix after building** — run `os-figma node fix "<id>" --deep` after
+   placing all components. It inspects every descendant, resolves unbound fills/
+   strokes to token variables, matches effect and text styles, and applies all
+   fixable warnings in one pass. Use `--dry-run` to preview. Fix any unresolved
+   warnings manually with `os-figma bind`, then re-run to confirm all clear.
 
 11. **Styles are separate from tokens** — run `os-figma styles pull` in
     addition to `os-figma tokens pull` when starting a session. Effect style
