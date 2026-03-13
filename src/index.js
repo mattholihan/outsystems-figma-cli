@@ -8403,4 +8403,144 @@ pattern
   }
 }
 
+// ============ DOCTOR (Session Precondition Check) ============
+
+program
+  .command('doctor')
+  .description('Check session preconditions and report what is ready or missing')
+  .action(async () => {
+    const cwd = process.cwd();
+    const cdpPort = getCdpPort();
+    const checks = [];
+    let anyFailed = false;
+
+    function pass(label) {
+      checks.push({ ok: true, label });
+    }
+    function fail(label, hint) {
+      checks.push({ ok: false, label, hint });
+      anyFailed = true;
+    }
+    function skip(label) {
+      checks.push({ ok: null, label });
+    }
+
+    console.log('');
+    console.log(chalk.bold('Checking session preconditions...\n'));
+
+    // 1. Figma Desktop running (CDP port 9222 reachable)
+    let figmaPages = null;
+    try {
+      const res = await fetch(`http://localhost:${cdpPort}/json`, { signal: AbortSignal.timeout(2000) });
+      figmaPages = await res.json();
+      pass('Figma Desktop running');
+    } catch {
+      fail('Figma Desktop running', 'Not reachable. Launch Figma Desktop then run: os-figma connect');
+    }
+
+    // 2. Daemon running (port 3456 responsive)
+    try {
+      const token = getDaemonToken();
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['X-Daemon-Token'] = token;
+      const res = await fetch(`http://localhost:${DAEMON_PORT}/health`, { headers, signal: AbortSignal.timeout(2000) });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        pass('Daemon running');
+      } else {
+        fail('Daemon running', 'Daemon responded but reported unhealthy. Run: os-figma connect');
+      }
+    } catch {
+      fail('Daemon running', 'Not running. Run: os-figma connect');
+    }
+
+    // 3. Design file open (a figma.com/design page is active in CDP)
+    if (figmaPages === null) {
+      skip('Design file open — skipped (Figma Desktop not reachable)');
+    } else {
+      const designPage = figmaPages.find(p => p.url && /figma\.com\/(design|file)\//.test(p.url));
+      if (designPage) {
+        const title = designPage.title || designPage.url;
+        pass(`Design file open — "${title}"`);
+      } else {
+        fail('Design file open', 'No design file detected. Open a Figma design file in Figma Desktop.');
+      }
+    }
+
+    // 4. tokens.json present
+    const tokensPath = join(cwd, 'tokens.json');
+    let tokensData = null;
+    if (existsSync(tokensPath)) {
+      pass('tokens.json present');
+      // 5. tokens.json populated
+      try {
+        tokensData = JSON.parse(readFileSync(tokensPath, 'utf8'));
+        let tokenCount = 0;
+        for (const groups of Object.values(tokensData.collections || {})) {
+          for (const tokenMap of Object.values(groups)) {
+            for (const entry of Object.values(tokenMap)) {
+              if (entry && entry.key !== undefined) tokenCount++;
+            }
+          }
+        }
+        if (tokenCount > 0) {
+          pass(`tokens.json populated (${tokenCount} tokens)`);
+        } else {
+          fail('tokens.json populated', 'File exists but contains no tokens. Open the Foundations file in Figma then run: os-figma tokens pull');
+        }
+      } catch {
+        fail('tokens.json populated', 'File exists but could not be parsed. Run: os-figma tokens pull');
+      }
+    } else {
+      fail('tokens.json present', 'Not found. Open the Foundations file in Figma then run: os-figma tokens pull');
+      skip('tokens.json populated — skipped');
+    }
+
+    // 6. library-config.json present
+    const libConfigPath = join(cwd, 'library-config.json');
+    let libConfig = null;
+    if (existsSync(libConfigPath)) {
+      pass('library-config.json present');
+      // 7. library-config.json populated
+      try {
+        libConfig = JSON.parse(readFileSync(libConfigPath, 'utf8'));
+        const componentCount = Object.keys(libConfig.components || {}).length;
+        const iconCount = Object.keys(libConfig.icons || {}).length;
+        const total = componentCount + iconCount;
+        if (total > 0) {
+          pass(`library-config.json populated (${componentCount} components, ${iconCount} icons)`);
+        } else {
+          fail('library-config.json populated', 'File exists but has no components or icons. Run: os-figma pattern scan');
+        }
+      } catch {
+        fail('library-config.json populated', 'File exists but could not be parsed. Run: os-figma pattern scan');
+      }
+    } else {
+      fail('library-config.json present', 'Not found. Run: os-figma pattern scan');
+      skip('library-config.json populated — skipped');
+    }
+
+    // Print results
+    for (const c of checks) {
+      if (c.ok === true) {
+        console.log(chalk.green('✓'), c.label);
+      } else if (c.ok === false) {
+        console.log(chalk.red('✗'), c.label + (c.hint ? ' — ' + c.hint : ''));
+      } else {
+        console.log(chalk.gray('–'), chalk.gray(c.label));
+      }
+    }
+
+    console.log('');
+    if (!anyFailed) {
+      console.log(chalk.green('✓ All checks passed. Ready to design.'));
+    } else {
+      const failCount = checks.filter(c => c.ok === false).length;
+      console.log(chalk.red(`✗ ${failCount} issue${failCount !== 1 ? 's' : ''} found. Run the suggested commands above to fix them.`));
+    }
+    console.log('');
+
+    process.exit(anyFailed ? 1 : 0);
+  });
+
 program.parse();
