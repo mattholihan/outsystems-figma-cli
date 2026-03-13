@@ -8421,6 +8421,9 @@ program
       checks.push({ ok: false, label, hint });
       anyFailed = true;
     }
+    function warn(label) {
+      checks.push({ ok: 'warn', label });
+    }
     function skip(label) {
       checks.push({ ok: null, label });
     }
@@ -8439,6 +8442,7 @@ program
     }
 
     // 2. Daemon running (port 3456 responsive)
+    let daemonPassed = false;
     try {
       const token = getDaemonToken();
       const headers = { 'Content-Type': 'application/json' };
@@ -8446,6 +8450,7 @@ program
       const res = await fetch(`http://localhost:${DAEMON_PORT}/health`, { headers, signal: AbortSignal.timeout(2000) });
       const data = await res.json();
       if (data.status === 'ok') {
+        daemonPassed = true;
         pass('Daemon running');
       } else {
         fail('Daemon running', 'Daemon responded but reported unhealthy. Run: os-figma connect');
@@ -8520,12 +8525,69 @@ program
       skip('library-config.json populated — skipped');
     }
 
+    // 8. Library variables accessible
+    const libVarLabel = 'Library variables accessible';
+    if (!daemonPassed) {
+      skip(`${libVarLabel} — skipped (daemon not running)`);
+    } else {
+      try {
+        const libVarCode = `(async () => {
+  if (typeof figma.variables.getAvailableLibraryVariableCollectionsAsync === 'function') {
+    const cols = await figma.variables.getAvailableLibraryVariableCollectionsAsync();
+    return JSON.stringify({ method: 'collections', count: cols.length });
+  }
+  // Fallback: probe with importVariableByKeyAsync using first available token key
+  return JSON.stringify({ method: 'fallback' });
+})()`;
+        const raw = await daemonExec('eval', { code: libVarCode });
+        const result = typeof raw === 'string' ? JSON.parse(raw) : raw;
+
+        if (result.method === 'collections') {
+          if (result.count > 0) {
+            pass(`${libVarLabel} (${result.count} collection${result.count !== 1 ? 's' : ''})`);
+          } else {
+            fail(libVarLabel, 'No variable collections found. Open the Foundations file in Figma and ensure it is enabled as a shared library.');
+          }
+        } else {
+          // Fallback path — getAvailableLibraryVariableCollectionsAsync not available
+          let probeKey = null;
+          if (tokensData) {
+            outer: for (const groups of Object.values(tokensData.collections || {})) {
+              for (const tokenMap of Object.values(groups)) {
+                for (const entry of Object.values(tokenMap)) {
+                  if (entry && entry.key !== undefined) { probeKey = entry.key; break outer; }
+                }
+              }
+            }
+          }
+          if (!probeKey) {
+            warn(`${libVarLabel} — skipped (run 'os-figma tokens pull' to populate token keys)`);
+          } else {
+            const fallbackCode = `(async () => {
+  const v = await figma.variables.importVariableByKeyAsync(${JSON.stringify(probeKey)});
+  return v ? 'ok' : 'null';
+})()`;
+            const fallbackResult = await daemonExec('eval', { code: fallbackCode });
+            if (fallbackResult === 'ok') {
+              pass(`${libVarLabel} — reachable (connection state cannot be verified)`);
+            } else {
+              fail(libVarLabel, "Not reachable — check that the Foundations library exists and your token keys are valid. Run 'os-figma tokens pull' to refresh.");
+            }
+          }
+        }
+      } catch {
+        fail(libVarLabel, 'Check failed. Open the Foundations file in Figma and ensure it is enabled as a shared library.');
+      }
+    }
+
     // Print results
     for (const c of checks) {
       if (c.ok === true) {
         console.log(chalk.green('✓'), c.label);
       } else if (c.ok === false) {
         console.log(chalk.red('✗'), c.label + (c.hint ? ' — ' + c.hint : ''));
+      } else if (c.ok === 'warn') {
+        console.log(chalk.yellow('⚠'), chalk.yellow(c.label));
       } else {
         console.log(chalk.gray('–'), chalk.gray(c.label));
       }
