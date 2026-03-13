@@ -4967,17 +4967,17 @@ program
     else if (!b) { bottom = value; left = r; }
     else if (!l) { left = r; }
     const nodeResolution = options.node
-      ? `const _n = figma.getNodeById('${options.node}'); if (!_n) throw new Error('Node not found: ${options.node}'); const nodes = [_n];`
-      : `const nodes = figma.currentPage.selection; if (nodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
+      ? `const _targetNode = figma.getNodeById('${options.node}'); if (!_targetNode) throw new Error('Node not found: ${options.node}'); const _nodes = [_targetNode];`
+      : `const _nodes = figma.currentPage.selection; if (_nodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
     let code = `
 ${nodeResolution}
-nodes.forEach(n => {
+_nodes.forEach(n => {
   if ('paddingTop' in n) {
     n.paddingTop = ${top}; n.paddingRight = ${right};
     n.paddingBottom = ${bottom}; n.paddingLeft = ${left};
   }
 });
-'Set padding on ' + nodes.length + ' elements';
+'Set padding on ' + _nodes.length + ' elements';
 `;
     try {
       const result = await daemonExec('eval', { code });
@@ -4994,12 +4994,12 @@ program
   .action(async (value, options) => {
     checkConnection();
     const nodeResolution = options.node
-      ? `const _n = figma.getNodeById('${options.node}'); if (!_n) throw new Error('Node not found: ${options.node}'); const nodes = [_n];`
-      : `const nodes = figma.currentPage.selection; if (nodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
+      ? `const _targetNode = figma.getNodeById('${options.node}'); if (!_targetNode) throw new Error('Node not found: ${options.node}'); const _nodes = [_targetNode];`
+      : `const _nodes = figma.currentPage.selection; if (_nodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
     let code = `
 ${nodeResolution}
-nodes.forEach(n => { if ('itemSpacing' in n) n.itemSpacing = ${value}; });
-'Set gap ${value} on ' + nodes.length + ' elements';
+_nodes.forEach(n => { if ('itemSpacing' in n) n.itemSpacing = ${value}; });
+'Set gap ${value} on ' + _nodes.length + ' elements';
 `;
     try {
       const result = await daemonExec('eval', { code });
@@ -5018,15 +5018,15 @@ program
     const map = { start: 'MIN', center: 'CENTER', end: 'MAX', stretch: 'STRETCH' };
     const val = map[alignment.toLowerCase()] || 'CENTER';
     const nodeResolution = options.node
-      ? `const _n = figma.getNodeById('${options.node}'); if (!_n) throw new Error('Node not found: ${options.node}'); const nodes = [_n];`
-      : `const nodes = figma.currentPage.selection; if (nodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
+      ? `const _targetNode = figma.getNodeById('${options.node}'); if (!_targetNode) throw new Error('Node not found: ${options.node}'); const _nodes = [_targetNode];`
+      : `const _nodes = figma.currentPage.selection; if (_nodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
     let code = `
 ${nodeResolution}
-nodes.forEach(n => {
+_nodes.forEach(n => {
   if ('primaryAxisAlignItems' in n) n.primaryAxisAlignItems = '${val}';
   if ('counterAxisAlignItems' in n) n.counterAxisAlignItems = '${val}';
 });
-'Aligned ' + nodes.length + ' elements to ${alignment}';
+'Aligned ' + _nodes.length + ' elements to ${alignment}';
 `;
     try {
       const result = await daemonExec('eval', { code });
