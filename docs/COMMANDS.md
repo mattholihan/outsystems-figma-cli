@@ -32,6 +32,19 @@ os-figma init
 
 ---
 
+## Preflight Check
+
+```bash
+# Run all session precondition checks in one pass
+os-figma doctor
+```
+
+Checks Figma Desktop, daemon, design file, `tokens.json`, `library-config.json`,
+and library variable reachability. Exits with code 0 if all pass, code 1 if any
+fail. Read-only — does not modify any files or Figma state.
+
+---
+
 ## Design Tokens
 
 ```bash
@@ -376,6 +389,7 @@ os-figma node inspect "123:456"            # JSON output
 os-figma node inspect "123:456" --deep     # include full recursive child tree
 os-figma node inspect "123:456" --summary  # human-readable condensed output
 os-figma node inspect                      # inspect current Figma selection
+os-figma node inspect -n "123:456"         # inspect by node ID without selecting
 
 # Automatically fix design system warnings found by inspect
 os-figma node fix "123:456"                # inspect and apply all auto-fixable warnings

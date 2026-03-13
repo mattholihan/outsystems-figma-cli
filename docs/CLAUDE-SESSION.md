@@ -94,6 +94,9 @@ os-figma node inspect "<id>" --deep
 
 # Inspect current Figma selection
 os-figma node inspect
+
+# Inspect by node ID (no selection required)
+os-figma node inspect -n "<id>"
 ```
 
 ## Common OutSystems Operations
@@ -273,10 +276,11 @@ project-directory/           ← Per-project config (one per client/design)
 >
 > Returning session:
 > 1. `os-figma connect`
-> 2. `cd` to your project directory
-> 3. Open the Foundations library file in Figma Desktop
-> 4. `os-figma tokens pull && os-figma styles pull`
-> 5. Switch back to your working design file in Figma Desktop
+> 2. `os-figma doctor` *(optional — verify all preconditions in one pass)*
+> 3. `cd` to your project directory
+> 4. Open the Foundations library file in Figma Desktop
+> 5. `os-figma tokens pull && os-figma styles pull`
+> 6. Switch back to your working design file in Figma Desktop
 > 6. Paste active node IDs below
 
 Active file node IDs:

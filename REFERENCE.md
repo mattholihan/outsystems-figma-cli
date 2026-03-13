@@ -14,6 +14,26 @@ os-figma daemon restart                  # Restart daemon
 os-figma files                           # List open Figma files (JSON)
 ```
 
+## Preflight Check
+
+```bash
+os-figma doctor                          # validate all session preconditions
+
+# Checks (in order):
+#   ✓/✗ Figma Desktop running
+#   ✓/✗ Daemon running
+#   ✓/✗ Design file open
+#   ✓/✗ tokens.json present
+#   ✓/✗ tokens.json populated
+#   ✓/✗ library-config.json present
+#   ✓/✗ library-config.json populated
+#   ✓/✗ Library variables reachable
+#
+# Exits with code 0 if all pass, code 1 if any fail.
+# Each failing check includes a suggested remediation command.
+# Read-only — does not modify any files or Figma state.
+```
+
 ## Design Tokens & Variables
 
 ### Create Token Collections
@@ -227,8 +247,12 @@ os-figma sizing fill                     # Fill container
 os-figma sizing fixed 390 844            # Fixed size (e.g. mobile screen)
 os-figma padding 16                      # All sides
 os-figma padding 16 24                   # Vertical, horizontal
+os-figma padding 16 -n "<nodeId>"        # Uniform padding, target node
+os-figma padding 16 8 -n "<nodeId>"      # Vertical/horizontal padding, target node
 os-figma gap 16                          # Set gap
+os-figma gap 16 -n "<nodeId>"            # Set gap, target node
 os-figma align center                    # Align items
+os-figma align center -n "<nodeId>"      # Align, target node
 ```
 
 ## Find & Select
@@ -265,6 +289,11 @@ os-figma delete "1:234"                  # Delete by ID
 ```bash
 os-figma node tree                       # Show tree structure
 os-figma node tree "1:234" -d 5          # Deeper depth
+os-figma node inspect "1:234"            # JSON output — geometry, layout, fills, effects, children
+os-figma node inspect "1:234" --deep     # Include full recursive child tree
+os-figma node inspect "1:234" --summary  # Human-readable condensed output
+os-figma node inspect                    # Inspect current Figma selection
+os-figma node inspect -n "1:234"         # Inspect by node ID without selecting
 os-figma node bindings                   # Show variable bindings
 os-figma node to-component "1:234"       # Convert to component
 os-figma node delete "1:234"             # Delete by ID

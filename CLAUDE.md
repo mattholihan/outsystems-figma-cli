@@ -36,6 +36,7 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "screenshot the screen" / "check the output" | `os-figma export node "<id>" --feedback` |
 | "inspect a node" | `os-figma node inspect "<id>"` |
 | "inspect current selection" | `os-figma node inspect` |
+| "run preflight checks" | `os-figma doctor` |
 | "deep node tree" | `os-figma node inspect "<id>" --deep` |
 | "fix design system warnings" | `os-figma node fix "<id>" --deep` — **prefer this in the evaluate loop** |
 | "inspect without fixing (debug only)" | `os-figma node inspect "<id>" --summary` |
