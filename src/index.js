@@ -6247,7 +6247,7 @@ node
         x: n.x,
         y: n.y,
         w: n.width,
-        h: n.height,
+        h: n.height !== undefined ? n.height : null,
         rotation: n.rotation !== undefined ? n.rotation : 0,
         constraints: n.constraints !== undefined ? n.constraints : null,
       };
@@ -6311,7 +6311,7 @@ node
     }
 
     result.children = ('children' in n)
-      ? n.children.map(c => recurse ? inspectNode(c, true) : { id: c.id, name: c.name, type: c.type })
+      ? n.children.map(c => recurse ? inspectNode(c, true) : { id: c.id, name: c.name, type: c.type, geometry: { x: c.x, y: c.y, w: c.width, h: c.height !== undefined ? c.height : null } })
       : [];
 
     const warnings = [];
@@ -6547,7 +6547,7 @@ node
     }
 
     result.children = ('children' in n)
-      ? n.children.map(c => recurse ? inspectNode(c, true) : { id: c.id, name: c.name, type: c.type })
+      ? n.children.map(c => recurse ? inspectNode(c, true) : { id: c.id, name: c.name, type: c.type, geometry: { x: c.x, y: c.y, w: c.width, h: c.height !== undefined ? c.height : null } })
       : [];
 
     const warnings = [];
