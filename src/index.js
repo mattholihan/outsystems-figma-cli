@@ -4967,18 +4967,18 @@ program
     else if (!b) { bottom = value; left = r; }
     else if (!l) { left = r; }
     const nodeResolution = options.node
-      ? `const _targetNode = figma.getNodeById('${options.node}'); if (!_targetNode) throw new Error('Node not found: ${options.node}'); const _nodes = [_targetNode];`
-      : `const _nodes = figma.currentPage.selection; if (_nodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
-    let code = `
+      ? `const _targetNode = figma.getNodeById('${options.node}'); if (!_targetNode) throw new Error('Node not found: ${options.node}'); const _targetNodes = [_targetNode];`
+      : `const _targetNodes = Array.from(figma.currentPage.selection); if (_targetNodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
+    let code = `{
 ${nodeResolution}
-_nodes.forEach(n => {
+_targetNodes.forEach(n => {
   if ('paddingTop' in n) {
     n.paddingTop = ${top}; n.paddingRight = ${right};
     n.paddingBottom = ${bottom}; n.paddingLeft = ${left};
   }
 });
-'Set padding on ' + _nodes.length + ' elements';
-`;
+'Set padding on ' + _targetNodes.length + ' elements';
+}`;
     try {
       const result = await daemonExec('eval', { code });
       console.log(chalk.green('✓ ' + (result || 'Padding applied')));
@@ -4994,13 +4994,13 @@ program
   .action(async (value, options) => {
     checkConnection();
     const nodeResolution = options.node
-      ? `const _targetNode = figma.getNodeById('${options.node}'); if (!_targetNode) throw new Error('Node not found: ${options.node}'); const _nodes = [_targetNode];`
-      : `const _nodes = figma.currentPage.selection; if (_nodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
-    let code = `
+      ? `const _targetNode = figma.getNodeById('${options.node}'); if (!_targetNode) throw new Error('Node not found: ${options.node}'); const _targetNodes = [_targetNode];`
+      : `const _targetNodes = Array.from(figma.currentPage.selection); if (_targetNodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
+    let code = `{
 ${nodeResolution}
-_nodes.forEach(n => { if ('itemSpacing' in n) n.itemSpacing = ${value}; });
-'Set gap ${value} on ' + _nodes.length + ' elements';
-`;
+_targetNodes.forEach(n => { if ('itemSpacing' in n) n.itemSpacing = ${value}; });
+'Set gap ${value} on ' + _targetNodes.length + ' elements';
+}`;
     try {
       const result = await daemonExec('eval', { code });
       console.log(chalk.green('✓ ' + (result || 'Gap applied')));
@@ -5018,16 +5018,16 @@ program
     const map = { start: 'MIN', center: 'CENTER', end: 'MAX', stretch: 'STRETCH' };
     const val = map[alignment.toLowerCase()] || 'CENTER';
     const nodeResolution = options.node
-      ? `const _targetNode = figma.getNodeById('${options.node}'); if (!_targetNode) throw new Error('Node not found: ${options.node}'); const _nodes = [_targetNode];`
-      : `const _nodes = figma.currentPage.selection; if (_nodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
-    let code = `
+      ? `const _targetNode = figma.getNodeById('${options.node}'); if (!_targetNode) throw new Error('Node not found: ${options.node}'); const _targetNodes = [_targetNode];`
+      : `const _targetNodes = Array.from(figma.currentPage.selection); if (_targetNodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
+    let code = `{
 ${nodeResolution}
-_nodes.forEach(n => {
+_targetNodes.forEach(n => {
   if ('primaryAxisAlignItems' in n) n.primaryAxisAlignItems = '${val}';
   if ('counterAxisAlignItems' in n) n.counterAxisAlignItems = '${val}';
 });
-'Aligned ' + _nodes.length + ' elements to ${alignment}';
-`;
+'Aligned ' + _targetNodes.length + ' elements to ${alignment}';
+}`;
     try {
       const result = await daemonExec('eval', { code });
       console.log(chalk.green('✓ ' + (result || 'Alignment applied')));
