@@ -4938,63 +4938,81 @@ program
   .command('padding <value> [r] [b] [l]')
   .alias('pad')
   .description('Set padding (CSS-style: 1-4 values)')
-  .action((value, r, b, l) => {
+  .option('-n, --node <nodeId>', 'Target node ID (uses selection if omitted)')
+  .action(async (value, r, b, l, options) => {
     checkConnection();
     let top = value, right = r || value, bottom = b || value, left = l || r || value;
     if (!r) { right = value; bottom = value; left = value; }
     else if (!b) { bottom = value; left = r; }
     else if (!l) { left = r; }
+    const nodeResolution = options.node
+      ? `const _n = figma.getNodeById('${options.node}'); if (!_n) throw new Error('Node not found: ${options.node}'); const nodes = [_n];`
+      : `const nodes = figma.currentPage.selection; if (nodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
     let code = `
-const nodes = figma.currentPage.selection;
-if (nodes.length === 0) 'No selection';
-else {
-  nodes.forEach(n => {
-    if ('paddingTop' in n) {
-      n.paddingTop = ${top}; n.paddingRight = ${right};
-      n.paddingBottom = ${bottom}; n.paddingLeft = ${left};
-    }
-  });
-  'Set padding on ' + nodes.length + ' elements';
-}
+${nodeResolution}
+nodes.forEach(n => {
+  if ('paddingTop' in n) {
+    n.paddingTop = ${top}; n.paddingRight = ${right};
+    n.paddingBottom = ${bottom}; n.paddingLeft = ${left};
+  }
+});
+'Set padding on ' + nodes.length + ' elements';
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    try {
+      const result = await daemonExec('eval', { code });
+      console.log(chalk.green('✓ ' + (result || 'Padding applied')));
+    } catch (e) {
+      console.log(chalk.red('✗ ' + e.message));
+    }
   });
 
 program
   .command('gap <value>')
   .description('Set auto-layout gap')
-  .action((value) => {
+  .option('-n, --node <nodeId>', 'Target node ID (uses selection if omitted)')
+  .action(async (value, options) => {
     checkConnection();
+    const nodeResolution = options.node
+      ? `const _n = figma.getNodeById('${options.node}'); if (!_n) throw new Error('Node not found: ${options.node}'); const nodes = [_n];`
+      : `const nodes = figma.currentPage.selection; if (nodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
     let code = `
-const nodes = figma.currentPage.selection;
-if (nodes.length === 0) 'No selection';
-else {
-  nodes.forEach(n => { if ('itemSpacing' in n) n.itemSpacing = ${value}; });
-  'Set gap ${value} on ' + nodes.length + ' elements';
-}
+${nodeResolution}
+nodes.forEach(n => { if ('itemSpacing' in n) n.itemSpacing = ${value}; });
+'Set gap ${value} on ' + nodes.length + ' elements';
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    try {
+      const result = await daemonExec('eval', { code });
+      console.log(chalk.green('✓ ' + (result || 'Gap applied')));
+    } catch (e) {
+      console.log(chalk.red('✗ ' + e.message));
+    }
   });
 
 program
   .command('align <alignment>')
   .description('Align items: start, center, end, stretch')
-  .action((alignment) => {
+  .option('-n, --node <nodeId>', 'Target node ID (uses selection if omitted)')
+  .action(async (alignment, options) => {
     checkConnection();
     const map = { start: 'MIN', center: 'CENTER', end: 'MAX', stretch: 'STRETCH' };
     const val = map[alignment.toLowerCase()] || 'CENTER';
+    const nodeResolution = options.node
+      ? `const _n = figma.getNodeById('${options.node}'); if (!_n) throw new Error('Node not found: ${options.node}'); const nodes = [_n];`
+      : `const nodes = figma.currentPage.selection; if (nodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
     let code = `
-const nodes = figma.currentPage.selection;
-if (nodes.length === 0) 'No selection';
-else {
-  nodes.forEach(n => {
-    if ('primaryAxisAlignItems' in n) n.primaryAxisAlignItems = '${val}';
-    if ('counterAxisAlignItems' in n) n.counterAxisAlignItems = '${val}';
-  });
-  'Aligned ' + nodes.length + ' elements to ${alignment}';
-}
+${nodeResolution}
+nodes.forEach(n => {
+  if ('primaryAxisAlignItems' in n) n.primaryAxisAlignItems = '${val}';
+  if ('counterAxisAlignItems' in n) n.counterAxisAlignItems = '${val}';
+});
+'Aligned ' + nodes.length + ' elements to ${alignment}';
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    try {
+      const result = await daemonExec('eval', { code });
+      console.log(chalk.green('✓ ' + (result || 'Alignment applied')));
+    } catch (e) {
+      console.log(chalk.red('✗ ' + e.message));
+    }
   });
 
 // ============ SELECT ============
