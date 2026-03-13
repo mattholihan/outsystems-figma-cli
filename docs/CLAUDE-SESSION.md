@@ -211,7 +211,11 @@ os-figma fj eval "figma.currentPage.children.length"
 
 2. **Use rescale() not resize()** for scaling. resize() can break layers.
 
-3. **Library variables** cannot be accessed via `getLocalVariableCollections()`. Must find through `boundVariables` on nodes.
+3. **Library variables** are accessed via `importVariableByKeyAsync(key)` using
+   keys stored in `tokens.json`. Run `os-figma tokens pull` to populate keys.
+   `getLocalVariablesAsync()` returns 0 results in the working design file —
+   do not use it for variable binding. The `boundVariables` approach is only
+   relevant for variable mode switching (Light/Dark), not general binding.
 
 4. **Node IDs** are in format `PAGE:NODE` like `1:92`. Get them from query output.
 

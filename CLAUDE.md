@@ -830,7 +830,6 @@ Never use hardcoded pixel values for gaps or padding.
 - **Never use `eval` to create elements** — no smart positioning
 - **Never guess prop names** — always run `pattern describe` first
 - **Never hardcode pixel gaps** — always use spacing variables
-- **If daemon times out** — run `os-figma connect` once, then retry
 - **If a command fails** — check `REFERENCE.md` for correct syntax before retrying
 
 **Known limitations:**
@@ -1006,7 +1005,9 @@ If permission error (macOS): System Settings → Privacy → Full Disk Access �
 
 ## Speed Daemon
 
-`connect` auto-starts daemon for faster commands.
+The daemon runs on `localhost:3456` and makes commands significantly faster.
+It starts automatically when you run `os-figma connect` and restarts silently
+if it times out — no manual reconnection needed.
 
 ```bash
 os-figma daemon status
