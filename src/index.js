@@ -54,6 +54,25 @@ function isDaemonRunning() {
   }
 }
 
+// Synchronous daemon liveness check + auto-start, used by figmaUse/runFigmaUse.
+// Returns immediately (within cooldown window) or starts the daemon and polls.
+// Throws a clear error if the daemon cannot be started within 10 seconds.
+let _lastEnsureSyncOkAt = 0;
+function ensureDaemonSync() {
+  const now = Date.now();
+  if (now - _lastEnsureSyncOkAt < ENSURE_COOLDOWN_MS) return;
+  if (isDaemonRunning()) { _lastEnsureSyncOkAt = Date.now(); return; }
+
+  startDaemon();
+
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    try { execSync('sleep 0.5', { stdio: 'pipe' }); } catch {}
+    if (isDaemonRunning()) { _lastEnsureSyncOkAt = Date.now(); return; }
+  }
+  throw new Error('✗ Could not start the speed daemon. Run \'os-figma connect\' to reconnect.');
+}
+
 // Timestamp of last successful daemon liveness check — used to skip redundant polls
 let _lastEnsureOkAt = 0;
 const ENSURE_COOLDOWN_MS = 5000;
@@ -137,6 +156,7 @@ async function fastRender(jsx) {
 
 // Helper: run figma-use commands with Node 20+ compatibility warning
 function runFigmaUse(cmd, options = {}) {
+  ensureDaemonSync();
   try {
     execSync(cmd, { stdio: options.stdio || 'inherit', timeout: options.timeout || 60000 });
   } catch (error) {
@@ -382,6 +402,7 @@ function figmaEvalSync(code) {
 
 // Compatibility wrapper for old figmaUse calls
 function figmaUse(args, options = {}) {
+  ensureDaemonSync();
   // Parse eval command
   const evalMatch = args.match(/^eval\s+"(.+)"$/s) || args.match(/^eval\s+'(.+)'$/s);
 
