@@ -6151,12 +6151,14 @@ node
   .description('Inspect a node — geometry, layout, fills, effects, children, and design system warnings')
   .option('--deep', 'Recursively include full child tree')
   .option('--summary', 'Human-readable output instead of JSON')
+  .option('-n, --node <nodeId>', 'Target node ID (uses selection if omitted)')
   .action(async (nodeId, options) => {
     await checkConnection();
 
+    const resolvedId = options.node || nodeId || null;
     const code = `
 (function() {
-  const targetId = ${nodeId ? JSON.stringify(nodeId) : 'null'};
+  const targetId = ${resolvedId ? JSON.stringify(resolvedId) : 'null'};
   const deep = ${options.deep ? 'true' : 'false'};
 
   const node = targetId
@@ -6164,7 +6166,7 @@ node
     : figma.currentPage.selection[0];
 
   if (!node) {
-    return JSON.stringify({ __error: targetId ? 'Node ' + targetId + ' not found' : 'No node selected' });
+    return JSON.stringify({ __error: targetId ? 'Node ' + targetId + ' not found' : 'No node targeted. Use -n <nodeId> or select a node in Figma.' });
   }
 
   function buildFills(n) {
