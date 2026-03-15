@@ -26,13 +26,13 @@ os-figma tokens pull
 # Push local tokens.json to the connected Figma file
 os-figma tokens push
 
-# Check diff between local tokens.json and Figma
+# Check local token state (no Figma connection needed)
 os-figma tokens status
 
 # Sync effect and text styles from the Foundations file
 os-figma styles pull
 
-# Check if styles.json is in sync with Figma
+# Check local styles state (no Figma connection needed)
 os-figma styles status
 ```
 
@@ -40,10 +40,9 @@ os-figma styles status
 > library file to be the active tab in Figma Desktop. Run them together at session
 > start while that file is open, then switch to your working design file.
 >
-> **During design:** Do not re-run `tokens pull` or `styles pull` mid-session —
-> the Foundations file will not be active. Use `os-figma tokens status` and
-> `os-figma styles status` instead to check sync state without requiring the
-> Foundations file to be open.
+> **During design:** `os-figma tokens status` and `os-figma styles status` work
+> offline — they check local file state without connecting to Figma. Use
+> `--sync` to compare against live Figma values (requires Foundations file open).
 
 ### Pattern Commands
 ```bash

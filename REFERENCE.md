@@ -46,12 +46,14 @@ os-figma tokens pull                     # Pull from Foundations file → tokens
 os-figma tokens pull --file "Name"       # Override target file
 os-figma tokens push                     # Push tokens.json → Foundations file
 os-figma tokens push --file "Name"       # Override target file
-os-figma tokens status                   # Compare tokens.json vs Foundations file
-os-figma tokens status --file "Name"     # Override target file
+os-figma tokens status                   # Local check: token count + key presence
+os-figma tokens status --sync            # Live comparison vs Foundations file
+os-figma tokens status --sync --file "N" # Override target file for live comparison
 ```
 
 Token commands target `library-config.json → libraries.foundations` automatically.
-The Foundations file must be open in Figma Desktop. Use `--file` to override.
+`tokens pull`, `tokens push`, and `tokens status --sync` require the Foundations
+file to be open in Figma Desktop. `tokens status` (no flag) is offline.
 
 ### Variables
 

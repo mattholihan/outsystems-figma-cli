@@ -2513,8 +2513,9 @@ return { updated, notFound };
 
 tokens
   .command('status')
-  .description('Compare local tokens.json against current Figma variable values')
+  .description('Check local tokens.json state, or compare against Figma with --sync')
   .option('--file <name>', 'Target Figma file name (overrides library-config.json)')
+  .option('--sync', 'Compare against live Figma variables (requires Foundations file open)')
   .action(async (options) => {
     const cwd = process.cwd();
     const libraryConfigPath = join(cwd, 'library-config.json');
@@ -2535,6 +2536,41 @@ tokens
       console.log(chalk.red('✗ Could not parse tokens.json — run os-figma init to recreate it.'));
       process.exit(1);
     }
+
+    // --- Local-only check (default) ---
+    if (!options.sync) {
+      let tokenCount = 0;
+      let collectionCount = 0;
+      try {
+        for (const groups of Object.values(tokensData.collections || {})) {
+          collectionCount++;
+          for (const entries of Object.values(groups)) {
+            tokenCount += Object.keys(entries).length;
+          }
+        }
+      } catch {}
+
+      const hasKeys = (() => {
+        try {
+          for (const groups of Object.values(tokensData.collections || {})) {
+            for (const entries of Object.values(groups)) {
+              for (const entry of Object.values(entries)) {
+                if (entry && typeof entry === 'object' && entry.key) return true;
+              }
+            }
+          }
+        } catch {}
+        return false;
+      })();
+
+      console.log(`\nTokens status\n`);
+      console.log(`  ${chalk.cyan('tokens.json')}   ${chalk.green('✓')} ${tokenCount} token${tokenCount !== 1 ? 's' : ''} across ${collectionCount} collection${collectionCount !== 1 ? 's' : ''}`);
+      console.log(`  Variable keys ${hasKeys ? chalk.green('✓ present') : chalk.yellow('⚠ missing — run os-figma tokens pull to sync keys')}`);
+      console.log(chalk.gray(`\n  Run with --sync to compare against live Figma variables.\n`));
+      return;
+    }
+
+    // --- Live sync check (--sync flag) ---
 
     // Resolve target foundations file name
     const libConfig = JSON.parse(readFileSync(libraryConfigPath, 'utf8'));
@@ -3257,8 +3293,9 @@ styles
 
 styles
   .command('status')
-  .description('Compare styles.json against the Foundations file')
+  .description('Check local styles.json state, or compare against Figma with --sync')
   .option('--file <name>', 'Target Figma file name (overrides library-config.json)')
+  .option('--sync', 'Compare against live Figma styles (requires Foundations file open)')
   .action(async (options) => {
     const cwd = process.cwd();
     const libraryConfigPath = join(cwd, 'library-config.json');
@@ -3288,6 +3325,32 @@ styles
       console.log(chalk.red('\n✗ Could not parse styles.json — run os-figma styles pull to recreate it.\n'));
       process.exit(1);
     }
+
+    // --- Local-only check (default) ---
+    if (!options.sync) {
+      const textCount = Object.keys(localStyles.text || {}).length;
+      const effectCount = Object.keys(localStyles.effects || {}).length;
+
+      const hasKeys = (() => {
+        try {
+          for (const style of Object.values(localStyles.text || {})) {
+            if (style && typeof style === 'object' && style.key) return true;
+          }
+          for (const style of Object.values(localStyles.effects || {})) {
+            if (style && typeof style === 'object' && style.key) return true;
+          }
+        } catch {}
+        return false;
+      })();
+
+      console.log(`\nStyles status\n`);
+      console.log(`  ${chalk.cyan('styles.json')}    ${chalk.green('✓')} ${textCount} text style${textCount !== 1 ? 's' : ''}, ${effectCount} effect style${effectCount !== 1 ? 's' : ''}`);
+      console.log(`  Style keys    ${hasKeys ? chalk.green('✓ present') : chalk.yellow('⚠ missing — run os-figma styles pull to sync keys')}`);
+      console.log(chalk.gray(`\n  Run with --sync to compare against live Figma styles.\n`));
+      return;
+    }
+
+    // --- Live sync check (--sync flag) ---
 
     const foundationsName = options.file || libConfig?.libraries?.foundations;
     if (!foundationsName) {

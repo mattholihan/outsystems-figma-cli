@@ -73,14 +73,15 @@ os-figma tokens push
 # Override target file
 os-figma tokens push --file "PDX Template - FOUNDATIONS"
 
-# Show diff between local tokens.json and the Foundations file in Figma
-# Targets library-config.json → libraries.foundations automatically
-# Foundations file must be open in Figma Desktop
-# Read-only — does not modify files or Figma variables
+# Check local tokens.json state (no Figma connection needed)
+# Reports token count, collection count, and whether variable keys are present
 os-figma tokens status
 
-# Override target file
-os-figma tokens status --file "PDX Template - FOUNDATIONS"
+# Compare tokens.json against live Figma variables (Foundations file must be open)
+os-figma tokens status --sync
+
+# Override target file for live comparison
+os-figma tokens status --sync --file "PDX Template - FOUNDATIONS"
 ```
 
 ---
@@ -95,9 +96,12 @@ os-figma styles pull
 # Override target file
 os-figma styles pull --file "PDX Template - FOUNDATIONS"
 
-# Compare styles.json against the Foundations file
+# Check local styles.json state (no Figma connection needed)
 os-figma styles status
-os-figma styles status --file "PDX Template - FOUNDATIONS"
+
+# Compare styles.json against live Figma styles (Foundations file must be open)
+os-figma styles status --sync
+os-figma styles status --sync --file "PDX Template - FOUNDATIONS"
 ```
 
 > `styles pull` must be run with the Foundations library file open in
