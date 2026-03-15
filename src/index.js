@@ -633,9 +633,9 @@ const boundFill = (variable) => figma.variables.setBoundVariableForPaint(
 `;
 }
 
-// Helper: Resolve a token value from tokens.json in the current project directory
+// Helper: Resolve a token entry from tokens.json in the current project directory
 // Searches all collections → groups → token entries for the given token name key
-// Returns the value string (e.g. "#FFFFFF") or null if not found
+// Returns { value, key } object or null if not found
 function resolveToken(tokenName) {
   const tokensPath = join(process.cwd(), 'tokens.json');
   if (!existsSync(tokensPath)) return null;
@@ -643,8 +643,13 @@ function resolveToken(tokenName) {
     const data = JSON.parse(readFileSync(tokensPath, 'utf8'));
     for (const groups of Object.values(data.collections || {})) {
       for (const entries of Object.values(groups)) {
-        if (entries[tokenName] !== undefined) {
-          return entries[tokenName] ?? null;
+        const entry = entries[tokenName];
+        if (entry !== undefined) {
+          // Handle both object entries { value, key } and legacy flat strings
+          if (typeof entry === 'object' && entry !== null) {
+            return { value: entry.value ?? null, key: entry.key ?? null };
+          }
+          return { value: entry, key: null };
         }
       }
     }
@@ -5113,24 +5118,17 @@ set
 
     let code;
     if (color.startsWith('var:')) {
-      // Variable binding
+      // Variable binding — resolve key from tokens.json, import by key
       const varName = color.slice(4);
+      const { key, name } = resolveTokenKey(varName);
       code = `(async () => {
-        const collections = await figma.variables.getLocalVariableCollectionsAsync();
-        let variable = null;
-        for (const col of collections) {
-          for (const id of col.variableIds) {
-            const v = await figma.variables.getVariableByIdAsync(id);
-            if (v && v.name === '${varName}') { variable = v; break; }
-          }
-          if (variable) break;
-        }
-        if (!variable) return 'Variable ${varName} not found';
+        const v = await figma.variables.importVariableByKeyAsync(${JSON.stringify(key)});
+        if (!v) return 'Could not import variable ${name} (key: ${key}). Is the Foundations library open in Figma?';
         ${nodeSelector}
         if (nodes.length === 0) return 'No node found';
-        const boundFill = (v) => figma.variables.setBoundVariableForPaint({ type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5 } }, 'color', v);
-        nodes.forEach(n => { if ('fills' in n) n.fills = [boundFill(variable)]; });
-        return 'Bound ' + variable.name + ' to fill on ' + nodes.length + ' elements';
+        const paint = { type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5 } };
+        nodes.forEach(n => { if ('fills' in n) n.fills = [figma.variables.setBoundVariableForPaint(paint, 'color', v)]; });
+        return 'Bound ' + v.name + ' to fill on ' + nodes.length + ' elements';
       })()`;
       const result = await daemonExec('eval', { code });
       console.log(chalk.green('✓ ' + (result || 'Done')));
@@ -5160,24 +5158,22 @@ set
 
     let code;
     if (color.startsWith('var:')) {
-      // Variable binding
+      // Variable binding — resolve key from tokens.json, import by key
       const varName = color.slice(4);
+      const { key, name } = resolveTokenKey(varName);
       code = `(async () => {
-        const collections = await figma.variables.getLocalVariableCollectionsAsync();
-        let variable = null;
-        for (const col of collections) {
-          for (const id of col.variableIds) {
-            const v = await figma.variables.getVariableByIdAsync(id);
-            if (v && v.name === '${varName}') { variable = v; break; }
-          }
-          if (variable) break;
-        }
-        if (!variable) return 'Variable ${varName} not found';
+        const v = await figma.variables.importVariableByKeyAsync(${JSON.stringify(key)});
+        if (!v) return 'Could not import variable ${name} (key: ${key}). Is the Foundations library open in Figma?';
         ${nodeSelector}
         if (nodes.length === 0) return 'No node found';
-        const boundFill = (v) => figma.variables.setBoundVariableForPaint({ type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5 } }, 'color', v);
-        nodes.forEach(n => { if ('strokes' in n) { n.strokes = [boundFill(variable)]; n.strokeWeight = ${options.weight}; } });
-        return 'Bound ' + variable.name + ' to stroke on ' + nodes.length + ' elements';
+        const paint = { type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5 } };
+        nodes.forEach(n => {
+          if ('strokes' in n) {
+            n.strokes = [figma.variables.setBoundVariableForPaint(paint, 'color', v)];
+            n.strokeWeight = ${options.weight};
+          }
+        });
+        return 'Bound ' + v.name + ' to stroke on ' + nodes.length + ' elements';
       })()`;
       const result = await daemonExec('eval', { code });
       console.log(chalk.green('✓ ' + (result || 'Done')));
@@ -7781,21 +7777,14 @@ ${hexFill.code}
 
     if (token?.key && frameId) {
       const bindCode = `(async () => {
-const key = ${JSON.stringify(token.key)};
-const collections = await figma.teamLibrary.getAvailableLibraryVariableCollectionsAsync();
-for (const col of collections) {
-  const vars = await figma.teamLibrary.getVariablesInLibraryCollectionAsync(col.key);
-  const match = vars.find(v => v.key === key);
-  if (match) {
-    const imported = await figma.variables.importVariableByKeyAsync(match.key);
-    const frame = figma.getNodeById(${JSON.stringify(String(frameId))});
-    const paint = { type: 'SOLID', color: { r: 1, g: 1, b: 1 } };
-    const boundPaint = figma.variables.setBoundVariableForPaint(paint, 'color', imported);
-    frame.fills = [boundPaint];
-    return JSON.stringify({ success: true });
-  }
-}
-return JSON.stringify({ fallback: true });
+const frame = figma.getNodeById(${JSON.stringify(String(frameId))});
+if (!frame) return JSON.stringify({ fallback: true });
+let variable;
+try { variable = await figma.variables.importVariableByKeyAsync(${JSON.stringify(token.key)}); } catch(e) {}
+if (!variable) return JSON.stringify({ fallback: true });
+const paint = { type: 'SOLID', color: { r: 1, g: 1, b: 1 } };
+frame.fills = [figma.variables.setBoundVariableForPaint(paint, 'color', variable)];
+return JSON.stringify({ success: true });
 })()`;
       let bindResult;
       try {
