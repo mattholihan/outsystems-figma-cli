@@ -476,8 +476,10 @@ export class FigmaClient {
     const name = props.name || 'Frame';
     const fillWidth = (props.w || props.width) === 'fill';
     const fillHeight = (props.h || props.height) === 'fill';
-    const width = fillWidth ? 100 : (props.w || props.width || 320);
-    const height = fillHeight ? 100 : (props.h || props.height || 200);
+    const hasExplicitWidth = !!(props.w || props.width);
+    const hasExplicitHeight = !!(props.h || props.height);
+    const width = fillWidth ? 100 : Number(props.w || props.width || 320);
+    const height = fillHeight ? 100 : Number(props.h || props.height || 100);
     const bg = props.bg || props.fill || '#ffffff';
     const stroke = props.stroke || null;
     const rounded = props.rounded || props.radius || 0;
@@ -495,8 +497,13 @@ export class FigmaClient {
     const clip = props.clip === 'true' || props.clip === true;
     // New: hug for auto-sizing (hug="both" | "w" | "h" | "width" | "height")
     const hug = props.hug || '';
-    const hugWidth = hug === 'both' || hug === 'w' || hug === 'width';
-    const hugHeight = hug === 'both' || hug === 'h' || hug === 'height';
+    const hasFlex = !!(props.flex);
+    // Auto-hug primary axis when flex is set and no explicit dimension given
+    // Explicit hug prop always wins; fill sizing always stays FIXED (placeholder resize)
+    const hugWidth = hug === 'both' || hug === 'w' || hug === 'width'
+      || (hasFlex && !hasExplicitWidth && !fillWidth);
+    const hugHeight = hug === 'both' || hug === 'h' || hug === 'height'
+      || (hasFlex && !hasExplicitHeight && !fillHeight);
     // New: wrap and wrapGap for horizontal layouts
     const wrap = props.wrap === true || props.wrap === 'true';
     const wrapGap = Number(props.wrapGap || props.counterAxisSpacing || 0);
@@ -609,8 +616,8 @@ export class FigmaClient {
         el${idx}.name = ${JSON.stringify(fName)};
         el${idx}.layoutMode = '${fFlex === 'row' ? 'HORIZONTAL' : 'VERTICAL'}';
         ${fWrap && fFlex === 'row' ? `el${idx}.layoutWrap = 'WRAP';` : ''}
-        el${idx}.primaryAxisSizingMode = '${hasWidth && !fillWidth ? 'FIXED' : 'AUTO'}';
-        el${idx}.counterAxisSizingMode = '${hasHeight && !fillHeight ? 'FIXED' : 'AUTO'}';
+        el${idx}.primaryAxisSizingMode = '${fFlex === 'row' ? (hasWidth && !fillWidth ? 'FIXED' : 'AUTO') : (hasHeight && !fillHeight ? 'FIXED' : 'AUTO')}';
+        el${idx}.counterAxisSizingMode = '${fFlex === 'row' ? (hasHeight && !fillHeight ? 'FIXED' : 'AUTO') : (hasWidth && !fillWidth ? 'FIXED' : 'AUTO')}';
         ${(hasWidth && !fillWidth) || (hasHeight && !fillHeight) ? `el${idx}.resize(${hasWidth && !fillWidth ? fWidth : 100}, ${hasHeight && !fillHeight ? fHeight : 40});` : ''}
         el${idx}.itemSpacing = ${fGap};
         el${idx}.paddingTop = ${fPy};
@@ -771,7 +778,7 @@ export class FigmaClient {
 
         const frame = figma.createFrame();
         frame.name = ${JSON.stringify(name)};
-        frame.resize(${width}, ${height});
+        ${(!hugWidth || !hugHeight) ? `frame.resize(${hugWidth ? 100 : width}, ${hugHeight ? 100 : height});` : ''}
         frame.x = smartX;
         frame.y = ${y};
         frame.cornerRadius = ${rounded};
@@ -786,8 +793,8 @@ export class FigmaClient {
         frame.paddingRight = ${px};
         frame.primaryAxisAlignItems = '${justifyVal}';
         frame.counterAxisAlignItems = '${alignVal}';
-        frame.primaryAxisSizingMode = '${hugWidth ? 'AUTO' : 'FIXED'}';
-        frame.counterAxisSizingMode = '${hugHeight ? 'AUTO' : 'FIXED'}';
+        frame.primaryAxisSizingMode = '${flex === 'row' ? (hugWidth ? 'AUTO' : 'FIXED') : (hugHeight ? 'AUTO' : 'FIXED')}';
+        frame.counterAxisSizingMode = '${flex === 'row' ? (hugHeight ? 'AUTO' : 'FIXED') : (hugWidth ? 'AUTO' : 'FIXED')}';
         ${wrap && flex === 'row' && wrapGap > 0 ? `frame.counterAxisSpacing = ${wrapGap};` : ''}
         frame.clipsContent = ${clip};
 
