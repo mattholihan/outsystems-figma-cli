@@ -625,6 +625,16 @@ This creates a discrete undo checkpoint so the user can undo screen creation as 
 - Children are ordered by insertion sequence in auto-layout frames
 - Never place components at canvas root — there is no reparent command
 
+**Every `render` call that should live inside the screen must use `--parent <screenId>`.**
+This includes spacer frames (`grow={1}` spacers for pushing content to edges),
+dividers, and any structural wrapper frames. Without `--parent`, frames land
+at canvas root and are invisible to the screen's layout engine.
+
+Example — correct spacer usage:
+```bash
+os-figma render --parent "<screenId>" '<Frame name="Spacer/Top" w="fill" grow={1} bg="var:--color-neutral-0" />'
+```
+
 ### Sizing components after placement
 
 `pattern add --parent` places components at their intrinsic width. After
@@ -821,6 +831,40 @@ Never use hardcoded pixel values for gaps or padding.
 
 ---
 
+### Spacer Frames
+
+Spacer frames are auto-layout helpers — use them sparingly and only when
+`gap` and `padding` cannot achieve the desired result.
+
+**When to use a spacer:**
+- `grow={1}` spacer to push content to the bottom of a screen (e.g. pin an
+  SSO button to the bottom while the form sits at the top)
+- Fixed-height spacer when one section needs significantly more space than
+  the screen's `gap` value provides
+
+**When NOT to use a spacer:**
+- Do not use spacers to add uniform spacing between elements — use `gap` on
+  the parent frame instead
+- Do not use spacers to add top/bottom breathing room — use `padding` on the
+  parent frame instead
+
+**Critical: always use `--parent` with spacers**
+Every `render` call inside a screen must include `--parent <screenId>`,
+including spacers. Without `--parent`, frames land at canvas root and are
+invisible to the screen's layout engine — the spacing has no effect.
+
+Correct:
+```bash
+os-figma render --parent "<screenId>" '<Frame name="Spacer/Bottom" w="fill" grow={1} />'
+```
+
+Wrong (lands at canvas root):
+```bash
+os-figma render '<Frame name="Spacer/Bottom" w="fill" grow={1} />'
+```
+
+---
+
 ### Critical rules
 
 - **Always screenshot after building** — run `export node --feedback`, read
@@ -975,6 +1019,15 @@ cornerRadius={8}     →  rounded={8}
 fontSize={16}        →  size={16}
 fontWeight="bold"    →  weight="bold"
 ```
+
+**6. Spacer frames without `--parent` land at canvas root:**
+Always specify `--parent <screenId>` for every render call during screen
+composition — including spacers, dividers, and wrapper frames.
+
+**7. Prefer `gap` and `padding` over spacer frames:**
+Do not use spacers for uniform spacing between elements — use `gap` on
+the parent frame instead. Do not use spacers for top/bottom breathing
+room — use `padding` on the parent frame instead.
 
 ---
 
