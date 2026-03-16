@@ -615,7 +615,7 @@ export class FigmaClient {
           // Default padding for buttons
           const fP = item.p !== undefined ? item.p : (item.padding !== undefined ? item.padding : null);
           const fPx = item.px !== undefined ? item.px : (fP !== null ? fP : 16);
-          const fPy = item.py !== undefined ? item.py : (fP !== null ? fP : 10);
+          const fPy = item.py !== undefined ? item.py : (fP !== null ? fP : 8);
           const fAlign = item.align || 'center';
           const fJustify = item.justify || 'center';
           // Clip defaults to false for nested frames
