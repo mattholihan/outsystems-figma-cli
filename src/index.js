@@ -4654,6 +4654,42 @@ function resolveTokenKey(rawName) {
   process.exit(1);
 }
 
+// Helper: Resolve the best matching text style key from styles.json
+// Matches by fontSize first, falls back to weight/style name matching
+// Returns { key, fontFamily, fontStyle } or null if no match / styles.json absent
+function resolveTextStyleKey(fontSize, weight) {
+  const stylesPath = join(process.cwd(), 'styles.json');
+  if (!existsSync(stylesPath)) return null;
+  try {
+    const data = JSON.parse(readFileSync(stylesPath, 'utf8'));
+    const textStyles = data.text || {};
+    if (Object.keys(textStyles).length === 0) return null;
+
+    // Match by fontSize first
+    let nameKey = Object.keys(textStyles).find(k => textStyles[k].fontSize === fontSize);
+
+    // Fallback: match by weight hint in style name
+    if (!nameKey && weight) {
+      const w = weight.toLowerCase();
+      nameKey = Object.keys(textStyles).find(k => k.toLowerCase().includes(w));
+    }
+
+    // Fallback: pick the style whose fontSize is closest
+    if (!nameKey) {
+      let bestDiff = Infinity;
+      for (const k of Object.keys(textStyles)) {
+        const diff = Math.abs((textStyles[k].fontSize || 0) - fontSize);
+        if (diff < bestDiff) { bestDiff = diff; nameKey = k; }
+      }
+    }
+
+    if (!nameKey) return null;
+    const s = textStyles[nameKey];
+    return { key: s.key, fontFamily: s.fontFamily, fontStyle: s.fontStyle || 'Regular' };
+  } catch {}
+  return null;
+}
+
 const bind = program
   .command('bind')
   .description('Bind variables to node properties');
@@ -5742,9 +5778,23 @@ program
           if (resolved?.key) varKeyMap[varName] = resolved.key;
         }
 
+        // Build textStyleMap for text style auto-binding
+        const textStyleMap = [];
+        const textRegex = /<Text\s+([^>]*)>/g;
+        let tMatch;
+        while ((tMatch = textRegex.exec(jsx)) !== null) {
+          const tPropsStr = tMatch[1];
+          const sizeMatch = tPropsStr.match(/size=\{(\d+)\}/);
+          const weightMatch = tPropsStr.match(/weight=["']([^"']+)["']/);
+          const size = sizeMatch ? parseInt(sizeMatch[1]) : 14;
+          const weight = weightMatch ? weightMatch[1] : 'regular';
+          const resolved = resolveTextStyleKey(size, weight);
+          if (resolved) textStyleMap.push({ size, weight, ...resolved });
+        }
+
         const { FigmaClient } = await import('./figma-client.js');
         const client = new FigmaClient();
-        let code = client.parseJSX(jsx, varKeyMap);
+        let code = client.parseJSX(jsx, varKeyMap, textStyleMap);
 
         // If --parent specified, wrap code to reparent rendered node into target frame
         if (options.parent) {
@@ -5797,10 +5847,24 @@ program
       // Extract props that need post-processing
       const postProcessFixes = extractPostProcessFixes(jsx);
 
+      // Build textStyleMap for text style auto-binding
+      const textStyleMap2 = [];
+      const textRegex2 = /<Text\s+([^>]*)>/g;
+      let tMatch2;
+      while ((tMatch2 = textRegex2.exec(jsx)) !== null) {
+        const tPropsStr = tMatch2[1];
+        const sizeMatch = tPropsStr.match(/size=\{(\d+)\}/);
+        const weightMatch = tPropsStr.match(/weight=["']([^"']+)["']/);
+        const size = sizeMatch ? parseInt(sizeMatch[1]) : 14;
+        const weight = weightMatch ? weightMatch[1] : 'regular';
+        const resolved = resolveTextStyleKey(size, weight);
+        if (resolved) textStyleMap2.push({ size, weight, ...resolved });
+      }
+
       // Parse JSX to Figma code using our own renderer (no var: keyMap needed)
       const { FigmaClient } = await import('./figma-client.js');
       const client = new FigmaClient();
-      let code = client.parseJSX(jsx, null);
+      let code = client.parseJSX(jsx, null, textStyleMap2);
 
       // If --parent specified, wrap code to reparent rendered node into target frame
       if (options.parent) {

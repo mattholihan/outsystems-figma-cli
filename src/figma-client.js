@@ -287,7 +287,7 @@ export class FigmaClient {
   /**
    * Parse JSX-like syntax to Figma Plugin API code
    */
-  parseJSX(jsx, keyMap = null) {
+  parseJSX(jsx, keyMap = null, textStyleMap = []) {
     // Find opening Frame tag
     const openMatch = jsx.match(/<Frame\s+([^>]*)>/);
     if (!openMatch) {
@@ -315,7 +315,7 @@ export class FigmaClient {
     }
 
     // Generate code
-    return this.generateCode(props, childElements, keyMap);
+    return this.generateCode(props, childElements, keyMap, textStyleMap);
   }
 
   /**
@@ -472,7 +472,7 @@ export class FigmaClient {
     return children;
   }
 
-  generateCode(props, children, keyMap = null) {
+  generateCode(props, children, keyMap = null, textStyleMap = []) {
     const name = props.name || 'Frame';
     const fillWidth = (props.w || props.width) === 'fill';
     const fillHeight = (props.h || props.height) === 'fill';
@@ -523,9 +523,15 @@ export class FigmaClient {
     const collectFontsAndVars = (items) => {
       items.forEach(item => {
         if (item._type === 'text') {
+          const size = Number(item.size) || 14;
           const weight = item.weight || 'regular';
-          const style = weight === 'bold' ? 'Bold' : weight === 'medium' ? 'Medium' : weight === 'semibold' ? 'Semi Bold' : 'Regular';
-          fonts.add(style);
+          const textStyle = textStyleMap.find(ts => ts.size === size);
+          if (textStyle) {
+            fonts.add(`${textStyle.fontFamily}::${textStyle.fontStyle}`);
+          } else {
+            const style = weight === 'bold' ? 'Bold' : weight === 'medium' ? 'Medium' : weight === 'semibold' ? 'Semi Bold' : 'Regular';
+            fonts.add(style);
+          }
           const color = item.color || '#000000';
           checkVarUsage(color);
         } else if (item._type === 'frame') {
@@ -543,7 +549,13 @@ export class FigmaClient {
     collectFontsAndVars(children);
 
     const fontLoads = Array.from(fonts)
-      .map(s => `figma.loadFontAsync({family:'Inter',style:'${s}'})`)
+      .map(s => {
+        if (s.includes('::')) {
+          const [family, style] = s.split('::');
+          return `figma.loadFontAsync({family:${JSON.stringify(family)},style:${JSON.stringify(style)}})`;
+        }
+        return `figma.loadFontAsync({family:'Inter',style:'${s}'})`;
+      })
       .join(',');
 
     // Generate child code recursively
@@ -554,19 +566,29 @@ export class FigmaClient {
         if (item._type === 'text') {
           const weight = item.weight || 'regular';
           const style = weight === 'bold' ? 'Bold' : weight === 'medium' ? 'Medium' : weight === 'semibold' ? 'Semi Bold' : 'Regular';
-          const size = item.size || 14;
+          const size = Number(item.size) || 14;
           const color = item.color || '#000000';
           const fillWidth = item.w === 'fill';
           const textFillCode = this.generateFillCode(color, `el${idx}`);
 
+          // Find matching text style from textStyleMap
+          const textStyle = textStyleMap.find(ts => ts.size === size);
+          const textStyleCode = textStyle ? `
+        try {
+          await figma.loadFontAsync({ family: ${JSON.stringify(textStyle.fontFamily)}, style: ${JSON.stringify(textStyle.fontStyle)} });
+          const __ts${idx} = await figma.importStyleByKeyAsync(${JSON.stringify(textStyle.key)});
+          if (__ts${idx}) await el${idx}.setTextStyleIdAsync(__ts${idx}.id);
+        } catch(e) {}` : '';
+
           return `
         const el${idx} = figma.createText();
-        el${idx}.fontName = {family:'Inter',style:'${style}'};
+        el${idx}.fontName = {family:'${textStyle ? textStyle.fontFamily : 'Inter'}',style:'${textStyle ? textStyle.fontStyle : style}'};
         el${idx}.fontSize = ${size};
         el${idx}.characters = ${JSON.stringify(item.content)};
         ${textFillCode.code}
         ${parentVar}.appendChild(el${idx});
-        ${fillWidth ? `el${idx}.layoutSizingHorizontal = 'FILL'; el${idx}.textAutoResize = 'HEIGHT';` : ''}`;
+        ${fillWidth ? `el${idx}.layoutSizingHorizontal = 'FILL'; el${idx}.textAutoResize = 'HEIGHT';` : ''}
+        ${textStyleCode}`;
         } else if (item._type === 'frame') {
           // Nested frame (button, etc.)
           const fName = item.name || 'Nested Frame';
