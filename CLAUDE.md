@@ -214,47 +214,6 @@ Background is bound to `--color-neutral-0` from the Foundations library variable
 
 ---
 
-## Slots
-
-Slots are Figma component properties (type: CHILDREN) that create flexible content
-areas within components. Use slots for card bodies, modal content, list items, and
-any area where child content varies between instances.
-
-### Commands
-```bash
-# Convert a frame inside a component to a slot
-os-figma slot create "COMP_ID" "FRAME_ID" "Content"
-os-figma slot create "COMP_ID" "FRAME_ID" "Actions" --description "Action buttons area"
-
-# List all slots on a component or instance
-os-figma slot list "COMP_ID"
-
-# Add content to a slot in an instance
-os-figma slot add "INSTANCE_ID" "SLOT_FRAME_ID" "CONTENT_NODE_ID"
-
-# Reset slot to default content from the main component
-os-figma slot reset "INSTANCE_ID" "SLOT_FRAME_ID"
-
-# Clear all content from a slot
-os-figma slot clear "INSTANCE_ID" "SLOT_FRAME_ID"
-```
-
-### Slot naming convention
-```
-{Component}/Content     — main content slot
-{Component}/Actions     — action buttons slot
-{Component}/Header      — header content slot
-{Component}/Footer      — footer content slot
-```
-
-### Workflow
-1. Create a component with frames designated as content areas
-2. Convert content frames to slots: `os-figma slot create ...`
-3. Create instances of the component
-4. Add different content to each instance's slot: `os-figma slot add ...`
-
----
-
 ## Design Tokens
 
 CSS custom properties used as design tokens. Always use these variable names
@@ -348,23 +307,10 @@ Run `os-figma tokens status` to check if tokens are in sync.
 --space-xxl
 ```
 
-### Fast Variable Binding (var: syntax)
-Use `var:name` syntax to bind tokens directly at creation time:
+### Fast Variable Binding
 
-```bash
-os-figma create rect "Card" --fill "var:--color-neutral-0" --stroke "var:--color-neutral-4"
-os-figma create frame "Section" --fill "var:--color-primary"
-os-figma create text "Label" -c "var:--color-neutral-10"
-```
-
-```jsx
-<Frame bg="var:--color-neutral-0" stroke="var:--color-neutral-4" rounded={8} p={24}>
-  <Text color="var:--color-neutral-10" size={16}>Card content</Text>
-  <Frame bg="var:--color-primary" px={16} py={8} rounded={4}>
-    <Text color="var:--color-neutral-0">Button</Text>
-  </Frame>
-</Frame>
-```
+Use `var:--token-name` syntax in JSX and `--token-name` with `bind` commands
+to bind tokens at creation time. See Render Best Practices and JSX Syntax sections.
 
 ---
 
@@ -549,6 +495,8 @@ Use `os-figma render --parent <screenId>` to place structural elements
 (nav bars, hero images, cards, dividers, stat counters, etc.) inside the
 screen frame. Each `render` call places one element as a direct child.
 
+Always use `--parent` — see Render Best Practices rule 1.
+
 ```bash
 os-figma render --parent "<screenId>" "<Frame name='Navigation/TopBar' w='fill' h={56} flex='row' items='center' px={16} bg='var:--color-neutral-1' stroke='var:--color-neutral-4' strokeWidth={1}><Text size={12} color='var:--color-neutral-6'>Navigation/TopBar</Text></Frame>"
 ```
@@ -651,40 +599,7 @@ This creates a discrete undo checkpoint so the user can undo screen creation as 
 
 ### --parent rules
 
-- Always use `--parent <screenId>` for both `render` and `pattern add`
-- `--parent` places the node as a direct child of the target frame
-- Children are ordered by insertion sequence in auto-layout frames
-- Never place components at canvas root — there is no reparent command
-
-**Every `render` call that should live inside the screen must use `--parent <screenId>`.**
-This includes spacer frames (`grow={1}` spacers for pushing content to edges),
-dividers, and any structural wrapper frames. Without `--parent`, frames land
-at canvas root and are invisible to the screen's layout engine.
-
-Example — correct spacer usage:
-```bash
-os-figma render --parent "<screenId>" '<Frame name="Spacer/Top" w="fill" grow={1} bg="var:--color-neutral-0" />'
-```
-
-### Sizing components after placement
-
-`pattern add --parent` places components at their intrinsic width. After
-placing any component that should fill the screen width, immediately apply:
-
-```bash
-os-figma set sizing fill fixed -n "<componentId>"
-```
-
-Use `fill fixed` for all full-width components: Input, Button, Search,
-Dropdown, Date Picker, Alert, Accordion.
-
-Do not use `set sizing` on placeholder frames rendered via `render --parent`
-— use `w={326}` (mobile content width) or `w={1280}` (web content width)
-as fixed values instead, since `w='fill'` is unreliable on root-level
-render frames.
-
-**Mobile content width:** 390 − (32 + 32 padding) = **326px**
-**Web content width:** 1440 − (80 + 80 padding) = **1280px**
+Always use `--parent <screenId>` for both `render` and `pattern add` — see Render Best Practices rule 1.
 
 ---
 
@@ -812,37 +727,21 @@ or wrap it in a fill-width container with `flex='row' justify='center'`.
 Two columns: left = Brand/Illustration placeholder (~50% width),
 right = centred form (logo, inputs, buttons, max-width ~400px)
 
-**List** (mobile)
-Navigation/TopBar → Search → repeated Card/Item → Navigation/BottomBar
+**List** (mobile): TopBar → Search → repeated Card/Item → BottomBar
 
-**List** (web)
-Navigation/TopBar → page header row (title + Button "Add" + Button "Filter" + Search) →
-Table/Default → Pagination/Default
+**List** (web): TopBar → header row (title + actions + Search) → Table → Pagination
 
-**Form** (mobile)
-Navigation/TopBar → Input fields → Dropdown → Date Picker → Checkbox →
-Button (primary, "Save")
+**Form** (mobile): TopBar → Input fields → Dropdown → Date Picker → Checkbox → Button (Save)
 
-**Form** (web)
-Navigation/TopBar → two-column form (labels left, inputs right) →
-footer row (Button "Save" + Button "Cancel", right-aligned)
+**Form** (web): TopBar → two-column form (labels left, inputs right) → footer row (Save + Cancel, right-aligned)
 
-**Detail** (mobile)
-Navigation/TopBar → Media/Hero → title + Tag → body text →
-Divider → repeated key/value rows → Button (primary action)
+**Detail** (mobile): TopBar → Media/Hero → title + Tag → body → Divider → key/value rows → Button
 
-**Detail** (web)
-Navigation/TopBar → two columns: left = content (hero, title, body, details),
-right = Card/Action (buttons, Tag, metadata)
+**Detail** (web): TopBar → two columns: content left, Card/Action right
 
-**Dashboard** (mobile)
-Navigation/TopBar → row of Counter/Default × 2 → section heading →
-repeated Card/Item → Navigation/BottomBar
+**Dashboard** (mobile): TopBar → Counter × 2 → section heading → Card/Item list → BottomBar
 
-**Dashboard** (web)
-Navigation/TopBar → Navigation/Sidebar (left, 240px) → main content:
-row of Counter/Default × 4 → two columns: Chart/Default (left ~60%) +
-repeated Card/Item (right ~40%)
+**Dashboard** (web): TopBar → Sidebar (240px) → Counter × 4 → Chart (60%) + Card/Item list (40%)
 
 ---
 
@@ -879,20 +778,7 @@ Spacer frames are auto-layout helpers — use them sparingly and only when
 - Do not use spacers to add top/bottom breathing room — use `padding` on the
   parent frame instead
 
-**Critical: always use `--parent` with spacers**
-Every `render` call inside a screen must include `--parent <screenId>`,
-including spacers. Without `--parent`, frames land at canvas root and are
-invisible to the screen's layout engine — the spacing has no effect.
-
-Correct:
-```bash
-os-figma render --parent "<screenId>" '<Frame name="Spacer/Bottom" w="fill" grow={1} />'
-```
-
-Wrong (lands at canvas root):
-```bash
-os-figma render '<Frame name="Spacer/Bottom" w="fill" grow={1} />'
-```
+Always use `--parent` with spacers — see Render Best Practices rule 1.
 
 ---
 
@@ -915,64 +801,6 @@ os-figma render '<Frame name="Spacer/Bottom" w="fill" grow={1} />'
   placement time, or follow with `os-figma set sizing fill fixed -n "<id>"`
 - `os-figma find` returns all matching nodes — use `--last` to get the most
   recently added match: `os-figma find "Button" --type INSTANCE --last`
-
----
-
-## UI Patterns
-
-When a user asks to create a UI pattern, use these exact names.
-Each pattern should be built as a component using token variables.
-
-- Accordion
-- Alert
-- Button
-- Checkbox
-- Chip
-- Date Picker
-- Dropdown
-- Input
-- Radio Button
-- Search
-- Tags
-
----
-
-## Connection Modes
-
-### Yolo Mode (Recommended)
-Patches Figma once, then connects directly. Fully automatic.
-```bash
-os-figma connect
-```
-
-### Safe Mode
-Uses plugin, no Figma modification. Start plugin each session.
-```bash
-os-figma connect --safe
-```
-Then: Plugins → Development → FigCli
-
----
-
-## Creating Components
-
-When user asks to "create cards", "design buttons", or any UI pattern:
-
-1. **Each component = separate frame** (NOT inside parent gallery)
-2. **Convert to component** after creation
-3. **Use token variables** for all colors, spacing, and radius — variable names come from `tokens.json`
-4. **Follow layer naming convention** (`{Component}/{Variant}/{State}`)
-
-```bash
-# Step 1: Create
-os-figma render-batch '[...]'
-
-# Step 2: Convert to component
-os-figma node to-component "ID1" "ID2"
-
-# Step 3: Bind variables
-os-figma bind fill "--color-primary" -n "ID1"
-```
 
 ---
 
@@ -1232,9 +1060,7 @@ fontSize={16}        →  size={16}
 fontWeight="bold"    →  weight="bold"
 ```
 
-**6. Spacer frames without `--parent` land at canvas root:**
-Always specify `--parent <screenId>` for every render call during screen
-composition — including spacers, dividers, and wrapper frames.
+**6. Spacer frames without `--parent` land at canvas root:** Always use `--parent` — see Render Best Practices rule 1.
 
 **7. Prefer `gap` and `padding` over spacer frames:**
 Do not use spacers for uniform spacing between elements — use `gap` on
@@ -1251,31 +1077,3 @@ room — use `padding` on the parent frame instead.
 4. **Never use `eval` to create** — no positioning, overlaps at (0,0)
 5. **For multiple frames:** Use `render-batch`
 6. **Convert to components:** `node to-component` after creation
-
----
-
-## Onboarding ("Initiate Project")
-
-**Never show terminal commands to users.** Run silently, give friendly feedback.
-
-1. Run `os-figma init` — guides through connection, token sync, and library scan
-2. When complete, say: "Connected! What screen or component would you like to design?"
-
-`os-figma init` generates a `CLAUDE.md` in the project directory that points
-Claude Code to this file. Always launch Claude Code from the project directory,
-not the CLI directory.
-
-If permission error (macOS): System Settings → Privacy → Full Disk Access → Add Terminal
-
----
-
-## Speed Daemon
-
-The daemon runs on `localhost:3456` and makes commands significantly faster.
-It starts automatically when you run `os-figma connect` and restarts silently
-if it times out — no manual reconnection needed.
-
-```bash
-os-figma daemon status
-os-figma daemon restart
-```
