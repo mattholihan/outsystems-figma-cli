@@ -349,13 +349,13 @@ export class FigmaClient {
   parseProps(propsStr) {
     const props = {};
 
-    // Match name="value" or name={value}
-    const regex = /(\w+)=(?:"([^"]*)"|{([^}]*)})/g;
+    // Match name="value", name='value', or name={value}
+    const regex = /(\w+)=(?:"([^"]*)"|'([^']*)'|{([^}]*)})/g;
     let match;
 
     while ((match = regex.exec(propsStr)) !== null) {
       const key = match[1];
-      const value = match[2] !== undefined ? match[2] : match[3];
+      const value = match[2] !== undefined ? match[2] : match[3] !== undefined ? match[3] : match[4];
       props[key] = value;
     }
 

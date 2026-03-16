@@ -2613,7 +2613,7 @@ for (const col of collections) {
     const tokenName = parts.pop();
     const groupName = parts.length ? parts.join('/') : 'Default';
     if (!result[col.name][groupName]) result[col.name][groupName] = {};
-    result[col.name][groupName][tokenName] = { type: v.resolvedType, value };
+    result[col.name][groupName][tokenName] = { type: v.resolvedType, value, key: v.key };
   }
 }
 return result;
@@ -7561,7 +7561,7 @@ for (const col of collections) {
     const tokenName = parts.pop();
     const groupName = parts.length ? parts.join('/') : 'Default';
     if (!result[col.name][groupName]) result[col.name][groupName] = {};
-    result[col.name][groupName][tokenName] = { type: v.resolvedType, value };
+    result[col.name][groupName][tokenName] = { type: v.resolvedType, value, key: v.key };
   }
 }
 return result;
