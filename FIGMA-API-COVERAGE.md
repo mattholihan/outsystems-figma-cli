@@ -22,9 +22,9 @@ Tracks which Figma Plugin API calls are used by this CLI.
 | [x] | `figma.createNodeFromSvg()` | Used for SVG import |
 | [x] | `figma.createImage()` | Used for image creation |
 | [x] | `figma.createImageAsync()` | Used for async image creation |
-| [x] | `figma.createConnector()` | Used for FigJam connector creation |
-| [x] | `figma.createShapeWithText()` | Used for FigJam shape nodes |
-| [x] | `figma.createSticky()` | Used for FigJam sticky notes |
+| [ ] | `figma.createConnector()` | FigJam connector creation |
+| [ ] | `figma.createShapeWithText()` | FigJam shape nodes |
+| [ ] | `figma.createSticky()` | FigJam sticky notes |
 | [ ] | `figma.createVector()` | Vector node creation |
 | [ ] | `figma.createPolygon()` | Polygon node creation |
 | [ ] | `figma.createStar()` | Star node creation |
@@ -84,12 +84,12 @@ Tracks which Figma Plugin API calls are used by this CLI.
 | [x] | `.width` | Node width |
 | [x] | `.height` | Node height |
 | [x] | `.constraints` | Resize constraints |
-| [ ] | `.opacity` | Node opacity |
+| [x] | `.opacity` | Node opacity |
 | [ ] | `.blendMode` | Blend mode |
 | [ ] | `.isMask` | Mask state |
 | [ ] | `.exportSettings` | Export settings |
 | [ ] | `.reactions` | Prototype reactions |
-| [ ] | `.name` | Node name (read/write) |
+| [x] | `.name` | Node name (read/write) |
 
 ---
 
@@ -231,7 +231,7 @@ Tracks which Figma Plugin API calls are used by this CLI.
 
 | Status | API | Notes |
 |--------|-----|-------|
-| [x] | `figma.editorType` | Detect Figma vs FigJam |
+| [ ] | `figma.editorType` | Detect Figma vs FigJam |
 | [x] | `figma.fileKey` | Current file key |
 | [ ] | `figma.currentUser` | Current user info |
 | [ ] | `figma.activeUsers` | Active collaborators |
