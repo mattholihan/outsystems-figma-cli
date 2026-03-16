@@ -287,7 +287,7 @@ export class FigmaClient {
   /**
    * Parse JSX-like syntax to Figma Plugin API code
    */
-  parseJSX(jsx, keyMap = null, textStyleMap = []) {
+  parseJSX(jsx, keyMap = null, textStyleMap = [], spacingKeyMap = {}) {
     // Find opening Frame tag
     const openMatch = jsx.match(/<Frame\s+([^>]*)>/);
     if (!openMatch) {
@@ -315,7 +315,7 @@ export class FigmaClient {
     }
 
     // Generate code
-    return this.generateCode(props, childElements, keyMap, textStyleMap);
+    return this.generateCode(props, childElements, keyMap, textStyleMap, spacingKeyMap);
   }
 
   /**
@@ -472,7 +472,7 @@ export class FigmaClient {
     return children;
   }
 
-  generateCode(props, children, keyMap = null, textStyleMap = []) {
+  generateCode(props, children, keyMap = null, textStyleMap = [], spacingKeyMap = {}) {
     const name = props.name || 'Frame';
     const fillWidth = (props.w || props.width) === 'fill';
     const fillHeight = (props.h || props.height) === 'fill';
@@ -558,6 +558,21 @@ export class FigmaClient {
       })
       .join(',');
 
+    // Helper: generate spacing bind code for a given value and Figma property
+    const spacingBindCode = (val, figmaProp, nodeVar) => {
+      const token = spacingKeyMap[String(val)];
+      if (token) {
+        const safeId = figmaProp.replace(/[^a-z]/gi, '');
+        return `
+  try {
+    const __sv_${safeId} = await figma.variables.importVariableByKeyAsync(${JSON.stringify(token.key)});
+    if (__sv_${safeId}) ${nodeVar}.setBoundVariable('${figmaProp}', __sv_${safeId});
+    else ${nodeVar}.${figmaProp} = ${val};
+  } catch(e) { ${nodeVar}.${figmaProp} = ${val}; }`;
+      }
+      return `${nodeVar}.${figmaProp} = ${val};`;
+    };
+
     // Generate child code recursively
     let childCounter = 0;
     const generateChildCode = (items, parentVar) => {
@@ -641,11 +656,11 @@ export class FigmaClient {
         el${idx}.primaryAxisSizingMode = '${fFlex === 'row' ? (hasWidth && !fillWidth ? 'FIXED' : 'AUTO') : (hasHeight && !fillHeight ? 'FIXED' : 'AUTO')}';
         el${idx}.counterAxisSizingMode = '${fFlex === 'row' ? (hasHeight && !fillHeight ? 'FIXED' : 'AUTO') : (hasWidth && !fillWidth ? 'FIXED' : 'AUTO')}';
         ${(hasWidth && !fillWidth) || (hasHeight && !fillHeight) ? `el${idx}.resize(${hasWidth && !fillWidth ? fWidth : 100}, ${hasHeight && !fillHeight ? fHeight : 40});` : ''}
-        el${idx}.itemSpacing = ${fGap};
-        el${idx}.paddingTop = ${fPy};
-        el${idx}.paddingBottom = ${fPy};
-        el${idx}.paddingLeft = ${fPx};
-        el${idx}.paddingRight = ${fPx};
+        ${spacingBindCode(fGap, 'itemSpacing', `el${idx}`)}
+        ${spacingBindCode(fPy, 'paddingTop', `el${idx}`)}
+        ${spacingBindCode(fPy, 'paddingBottom', `el${idx}`)}
+        ${spacingBindCode(fPx, 'paddingLeft', `el${idx}`)}
+        ${spacingBindCode(fPx, 'paddingRight', `el${idx}`)}
         el${idx}.cornerRadius = ${fRounded};
         ${frameFillCode.code}
         ${frameStrokeCode.code}
@@ -808,11 +823,11 @@ export class FigmaClient {
         ${rootStrokeCode.code}
         frame.layoutMode = '${flex === 'row' ? 'HORIZONTAL' : 'VERTICAL'}';
         ${wrap && flex === 'row' ? `frame.layoutWrap = 'WRAP';` : ''}
-        frame.itemSpacing = ${gap};
-        frame.paddingTop = ${py};
-        frame.paddingBottom = ${py};
-        frame.paddingLeft = ${px};
-        frame.paddingRight = ${px};
+        ${spacingBindCode(gap, 'itemSpacing', 'frame')}
+        ${spacingBindCode(py, 'paddingTop', 'frame')}
+        ${spacingBindCode(py, 'paddingBottom', 'frame')}
+        ${spacingBindCode(px, 'paddingLeft', 'frame')}
+        ${spacingBindCode(px, 'paddingRight', 'frame')}
         frame.primaryAxisAlignItems = '${justifyVal}';
         frame.counterAxisAlignItems = '${alignVal}';
         frame.primaryAxisSizingMode = '${flex === 'row' ? (hugWidth ? 'AUTO' : 'FIXED') : (hugHeight ? 'AUTO' : 'FIXED')}';

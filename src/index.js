@@ -4690,6 +4690,28 @@ function resolveTextStyleKey(fontSize, weight) {
   return null;
 }
 
+// Helper: Resolve a spacing token { name, key } from tokens.json by exact value match
+// Only matches FLOAT type tokens (spacing scale)
+// Returns { name, key } or null if no exact match
+function resolveSpacingTokenKey(value) {
+  const tokensPath = join(process.cwd(), 'tokens.json');
+  if (!existsSync(tokensPath)) return null;
+  try {
+    const data = JSON.parse(readFileSync(tokensPath, 'utf8'));
+    const num = Number(value);
+    for (const groups of Object.values(data.collections || {})) {
+      for (const entries of Object.values(groups)) {
+        for (const [tokenName, entry] of Object.entries(entries)) {
+          if (entry && typeof entry === 'object' && entry.type === 'FLOAT' && Number(entry.value) === num && entry.key) {
+            return { name: tokenName, key: entry.key };
+          }
+        }
+      }
+    }
+  } catch {}
+  return null;
+}
+
 const bind = program
   .command('bind')
   .description('Bind variables to node properties');
@@ -5073,16 +5095,40 @@ program
     const nodeResolution = options.node
       ? `const _targetNode = figma.getNodeById('${options.node}'); if (!_targetNode) throw new Error('Node not found: ${options.node}'); const _targetNodes = [_targetNode];`
       : `const _targetNodes = Array.from(figma.currentPage.selection); if (_targetNodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
-    let code = `{
+    // Resolve spacing tokens for each side
+    const tTop = resolveSpacingTokenKey(top);
+    const tRight = resolveSpacingTokenKey(right);
+    const tBottom = resolveSpacingTokenKey(bottom);
+    const tLeft = resolveSpacingTokenKey(left);
+
+    // Warn for any unmatched values
+    const unmatched = [
+      !tTop && Number(top) > 0 && top,
+      !tRight && Number(right) > 0 && right,
+      !tBottom && Number(bottom) > 0 && bottom,
+      !tLeft && Number(left) > 0 && left
+    ].filter(Boolean);
+    if (unmatched.length > 0) {
+      console.log(chalk.yellow(`  ⚠ No spacing token for value(s): ${[...new Set(unmatched)].join(', ')} — applying raw number`));
+    }
+
+    const bindSide = (token, rawVal, prop) => token
+      ? `const __v_${prop} = await figma.variables.importVariableByKeyAsync(${JSON.stringify(token.key)});
+         if (__v_${prop}) n.setBoundVariable('${prop}', __v_${prop}); else n.${prop} = ${rawVal};`
+      : `n.${prop} = ${rawVal};`;
+
+    let code = `(async () => {
 ${nodeResolution}
-_targetNodes.forEach(n => {
+for (const n of _targetNodes) {
   if ('paddingTop' in n) {
-    n.paddingTop = ${top}; n.paddingRight = ${right};
-    n.paddingBottom = ${bottom}; n.paddingLeft = ${left};
+    ${bindSide(tTop, top, 'paddingTop')}
+    ${bindSide(tRight, right, 'paddingRight')}
+    ${bindSide(tBottom, bottom, 'paddingBottom')}
+    ${bindSide(tLeft, left, 'paddingLeft')}
   }
-});
-'Set padding on ' + _targetNodes.length + ' elements';
-}`;
+}
+return 'Set padding on ' + _targetNodes.length + ' elements';
+})()`;
     try {
       const result = await daemonExec('eval', { code });
       console.log(chalk.green('✓ ' + (result || 'Padding applied')));
@@ -5100,11 +5146,23 @@ program
     const nodeResolution = options.node
       ? `const _targetNode = figma.getNodeById('${options.node}'); if (!_targetNode) throw new Error('Node not found: ${options.node}'); const _targetNodes = [_targetNode];`
       : `const _targetNodes = Array.from(figma.currentPage.selection); if (_targetNodes.length === 0) throw new Error('No node targeted. Use -n <nodeId> or select a node in Figma.');`;
-    let code = `{
+    const tGap = resolveSpacingTokenKey(value);
+    if (!tGap && Number(value) > 0) {
+      console.log(chalk.yellow(`  ⚠ No spacing token for value ${value} — applying raw number`));
+    }
+
+    let code = `(async () => {
 ${nodeResolution}
-_targetNodes.forEach(n => { if ('itemSpacing' in n) n.itemSpacing = ${value}; });
-'Set gap ${value} on ' + _targetNodes.length + ' elements';
-}`;
+${tGap ? `const __vGap = await figma.variables.importVariableByKeyAsync(${JSON.stringify(tGap.key)});` : ''}
+for (const n of _targetNodes) {
+  if ('itemSpacing' in n) {
+    ${tGap
+      ? `if (__vGap) n.setBoundVariable('itemSpacing', __vGap); else n.itemSpacing = ${value};`
+      : `n.itemSpacing = ${value};`}
+  }
+}
+return 'Set gap on ' + _targetNodes.length + ' elements';
+})()`;
     try {
       const result = await daemonExec('eval', { code });
       console.log(chalk.green('✓ ' + (result || 'Gap applied')));
@@ -5792,9 +5850,20 @@ program
           if (resolved) textStyleMap.push({ size, weight, ...resolved });
         }
 
+        // Build spacingKeyMap — resolve token keys for all numeric spacing values in JSX
+        const spacingKeyMap = {};
+        const spacingProps = ['p', 'px', 'py', 'gap'];
+        for (const prop of spacingProps) {
+          const match = jsx.match(new RegExp(`${prop}=\\{(\\d+)\\}`));
+          if (match) {
+            const resolved = resolveSpacingTokenKey(Number(match[1]));
+            if (resolved) spacingKeyMap[match[1]] = resolved;
+          }
+        }
+
         const { FigmaClient } = await import('./figma-client.js');
         const client = new FigmaClient();
-        let code = client.parseJSX(jsx, varKeyMap, textStyleMap);
+        let code = client.parseJSX(jsx, varKeyMap, textStyleMap, spacingKeyMap);
 
         // If --parent specified, wrap code to reparent rendered node into target frame
         if (options.parent) {
@@ -5861,10 +5930,21 @@ program
         if (resolved) textStyleMap2.push({ size, weight, ...resolved });
       }
 
+      // Build spacingKeyMap for non-var: path too
+      const spacingKeyMap2 = {};
+      const spacingProps2 = ['p', 'px', 'py', 'gap'];
+      for (const prop of spacingProps2) {
+        const match = jsx.match(new RegExp(`${prop}=\\{(\\d+)\\}`));
+        if (match) {
+          const resolved = resolveSpacingTokenKey(Number(match[1]));
+          if (resolved) spacingKeyMap2[match[1]] = resolved;
+        }
+      }
+
       // Parse JSX to Figma code using our own renderer (no var: keyMap needed)
       const { FigmaClient } = await import('./figma-client.js');
       const client = new FigmaClient();
-      let code = client.parseJSX(jsx, null, textStyleMap2);
+      let code = client.parseJSX(jsx, null, textStyleMap2, spacingKeyMap2);
 
       // If --parent specified, wrap code to reparent rendered node into target frame
       if (options.parent) {
@@ -6669,6 +6749,23 @@ node
       };
     }
 
+    // Collect layout/spacing data with bound variable checks
+    if (n.layoutMode && n.layoutMode !== 'NONE') {
+      const bv = n.boundVariables || {};
+      result.spacing = {
+        gap: n.itemSpacing || 0,
+        gapBound: !!(bv.itemSpacing),
+        paddingTop: n.paddingTop || 0,
+        paddingTopBound: !!(bv.paddingTop),
+        paddingRight: n.paddingRight || 0,
+        paddingRightBound: !!(bv.paddingRight),
+        paddingBottom: n.paddingBottom || 0,
+        paddingBottomBound: !!(bv.paddingBottom),
+        paddingLeft: n.paddingLeft || 0,
+        paddingLeftBound: !!(bv.paddingLeft),
+      };
+    }
+
     result.children = ('children' in n)
       ? n.children.map(c => recurse ? inspectNode(c, true) : { id: c.id, name: c.name, type: c.type, geometry: { x: c.x, y: c.y, w: c.width, h: c.height !== undefined ? c.height : null } })
       : [];
@@ -6685,6 +6782,15 @@ node
     }
     if (result.effects.length > 0 && !result.effectStyleId) {
       warnings.push({ property: 'effectStyleId' });
+    }
+    // Spacing warnings — unbound non-zero spacing values
+    if (result.spacing) {
+      var sp = result.spacing;
+      if (sp.gap > 0 && !sp.gapBound) warnings.push({ property: 'gap', value: sp.gap, figmaProp: 'itemSpacing' });
+      if (sp.paddingTop > 0 && !sp.paddingTopBound) warnings.push({ property: 'paddingTop', value: sp.paddingTop, figmaProp: 'paddingTop' });
+      if (sp.paddingRight > 0 && !sp.paddingRightBound) warnings.push({ property: 'paddingRight', value: sp.paddingRight, figmaProp: 'paddingRight' });
+      if (sp.paddingBottom > 0 && !sp.paddingBottomBound) warnings.push({ property: 'paddingBottom', value: sp.paddingBottom, figmaProp: 'paddingBottom' });
+      if (sp.paddingLeft > 0 && !sp.paddingLeftBound) warnings.push({ property: 'paddingLeft', value: sp.paddingLeft, figmaProp: 'paddingLeft' });
     }
     result.warnings = warnings;
     return result;
@@ -6774,6 +6880,17 @@ node
         return { type: 'unresolved', nodeId: nodeData.id, nodeName: nodeData.name, prop, reason: `no text style match for ${warning.fontSize ? warning.fontSize + 'px' : 'unknown size'}` };
       }
 
+      if (prop === 'gap' || prop.startsWith('padding')) {
+        const token = resolveSpacingTokenKey(warning.value);
+        if (token) {
+          return { type: 'bind-spacing', nodeId: nodeData.id, nodeName: nodeData.name,
+                   prop, figmaProp: warning.figmaProp, value: warning.value,
+                   tokenName: token.name, tokenKey: token.key };
+        }
+        return { type: 'unresolved', nodeId: nodeData.id, nodeName: nodeData.name,
+                 prop, reason: `no spacing token for value ${warning.value}` };
+      }
+
       return { type: 'unresolved', nodeId: nodeData.id, nodeName: nodeData.name, prop, reason: 'unknown warning type' };
     }
 
@@ -6803,6 +6920,8 @@ node
         console.log(`  ${chalk.green('✓')} ${label} effectStyleId → ${chalk.cyan(fix.styleName)}`);
       } else if (fix.type === 'bind-text-style') {
         console.log(`  ${chalk.green('✓')} ${label} textStyleId → ${chalk.cyan(fix.styleName)}`);
+      } else if (fix.type === 'bind-spacing') {
+        console.log(`  ${chalk.green('✓')} ${label} ${fix.prop} — ${fix.value} → ${chalk.cyan(fix.tokenName)}`);
       }
     }
 
@@ -6885,6 +7004,15 @@ await figma.loadFontAsync({ family: style.fontName.family, style: style.fontName
 await node.setTextStyleIdAsync(style.id);
 return JSON.stringify({ ok: true });
 })()`;
+      } else if (fix.type === 'bind-spacing') {
+        code = `(async () => {
+const node = await figma.getNodeByIdAsync(${JSON.stringify(fix.nodeId)});
+if (!node) throw new Error('Node not found: ${fix.nodeId}');
+const v = await figma.variables.importVariableByKeyAsync(${JSON.stringify(fix.tokenKey)});
+if (!v) throw new Error('Could not import spacing variable ${fix.tokenName}');
+node.setBoundVariable('${fix.figmaProp}', v);
+return JSON.stringify({ ok: true });
+})()`;
       }
 
       try {
@@ -6898,6 +7026,8 @@ return JSON.stringify({ ok: true });
           console.log(`  ${chalk.green('✓')} effectStyleId on "${fix.nodeName}" → ${fix.styleName}`);
         } else if (fix.type === 'bind-text-style') {
           console.log(`  ${chalk.green('✓')} textStyleId on "${fix.nodeName}" → ${fix.styleName}`);
+        } else if (fix.type === 'bind-spacing') {
+          console.log(`  ${chalk.green('✓')} ${fix.prop} on "${fix.nodeName}" → ${fix.tokenName}`);
         }
       } catch (err) {
         failed++;
