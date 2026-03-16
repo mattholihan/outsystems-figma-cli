@@ -5578,6 +5578,7 @@ program
   .description('Find nodes by name (partial match)')
   .option('-t, --type <type>', 'Filter by type (FRAME, TEXT, RECTANGLE, etc.)')
   .option('-l, --limit <n>', 'Limit results', '20')
+  .option('--last', 'Return only the last (most recently added) match')
   .action((name, options) => {
     checkConnection();
     let code = `(function() {
@@ -5587,12 +5588,16 @@ function search(node) {
     ${options.type ? `if (node.type === '${options.type.toUpperCase()}')` : ''}
     results.push({ id: node.id, name: node.name, type: node.type });
   }
-  if (node.children && results.length < ${options.limit}) {
+  if (node.children) {
     node.children.forEach(search);
   }
 }
 search(figma.currentPage);
-return results.length === 0 ? 'No nodes found matching "${name}"' : results.slice(0, ${options.limit}).map(r => r.id + ' [' + r.type + '] ' + r.name).join('\\n');
+if (results.length === 0) return 'No nodes found matching "${name}"';
+${options.last
+  ? `var match = results[results.length - 1]; return match.id + ' [' + match.type + '] ' + match.name;`
+  : `return results.slice(0, ${options.limit}).map(r => r.id + ' [' + r.type + '] ' + r.name).join('\\n');`
+}
 })()`;
     figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
