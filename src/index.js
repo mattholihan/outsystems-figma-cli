@@ -5604,7 +5604,11 @@ search(figma.currentPage);
 if (results.length === 0) return 'No nodes found matching "${name}"';
 ${options.last
   ? `var match = results[results.length - 1]; return match.id + ' [' + match.type + '] ' + match.name;`
-  : `return results.slice(0, ${options.limit}).map(r => r.id + ' [' + r.type + '] ' + r.name).join('\\n');`
+  : `
+var lines = results.slice(0, ${options.limit}).map(r => r.id + ' [' + r.type + '] ' + r.name);
+if (results.length > 1) lines.push('⚠ ' + results.length + ' matches — use --last for most recently added, or target by node ID directly');
+return lines.join('\\n');
+`
 }
 })()`;
     figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
@@ -5837,6 +5841,13 @@ program
 
       if (!options.parent && options.x === undefined && options.smartPosition !== false) {
         posX = getNextFreeX();
+      }
+
+      // Detect w="fill" or w='fill' on the root frame — silent failure at render time
+      const rootFillWidth = /^<Frame\b[^>]*\bw=["']fill["']/.test(jsx.trim());
+      if (rootFillWidth) {
+        console.log(chalk.yellow(`  ⚠ w="fill" on root frame is not supported — use an explicit pixel width instead.`));
+        console.log(chalk.gray(`    Mobile content width: w={326}   Full mobile: w={390}   Web: w={1280} or w={1440}`));
       }
 
       // Check if JSX uses variable syntax (var:name) - use our own renderer
