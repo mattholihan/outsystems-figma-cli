@@ -10,14 +10,6 @@
 └──────────────────────┘      (random port)         └─────────────────┘
 ```
 
-**Safe Mode (Plugin):**
-```
-┌──────────────────────┐      WebSocket      ┌─────────────┐    Plugin API    ┌─────────────┐
-│ outsystems-figma-cli │ ◄─────────────────► │   Daemon    │ ◄─────────────► │   Plugin    │
-│       (CLI)          │    localhost:3456   └─────────────┘                  └─────────────┘
-└──────────────────────┘
-```
-
 ### Technology Stack
 
 1. **Chrome DevTools Protocol (CDP)**: Figma Desktop is an Electron app with a Chromium runtime. We connect via CDP on a random port in the 9222–9322 range (Yolo Mode).
@@ -29,9 +21,8 @@
 ### Connection Flow
 
 1. User runs `os-figma connect`
-2. **Yolo Mode**: CLI patches Figma to enable remote debugging, Figma restarts, CLI connects via WebSocket to the CDP port
-3. **Safe Mode**: User starts the FigCli plugin manually; daemon connects via Plugin API over WebSocket on `localhost:3456`
-4. Commands are executed as JavaScript in Figma's context
+2. CLI patches Figma to enable remote debugging, Figma restarts, CLI connects via WebSocket to the CDP port
+3. Commands are executed as JavaScript in Figma's context
 
 ### Key Files
 
@@ -51,7 +42,6 @@ outsystems-figma-cli/          ← Global CLI tool (installed via npm install -g
 └── docs/
     ├── COMMANDS.md            # Full command reference
     ├── TECHNIQUES.md          # Advanced patterns
-    ├── FIGJAM.md              # FigJam support
     └── CLAUDE-SESSION.md      # Session quick reference
 
 project-directory/             ← Per-project files (one per client/project)

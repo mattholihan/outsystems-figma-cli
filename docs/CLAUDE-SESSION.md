@@ -175,27 +175,6 @@ ids.forEach(id => {
 "
 ```
 
-## FigJam Commands
-```bash
-# List pages
-os-figma fj list
-
-# Create sticky
-os-figma fj sticky "Text" -x 100 -y 100
-
-# Create shape
-os-figma fj shape "Label" -x 200 -y 100
-
-# Connect nodes
-os-figma fj connect "2:30" "2:34"
-
-# List elements
-os-figma fj nodes
-
-# Execute JS
-os-figma fj eval "figma.currentPage.children.length"
-```
-
 ## Session Hygiene
 
 - Run `node scripts/audit-coverage.js` at the start and end of every development session

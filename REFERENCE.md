@@ -8,7 +8,6 @@ Full command reference. For quick start, see CLAUDE.md.
 os-figma init                            # Interactive setup: connect, sync tokens,
                                          # scan icons and components in one flow
 os-figma connect                         # Connect (Yolo Mode)
-os-figma connect --safe                  # Connect (Safe Mode, plugin)
 os-figma daemon status                   # Check daemon status
 os-figma daemon restart                  # Restart daemon
 os-figma files                           # List open Figma files (JSON)
@@ -370,25 +369,10 @@ os-figma screenshot-url "https://example.com"
 os-figma remove-bg                       # Remove background (needs API key)
 ```
 
-## FigJam
-
-```bash
-os-figma fj list                         # List pages
-os-figma fj sticky "Text" -x 100 -y 100 --color "#FEF08A"
-os-figma fj shape "Label" -x 200 -y 100 -w 200 -h 100
-os-figma fj connect "ID1" "ID2"          # Connect elements
-os-figma fj nodes                        # Show elements
-os-figma fj delete "ID"
-os-figma fj eval "figma.currentPage.children.length"
-```
-
-Shape types: `ROUNDED_RECTANGLE`, `RECTANGLE`, `ELLIPSE`, `DIAMOND`, `TRIANGLE_UP`, `TRIANGLE_DOWN`, `PARALLELOGRAM_RIGHT`, `PARALLELOGRAM_LEFT`
-
 ## Daemon & Connection
 
 ```bash
 os-figma connect                         # Connect (Yolo Mode)
-os-figma connect --safe                  # Connect (Safe Mode, plugin)
 os-figma daemon status                   # Check daemon status
 os-figma daemon restart                  # Restart daemon
 os-figma files                           # List open Figma files (JSON)

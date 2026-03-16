@@ -52,7 +52,7 @@ This project includes a `CLAUDE.md` file that Claude Code reads automatically. I
 - **Figma Desktop** (free account works)
 - **Claude Code** ([get it here](https://www.anthropic.com/claude-code)) — optional but recommended
 - **macOS** (primary support)
-- **macOS Full Disk Access** for Terminal (Yolo Mode only — not needed for [Safe Mode](#-safe-mode--for-restricted-environments))
+- **macOS Full Disk Access** for Terminal
 
 ---
 
@@ -130,67 +130,6 @@ Claude will automatically read `CLAUDE.md` and understand all design conventions
 > "Add design tokens to this file"
 
 > "Create a Card pattern with primary brand colors"
-
----
-
-## Two Connection Modes
-
-### 🚀 Yolo Mode (Recommended)
-
-**What it does:** Patches Figma once to enable a debug port, then connects directly.
-
-**Pros:**
-- Fully automatic (no manual steps after setup)
-- Slightly faster execution
-- Secure: random port, token auth, localhost only, auto-shutdown on idle
-
-**Cons:**
-- Requires one-time Figma patch
-- Needs Full Disk Access on macOS (one-time)
-
-```bash
-os-figma connect
-```
-
----
-
-### 🔒 Safe Mode — For Restricted Environments
-
-**What it does:** Uses a Figma plugin to communicate. No Figma modification needed.
-
-**Pros:**
-- No patching, no app modification
-- Works everywhere (corporate, personal, any environment)
-- No Full Disk Access needed
-
-**Cons:**
-- Start plugin manually each session (2 clicks)
-
-```bash
-os-figma connect --safe
-```
-
-**Import plugin (one-time only):**
-1. In Figma: **Plugins → Development → Import plugin from manifest**
-2. Select `plugin/manifest.json` from this project
-3. Click **Open**
-
-**Start the plugin (each session):**
-1. In Figma: **Plugins → Development → FigCli**
-2. Terminal shows: `Plugin connected!`
-
-**Tip:** Right-click the plugin → **Add to toolbar** for quick access.
-
----
-
-### Which Mode Should I Use?
-
-| Situation | Command |
-|---|---|
-| Personal Mac | `os-figma connect` (Yolo Mode) |
-| Corporate laptop | `os-figma connect --safe` |
-| Permission errors with Yolo | `os-figma connect --safe` |
-| Can't modify apps | `os-figma connect --safe` |
 
 ---
 
@@ -318,14 +257,6 @@ Connects to Figma Desktop via Chrome DevTools Protocol (CDP). No API key needed 
 - No hardcoded colors check
 - Unnamed layers detection
 - Minimum text size check
-
-### FigJam Support
-
-- Create sticky notes, shapes, and connectors
-- List FigJam elements
-- Run JavaScript in FigJam context
-
----
 
 ## Powered By
 

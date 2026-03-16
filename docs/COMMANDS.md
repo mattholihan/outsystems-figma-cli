@@ -10,9 +10,6 @@
 # Connect to running Figma Desktop
 os-figma connect
 
-# Connect in safe mode (uses plugin, no Figma modification)
-os-figma connect --safe
-
 # Initialise a new project in the current directory
 # Prompts for project name, Foundations library, and Components library
 # Then runs an interactive walkthrough:
@@ -328,68 +325,6 @@ os-figma export svg
 
 # Export node as PNG to screenshots/ folder, returns absolute path for Claude Code review
 os-figma export node "1:234" --feedback
-```
-
----
-
-## FigJam Commands
-
-FigJam has its own command group with direct CDP connection:
-
-```bash
-# List open FigJam pages
-os-figma figjam list
-os-figma fj list  # alias
-
-# Show page info
-os-figma fj info
-
-# List elements on page
-os-figma fj nodes
-os-figma fj nodes --limit 50
-
-# Create sticky note
-os-figma fj sticky "Hello World!" -x 100 -y 100
-os-figma fj sticky "Yellow Note" -x 200 -y 100 --color "#FEF08A"
-
-# Create shape with text
-os-figma fj shape "Box Label" -x 100 -y 200 -w 200 -h 100
-os-figma fj shape "Diamond" -x 300 -y 200 --type DIAMOND
-
-# Create text
-os-figma fj text "Plain text" -x 100 -y 400 --size 24
-
-# Connect two nodes
-os-figma fj connect "2:30" "2:34"
-
-# Move a node
-os-figma fj move "2:30" 500 500
-
-# Update text content
-os-figma fj update "2:30" "New text content"
-
-# Delete a node
-os-figma fj delete "2:30"
-
-# Execute JavaScript in FigJam
-os-figma fj eval "figma.currentPage.children.length"
-```
-
-### Shape Types
-- `ROUNDED_RECTANGLE` (default)
-- `RECTANGLE`
-- `ELLIPSE`
-- `DIAMOND`
-- `TRIANGLE_UP`
-- `TRIANGLE_DOWN`
-- `PARALLELOGRAM_RIGHT`
-- `PARALLELOGRAM_LEFT`
-
-### Page Selection
-
-All FigJam commands support `-p` or `--page` to target a specific page:
-```bash
-os-figma fj sticky "Note" -p "My Board" -x 100 -y 100
 ```
 
 ---

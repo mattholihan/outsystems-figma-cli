@@ -11,7 +11,6 @@ import { dirname, join, resolve } from 'path';
 import { createInterface } from 'readline';
 import { homedir, platform } from 'os';
 import { createServer } from 'http';
-import { FigJamClient } from './figjam-client.js';
 import { FigmaClient } from './figma-client.js';
 import { isPatched, patchFigma, unpatchFigma, getFigmaCommand, getCdpPort } from './figma-patch.js';
 
@@ -171,7 +170,7 @@ function runFigmaUse(cmd, options = {}) {
 }
 
 // Start daemon in background
-function startDaemon(forceRestart = false, mode = 'auto') {
+function startDaemon(forceRestart = false) {
   // If force restart, always kill existing daemon first
   if (forceRestart) {
     stopDaemon();
@@ -188,7 +187,7 @@ function startDaemon(forceRestart = false, mode = 'auto') {
   const child = spawn('node', [daemonScript], {
     detached: true,
     stdio: 'ignore',
-    env: { ...process.env, DAEMON_PORT: String(DAEMON_PORT), DAEMON_MODE: mode }
+    env: { ...process.env, DAEMON_PORT: String(DAEMON_PORT) }
   });
   child.unref();
 
@@ -324,12 +323,7 @@ function figmaEvalSync(code) {
   const daemonRunning = isDaemonRunning();
   if (daemonRunning) {
     try {
-      // Wrap code to ensure return value for plugin mode
-      // CDP returns last expression automatically, plugin needs explicit return
       let wrappedCode = code.trim();
-      // Don't wrap if already an IIFE or starts with return - plugin handles these
-      // For simple expressions and multi-statement code, just pass through
-      // The plugin will add return to the last statement
       const payload = JSON.stringify({ action: 'eval', code: wrappedCode });
       const payloadFile = `/tmp/figma-payload-${Date.now()}.json`;
       writeFileSync(payloadFile, payload);
@@ -347,17 +341,6 @@ function figmaEvalSync(code) {
       if (data.error) throw new Error(data.error);
       return data.result;
     } catch (e) {
-      // Check if we're in Safe Mode (plugin only) - don't fall through to CDP
-      try {
-        const healthToken = getDaemonToken();
-        const healthHeader = healthToken ? ` -H "X-Daemon-Token: ${healthToken}"` : '';
-        const healthRes = execSync(`curl -s${healthHeader} http://127.0.0.1:${DAEMON_PORT}/health`, { encoding: 'utf8', timeout: 2000 });
-        const health = JSON.parse(healthRes);
-        if (health.plugin && !health.cdp) {
-          // Safe Mode - re-throw the error, don't try CDP fallback
-          throw e;
-        }
-      } catch {}
       // Fall through to direct CDP connection
     }
   }
@@ -496,13 +479,13 @@ function figmaUse(args, options = {}) {
 
 // Helper: Check connection
 async function checkConnection() {
-  // First check daemon (works for both CDP and Plugin modes)
+  // First check daemon
   try {
     const connToken = getDaemonToken();
     const connHeader = connToken ? ` -H "X-Daemon-Token: ${connToken}"` : '';
     const health = execSync(`curl -s${connHeader} http://127.0.0.1:${DAEMON_PORT}/health`, { encoding: 'utf8', timeout: 2000 });
     const data = JSON.parse(health);
-    if (data.status === 'ok' && (data.plugin || data.cdp)) {
+    if (data.status === 'ok' && data.cdp) {
       return true;
     }
   } catch {}
@@ -512,8 +495,7 @@ async function checkConnection() {
   if (!connected) {
     console.log(chalk.red('\n✗ Not connected to Figma\n'));
     console.log(chalk.white('  Make sure Figma is running:'));
-    console.log(chalk.cyan('  outsystems-figma-cli connect') + chalk.gray(' (Yolo Mode)'));
-    console.log(chalk.cyan('  outsystems-figma-cli connect --safe') + chalk.gray(' (Safe Mode)\n'));
+    console.log(chalk.cyan('  outsystems-figma-cli connect\n'));
     process.exit(1);
   }
   return true;
@@ -521,13 +503,13 @@ async function checkConnection() {
 
 // Helper: Check connection (sync version for backwards compat)
 function checkConnectionSync() {
-  // First check daemon (works for both CDP and Plugin modes)
+  // First check daemon
   try {
     const syncToken = getDaemonToken();
     const syncHeader = syncToken ? ` -H "X-Daemon-Token: ${syncToken}"` : '';
     const health = execSync(`curl -s${syncHeader} http://127.0.0.1:${DAEMON_PORT}/health`, { encoding: 'utf8', timeout: 2000 });
     const data = JSON.parse(health);
-    if (data.status === 'ok' && (data.plugin || data.cdp)) {
+    if (data.status === 'ok' && data.cdp) {
       return true;
     }
   } catch {}
@@ -540,8 +522,7 @@ function checkConnectionSync() {
   } catch {
     console.log(chalk.red('\n✗ Not connected to Figma\n'));
     console.log(chalk.white('  Make sure Figma is running:'));
-    console.log(chalk.cyan('  outsystems-figma-cli connect') + chalk.gray(' (Yolo Mode)'));
-    console.log(chalk.cyan('  outsystems-figma-cli connect --safe') + chalk.gray(' (Safe Mode)\n'));
+    console.log(chalk.cyan('  outsystems-figma-cli connect\n'));
     process.exit(1);
   }
 }
@@ -995,7 +976,6 @@ program
 program
   .command('connect')
   .description('Connect to Figma Desktop')
-  .option('--safe', 'Use Safe Mode (plugin-based, no patching required)')
   .action(async (options) => {
     // Fun welcome message
     console.log(chalk.cyan(`
@@ -1010,73 +990,6 @@ program
     console.log(chalk.hex('#4ECDC4')('  🎨 Go ahead and build something great for OutSystems! '));
 
     const config = loadConfig();
-
-    // Safe Mode: Plugin-based connection (no patching, no CDP)
-    if (options.safe) {
-      console.log(chalk.hex('#4ECDC4')('  🔒 Safe Mode ') + chalk.gray('(plugin-based, no patching required)\n'));
-
-      // Stop any existing daemon
-      stopDaemon();
-
-      // Start daemon in plugin mode
-      const daemonSpinner = ora('Starting daemon in Safe Mode...').start();
-      try {
-        startDaemon(true, 'plugin');  // Force restart in plugin mode
-        await new Promise(r => setTimeout(r, 1000));
-        if (isDaemonRunning()) {
-          daemonSpinner.succeed('Daemon running in Safe Mode');
-        } else {
-          daemonSpinner.fail('Daemon failed to start');
-          return;
-        }
-      } catch (e) {
-        daemonSpinner.fail('Daemon failed: ' + e.message);
-        return;
-      }
-
-      // Show plugin setup instructions
-      console.log(chalk.hex('#FF6B35')('\n  ┌─────────────────────────────────────────────────────┐'));
-      console.log(chalk.hex('#FF6B35')('  │') + chalk.white.bold('  Setup the FigCli plugin                           ') + chalk.hex('#FF6B35')('│'));
-      console.log(chalk.hex('#FF6B35')('  └─────────────────────────────────────────────────────┘\n'));
-
-      console.log(chalk.white.bold('  ONE-TIME SETUP:\n'));
-      console.log(chalk.cyan('  1. ') + chalk.white('Open Figma Desktop and any design file'));
-      console.log(chalk.cyan('  2. ') + chalk.white('Go to ') + chalk.yellow('Plugins → Development → Import plugin from manifest'));
-      console.log(chalk.cyan('  3. ') + chalk.white('Navigate to: ') + chalk.yellow(process.cwd() + '/plugin/manifest.json'));
-      console.log(chalk.cyan('  4. ') + chalk.white('Click ') + chalk.yellow('Open') + chalk.white(' — plugin is now installed!\n'));
-
-      console.log(chalk.white.bold('  EACH SESSION:\n'));
-      console.log(chalk.cyan('  → ') + chalk.white('In Figma: ') + chalk.yellow('Plugins → Development → FigCli\n'));
-
-      console.log(chalk.gray('  💡 Tip: Right-click plugin → "Add to toolbar" for one-click access\n'));
-
-      // Wait for plugin connection
-      const pluginSpinner = ora('Waiting for plugin connection...').start();
-      let pluginConnected = false;
-      for (let i = 0; i < 30; i++) {  // Wait up to 30 seconds
-        await new Promise(r => setTimeout(r, 1000));
-        try {
-          const pluginToken = getDaemonToken();
-          const pluginHeader = pluginToken ? ` -H "X-Daemon-Token: ${pluginToken}"` : '';
-          const healthRes = execSync(`curl -s${pluginHeader} http://127.0.0.1:${DAEMON_PORT}/health`, { encoding: 'utf8' });
-          const health = JSON.parse(healthRes);
-          if (health.plugin) {
-            pluginSpinner.succeed('Plugin connected!');
-            console.log(chalk.green('\n  ✓ Ready! Safe Mode active.\n'));
-            pluginConnected = true;
-            break;
-          }
-        } catch {}
-      }
-
-      if (!pluginConnected) {
-        pluginSpinner.warn('Plugin not detected. Start the plugin in Figma to connect.');
-      }
-      return;
-    }
-
-    // Yolo Mode: CDP-based connection (default)
-    console.log(chalk.hex('#FF6B35')('  🚀 Yolo Mode ') + chalk.gray('(direct CDP connection)\n'));
 
     // Patch Figma if needed
     if (!config.patched) {
@@ -1110,10 +1023,8 @@ program
           console.log(chalk.cyan('  Step 4: ') + chalk.white('Quit Terminal completely ') + chalk.gray('(Cmd+Q)'));
           console.log(chalk.cyan('  Step 5: ') + chalk.white('Reopen Terminal and try again\n'));
 
-          console.log(chalk.gray('  Or use Safe Mode: ') + chalk.cyan('node src/index.js connect --safe\n'));
         } else {
           console.log(chalk.yellow('\n  Try running as administrator.\n'));
-          console.log(chalk.gray('  Or use Safe Mode: ') + chalk.cyan('node src/index.js connect --safe\n'));
         }
         return;
       }
@@ -1153,7 +1064,7 @@ program
     // Start daemon for fast commands (force restart to get fresh connection)
     const daemonSpinner = ora('Starting speed daemon...').start();
     try {
-      startDaemon(true, 'auto');  // Auto mode: uses plugin if connected, otherwise CDP
+      startDaemon(true);
       await new Promise(r => setTimeout(r, 1500));
       if (isDaemonRunning()) {
         daemonSpinner.succeed('Speed daemon running (commands are now 10x faster)');
@@ -6178,7 +6089,7 @@ return ':root {\\n' + css + '\\n}';
 
 program
   .command('eval [code]')
-  .description('Execute JavaScript in Figma plugin context')
+  .description('Execute JavaScript in Figma context')
   .option('-f, --file <path>', 'Run code from file instead of argument')
   .action(async (code, options) => {
     checkConnection();
@@ -7297,268 +7208,6 @@ program
       runFigmaUse(cmd, { stdio: 'inherit' });
     } else {
       runFigmaUse(cmd);
-    }
-  });
-
-// ============ FIGJAM ============
-
-const figjam = program
-  .command('figjam')
-  .alias('fj')
-  .description('FigJam commands (sticky notes, shapes, connectors)');
-
-// Helper: Get FigJam client
-async function getFigJamClient(pageTitle) {
-  const client = new FigJamClient();
-  try {
-    const pages = await FigJamClient.listPages();
-    if (pages.length === 0) {
-      console.log(chalk.red('\n✗ No FigJam pages open\n'));
-      console.log(chalk.gray('  Open a FigJam file in Figma Desktop first.\n'));
-      process.exit(1);
-    }
-
-    const targetPage = pageTitle || pages[0].title;
-    await client.connect(targetPage);
-    return client;
-  } catch (error) {
-    console.log(chalk.red('\n✗ ' + error.message + '\n'));
-    process.exit(1);
-  }
-}
-
-figjam
-  .command('list')
-  .description('List open FigJam pages')
-  .action(async () => {
-    try {
-      const pages = await FigJamClient.listPages();
-      if (pages.length === 0) {
-        console.log(chalk.yellow('\n  No FigJam pages open\n'));
-        return;
-      }
-      console.log(chalk.cyan('\n  Open FigJam Pages:\n'));
-      pages.forEach((p, i) => {
-        console.log(chalk.white(`  ${i + 1}. ${p.title}`));
-      });
-      console.log();
-    } catch (error) {
-      console.log(chalk.red('\n✗ Could not connect to Figma\n'));
-      console.log(chalk.gray('  Make sure Figma is running with: outsystems-figma-cli connect\n'));
-    }
-  });
-
-figjam
-  .command('info')
-  .description('Show current FigJam page info')
-  .option('-p, --page <title>', 'Page title (partial match)')
-  .action(async (options) => {
-    const client = await getFigJamClient(options.page);
-    try {
-      const info = await client.getPageInfo();
-      console.log(chalk.cyan('\n  FigJam Page Info:\n'));
-      console.log(chalk.white(`  Name: ${info.name}`));
-      console.log(chalk.white(`  ID: ${info.id}`));
-      console.log(chalk.white(`  Elements: ${info.childCount}`));
-      console.log();
-    } finally {
-      client.close();
-    }
-  });
-
-figjam
-  .command('nodes')
-  .description('List nodes on current FigJam page')
-  .option('-p, --page <title>', 'Page title (partial match)')
-  .option('-l, --limit <n>', 'Limit number of nodes', '20')
-  .action(async (options) => {
-    const client = await getFigJamClient(options.page);
-    try {
-      const nodes = await client.listNodes(parseInt(options.limit));
-      if (nodes.length === 0) {
-        console.log(chalk.yellow('\n  No elements on this page\n'));
-        return;
-      }
-      console.log(chalk.cyan('\n  FigJam Elements:\n'));
-      nodes.forEach(n => {
-        const type = n.type.padEnd(16);
-        const name = (n.name || '(unnamed)').substring(0, 30);
-        console.log(chalk.gray(`  ${n.id.padEnd(8)}`), chalk.white(type), chalk.gray(name), chalk.gray(`(${n.x}, ${n.y})`));
-      });
-      console.log();
-    } finally {
-      client.close();
-    }
-  });
-
-figjam
-  .command('sticky <text>')
-  .description('Create a sticky note')
-  .option('-p, --page <title>', 'Page title (partial match)')
-  .option('-x <n>', 'X position', '0')
-  .option('-y <n>', 'Y position', '0')
-  .option('-c, --color <hex>', 'Background color')
-  .action(async (text, options) => {
-    const client = await getFigJamClient(options.page);
-    const spinner = ora('Creating sticky note...').start();
-    try {
-      const result = await client.createSticky(text, parseFloat(options.x), parseFloat(options.y), options.color);
-      spinner.succeed(`Sticky created: ${result.id} at (${result.x}, ${result.y})`);
-    } catch (error) {
-      spinner.fail('Failed to create sticky: ' + error.message);
-    } finally {
-      client.close();
-    }
-  });
-
-figjam
-  .command('shape <text>')
-  .description('Create a shape with text')
-  .option('-p, --page <title>', 'Page title (partial match)')
-  .option('-x <n>', 'X position', '0')
-  .option('-y <n>', 'Y position', '0')
-  .option('-w, --width <n>', 'Width', '200')
-  .option('-h, --height <n>', 'Height', '100')
-  .option('-t, --type <type>', 'Shape type (ROUNDED_RECTANGLE, RECTANGLE, ELLIPSE, DIAMOND)', 'ROUNDED_RECTANGLE')
-  .action(async (text, options) => {
-    const client = await getFigJamClient(options.page);
-    const spinner = ora('Creating shape...').start();
-    try {
-      const result = await client.createShape(
-        text,
-        parseFloat(options.x),
-        parseFloat(options.y),
-        parseFloat(options.width),
-        parseFloat(options.height),
-        options.type
-      );
-      spinner.succeed(`Shape created: ${result.id} at (${result.x}, ${result.y})`);
-    } catch (error) {
-      spinner.fail('Failed to create shape: ' + error.message);
-    } finally {
-      client.close();
-    }
-  });
-
-figjam
-  .command('text <content>')
-  .description('Create a text node')
-  .option('-p, --page <title>', 'Page title (partial match)')
-  .option('-x <n>', 'X position', '0')
-  .option('-y <n>', 'Y position', '0')
-  .option('-s, --size <n>', 'Font size', '16')
-  .action(async (content, options) => {
-    const client = await getFigJamClient(options.page);
-    const spinner = ora('Creating text...').start();
-    try {
-      const result = await client.createText(content, parseFloat(options.x), parseFloat(options.y), parseFloat(options.size));
-      spinner.succeed(`Text created: ${result.id} at (${result.x}, ${result.y})`);
-    } catch (error) {
-      spinner.fail('Failed to create text: ' + error.message);
-    } finally {
-      client.close();
-    }
-  });
-
-figjam
-  .command('connect <startId> <endId>')
-  .description('Create a connector between two nodes')
-  .option('-p, --page <title>', 'Page title (partial match)')
-  .action(async (startId, endId, options) => {
-    const client = await getFigJamClient(options.page);
-    const spinner = ora('Creating connector...').start();
-    try {
-      const result = await client.createConnector(startId, endId);
-      if (result.error) {
-        spinner.fail(result.error);
-      } else {
-        spinner.succeed(`Connector created: ${result.id}`);
-      }
-    } catch (error) {
-      spinner.fail('Failed to create connector: ' + error.message);
-    } finally {
-      client.close();
-    }
-  });
-
-figjam
-  .command('delete <nodeId>')
-  .description('Delete a node by ID')
-  .option('-p, --page <title>', 'Page title (partial match)')
-  .action(async (nodeId, options) => {
-    const client = await getFigJamClient(options.page);
-    const spinner = ora('Deleting node...').start();
-    try {
-      const result = await client.deleteNode(nodeId);
-      if (result.deleted) {
-        spinner.succeed(`Node ${nodeId} deleted`);
-      } else {
-        spinner.fail(result.error || 'Node not found');
-      }
-    } catch (error) {
-      spinner.fail('Failed to delete node: ' + error.message);
-    } finally {
-      client.close();
-    }
-  });
-
-figjam
-  .command('move <nodeId> <x> <y>')
-  .description('Move a node to a new position')
-  .option('-p, --page <title>', 'Page title (partial match)')
-  .action(async (nodeId, x, y, options) => {
-    const client = await getFigJamClient(options.page);
-    const spinner = ora('Moving node...').start();
-    try {
-      const result = await client.moveNode(nodeId, parseFloat(x), parseFloat(y));
-      if (result.error) {
-        spinner.fail(result.error);
-      } else {
-        spinner.succeed(`Node ${result.id} moved to (${result.x}, ${result.y})`);
-      }
-    } catch (error) {
-      spinner.fail('Failed to move node: ' + error.message);
-    } finally {
-      client.close();
-    }
-  });
-
-figjam
-  .command('update <nodeId> <text>')
-  .description('Update text content of a node')
-  .option('-p, --page <title>', 'Page title (partial match)')
-  .action(async (nodeId, text, options) => {
-    const client = await getFigJamClient(options.page);
-    const spinner = ora('Updating text...').start();
-    try {
-      const result = await client.updateText(nodeId, text);
-      if (result.error) {
-        spinner.fail(result.error);
-      } else {
-        spinner.succeed(`Node ${result.id} text updated`);
-      }
-    } catch (error) {
-      spinner.fail('Failed to update text: ' + error.message);
-    } finally {
-      client.close();
-    }
-  });
-
-figjam
-  .command('eval <code>')
-  .description('Execute JavaScript in FigJam context')
-  .option('-p, --page <title>', 'Page title (partial match)')
-  .action(async (code, options) => {
-    const client = await getFigJamClient(options.page);
-    try {
-      const result = await client.eval(code);
-      if (result !== undefined) {
-        console.log(typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
-      }
-    } catch (error) {
-      console.log(chalk.red('Error: ' + error.message));
-    } finally {
-      client.close();
     }
   });
 
