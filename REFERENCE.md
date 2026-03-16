@@ -112,6 +112,10 @@ os-figma pattern add Button --variant Primary --state Default \
   --prop "Text=Sign In" \
   --prop "Show icon (L)=true" \
   --prop "Icon (L)=arrow-left"
+
+# Add with automatic fill-width sizing
+os-figma pattern add Button --variant Primary --parent "<screenId>" --sizing fill
+os-figma pattern add Input --state Default --parent "<screenId>" --sizing fill
 ```
 
 Property names are matched case-insensitively. Figma's internal `#id` suffix and
@@ -140,11 +144,15 @@ Property names are matched case-insensitively. Figma's internal `#id` suffix and
 ```bash
 os-figma screen create <name> --size <mobile|web>   # Create blank screen frame
                                                      # Prompts for size if omitted
+os-figma screen create <name> --size mobile --padding 32,32,48,32 --gap 16
+os-figma screen create <name> --size web --padding 48,80,64,80 --gap 24
 ```
 
 Layer naming: `Screen/{Size}/{Name}/Blank`
 Background bound to `--color-neutral-0` from Foundations library.
 Sizes: mobile = 390×844, web = 1440×900
+Padding values matching the spacing scale (0, 4, 8, 16, 24, 32, 40, 48) are
+automatically bound to spacing tokens.
 
 ## Create Elements
 
@@ -262,6 +270,7 @@ os-figma align center -n "<nodeId>"      # Align, target node
 ```bash
 os-figma find "Button"                   # Find by name
 os-figma find "Card" -t FRAME            # Filter by type
+os-figma find "Button" --type INSTANCE --last   # Most recently added match
 os-figma raw query "//*[@name^='Card/']" # All named layers
 os-figma select "1:234"                  # Select node
 os-figma get                             # Get selection props

@@ -170,6 +170,17 @@ os-figma pattern add Input --state Default --prop "Label=Email" --parent "94:10"
 
 # Add at specific position inside parent
 os-figma pattern add Button --variant Primary --parent "94:10" --x 32 --y 400
+
+# Add with automatic fill-width sizing (preferred for full-width components)
+os-figma pattern add Input --state Default \
+  --prop "Label=Email" \
+  --parent "<screenId>" \
+  --sizing fill
+
+os-figma pattern add Button --variant Primary --state Default \
+  --prop "Text=Sign In" \
+  --parent "<screenId>" \
+  --sizing fill
 ```
 
 > **First-time setup:** Run `os-figma pattern scan` once with your component library
@@ -191,6 +202,11 @@ os-figma screen create Dashboard --size web
 
 # Omit --size to be prompted
 os-figma screen create "User Profile"
+
+# Create with padding and gap in one step
+# Padding values matching the spacing scale are auto-bound to spacing tokens
+os-figma screen create Login --size mobile --padding 32,32,48,32 --gap 16
+os-figma screen create Dashboard --size web --padding 48,80,64,80 --gap 24
 ```
 
 For composing full screens with components, use pattern list, pattern describe,

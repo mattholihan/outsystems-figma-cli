@@ -20,6 +20,7 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "show colors on canvas" | `os-figma var visualize` |
 | "list variables" | `os-figma var list` |
 | "find nodes named X" | `os-figma find "X"` |
+| "find most recently added node" | `os-figma find "X" --type INSTANCE --last` |
 | "what's on canvas" | `os-figma canvas info` |
 | "export as PNG/SVG" | `os-figma export png` |
 | "convert to component" | `os-figma node to-component "ID"` |
@@ -156,7 +157,17 @@ os-figma pattern add Button --variant Primary --state Default \
   --prop "Text=Sign In" \
   --prop "Show icon (L)=true" \
   --prop "Icon (L)=arrow-left"
+
+# Add component with automatic fill-width sizing
+os-figma pattern add Button --variant Primary --state Default \
+  --prop "Text=Sign In" \
+  --parent "<screenId>" \
+  --sizing fill
 ```
+
+`--sizing fill` sets `layoutSizingHorizontal = FILL` immediately after
+placement. Use for all full-width components: Input, Button, Search,
+Dropdown, Date Picker, Alert, Accordion.
 
 ### --prop flag
 `--prop` can be passed multiple times. Each value is a `"Key=Value"` string.
@@ -184,7 +195,16 @@ os-figma screen create Dashboard --size web
 
 # Prompted if --size omitted
 os-figma screen create "User Profile"
+
+# With padding and gap (CSS shorthand — top right bottom left)
+os-figma screen create Login --size mobile --padding 32,32,48,32 --gap 16
+
+# Web screen with web-appropriate spacing
+os-figma screen create Dashboard --size web --padding 48,80,64,80 --gap 24
 ```
+
+When `--padding` values match the spacing token scale (0, 4, 8, 16, 24, 32,
+40, 48), padding is automatically bound to the corresponding spacing variable.
 
 Layer naming: `Screen/{Size}/{Name}/Blank`
 - `Screen/Mobile/Login/Blank`
@@ -495,9 +515,12 @@ After creating the screen frame, apply padding using spacing variables.
 Do this before placing any children:
 
 ```bash
+# Preferred — padding and gap in one command at screen creation time
+os-figma screen create Login --size mobile --padding 32,32,48,32 --gap 16
+
+# Alternative — apply after creation if screen already exists
 os-figma padding 32 32 48 32 -n "<screenId>"
-# top=32, right=32, bottom=48, left=32 (mobile)
-# For web: os-figma padding 48 80 64 80 -n "<screenId>"
+os-figma gap 16 -n "<screenId>"
 ```
 
 Never place content flush against the screen edges.
@@ -552,8 +575,16 @@ os-figma pattern add Button \
 **Step 4b — Set fill-width sizing**
 
 After placing any component that should span the full screen width,
-immediately run:
+apply fill sizing. Prefer `--sizing fill` at placement time:
+
 ```bash
+# Preferred — apply sizing at placement time
+os-figma pattern add Input --state Default \
+  --prop "Label=Email" \
+  --parent "<screenId>" \
+  --sizing fill
+
+# Alternative — apply after placement if --sizing was not used
 os-figma set sizing fill fixed -n "<componentId>"
 ```
 
@@ -880,10 +911,10 @@ os-figma render '<Frame name="Spacer/Bottom" w="fill" grow={1} />'
 **Known limitations:**
 - `w='fill'` fails on root-level `render --parent` frames (resize NaN error)
   — use explicit pixel widths instead: `w={326}` mobile, `w={1280}` web
-- `pattern add` always places at intrinsic width — always follow with
-  `os-figma set sizing fill fixed -n "<id>"` for full-width components
-- `os-figma find` returns all matching nodes — use `| tail -1` or `| grep INSTANCE`
-  to get the most recently added component ID reliably
+- `pattern add` always places at intrinsic width — use `--sizing fill` at
+  placement time, or follow with `os-figma set sizing fill fixed -n "<id>"`
+- `os-figma find` returns all matching nodes — use `--last` to get the most
+  recently added match: `os-figma find "Button" --type INSTANCE --last`
 
 ---
 
