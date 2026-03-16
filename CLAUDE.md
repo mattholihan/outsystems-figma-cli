@@ -976,6 +976,187 @@ opacity={0.8}
 
 ---
 
+## Render Best Practices
+
+Follow these rules on every `render` call. They prevent the most common
+warnings, layout defects, and silent failures.
+
+---
+
+### 1. Always use `--parent` during screen composition
+
+Every `render` call that places content inside a screen must include
+`--parent <screenId>`. Without it, frames land at canvas root and have no
+effect on the screen layout.
+
+```bash
+# Correct
+os-figma render --parent "<screenId>" '<Frame name="Content/Header" ...>'
+
+# Wrong — lands at canvas root
+os-figma render '<Frame name="Content/Header" ...>'
+```
+
+This applies to every frame — structural wrappers, spacers, dividers, and
+content frames alike.
+
+---
+
+### 2. `bg` on visible surfaces — omit on layout frames
+
+Every frame that represents a visible surface (screen background, card,
+section container) must have an explicit `bg` using a `var:` token.
+
+Layout and structural frames (spacers, alignment wrappers, invisible
+containers) should omit `bg` entirely — this renders them transparent.
+
+Never use raw hex values for `bg`. Always use `var:` tokens so the fill is
+bound to the design system.
+
+```jsx
+// Correct — visible surface with token
+<Frame name="Card/Default" w={326} flex="col" bg="var:--color-neutral-0">
+
+// Correct — layout frame, no bg needed
+<Frame name="Spacer/Top" w="fill" grow={1}>
+
+// Wrong — raw hex, will trigger node fix warning
+<Frame name="Card/Default" w={326} flex="col" bg="#ffffff">
+```
+
+---
+
+### 3. Spacing values must match the token scale
+
+The `p`, `px`, `py`, and `gap` props automatically bind spacing tokens when
+the value exactly matches the spacing scale. Always use scale values so
+bindings apply at render time.
+
+**Spacing scale:** `0, 4, 8, 16, 24, 32, 40, 48`
+
+```jsx
+// Correct — binds --space-base automatically
+<Frame name="Content" w={326} flex="col" p={16} gap={8}>
+
+// Wrong — no token for 15, falls back to raw number with warning
+<Frame name="Content" w={326} flex="col" p={15}>
+```
+
+---
+
+### 4. Always set `w="fill"` on Text elements
+
+Text elements without `w="fill"` clip their content at the intrinsic text
+width. Always add `w="fill"` to allow text to wrap correctly within its
+parent.
+
+```jsx
+// Correct
+<Text size={16} color="var:--color-neutral-10" w="fill">Welcome back</Text>
+
+// Wrong — text will clip
+<Text size={16} color="var:--color-neutral-10">Welcome back</Text>
+```
+
+---
+
+### 5. Root frame width must be explicit pixels
+
+The root frame of a `render` call (the outermost `<Frame>`) must always have
+an explicit pixel width. `w="fill"` fails on root-level frames.
+
+```jsx
+// Correct
+<Frame name="Content/Header" w={326} flex="col">
+
+// Wrong — fill fails at root level
+<Frame name="Content/Header" w="fill" flex="col">
+```
+
+Standard widths: `326` for content inside a mobile screen with 32px padding,
+`390` for a full-width mobile screen.
+
+---
+
+### 6. Always specify `flex` explicitly
+
+Never rely on the default layout direction. Always specify `flex="col"` or
+`flex="row"` on every frame that contains children.
+
+```jsx
+// Correct
+<Frame name="Content/Header" w={326} flex="col" gap={8}>
+
+// Wrong — default direction is unpredictable
+<Frame name="Content/Header" w={326} gap={8}>
+```
+
+---
+
+### 7. Use `var:` for all color props
+
+All color props (`bg`, `color`, `stroke`) must use `var:` token syntax. Never
+use raw hex values — they trigger `node fix` warnings and break design system
+compliance.
+
+```jsx
+// Correct
+<Frame bg="var:--color-neutral-0">
+<Text color="var:--color-neutral-10">
+<Frame stroke="var:--color-neutral-4">
+
+// Wrong — raw hex
+<Frame bg="#ffffff">
+<Text color="#101213">
+```
+
+---
+
+### 8. Use `Component/Variant` naming on all frames
+
+Every frame should have a `name` prop following the `Component/Variant`
+convention. This makes the layer panel readable and node inspection reliable.
+
+```jsx
+// Correct
+<Frame name="Content/Header" ...>
+<Frame name="Divider/Default" ...>
+<Frame name="Brand/Logo" ...>
+
+// Wrong — generic name makes debugging harder
+<Frame name="Frame" ...>
+<Frame ...>
+```
+
+---
+
+### 9. Spacer frames — use sparingly
+
+Prefer `gap` and `padding` over spacer frames for uniform spacing. Only use
+spacers when:
+- A `grow={1}` spacer is needed to push content to the bottom of a screen
+- One section needs significantly more space than the screen `gap` provides
+
+Always include `--parent` on spacer render calls — see rule 1.
+
+---
+
+### 10. Quote style — be consistent
+
+Single quotes (`'value'`) and double quotes (`"value"`) both work in JSX
+props. Be consistent within a single render call. When the outer shell command
+uses single quotes, use double quotes inside the JSX string to avoid conflicts.
+
+```bash
+# Outer single quotes — use double quotes inside JSX
+os-figma render '<Frame name="Content/Header" flex="col">'
+
+# Outer double quotes — use single quotes inside JSX
+os-figma render "<Frame name='Content/Header' flex='col'>"
+```
+
+---
+
 ## Common Pitfalls
 
 **1. Text gets cut off:**
