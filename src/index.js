@@ -7959,6 +7959,8 @@ screen
   .command('create <name>')
   .description('Create a blank screen frame at the correct size')
   .option('--size <size>', 'Screen size: mobile or web')
+  .option('--padding <values>', 'Padding — CSS shorthand: 1-4 values comma-separated (e.g. 32,32,48,32)')
+  .option('--gap <value>', 'Auto-layout gap between children', parseFloat)
   .action(async (name, options) => {
     await checkConnection();
 
@@ -8057,7 +8059,52 @@ return JSON.stringify({ success: true });
       await applyHexFallback();
     }
 
-    spinner.succeed(`Created ${layerName} (${width}×${height})`);
+    // Apply padding if specified
+    if (options.padding && frameId) {
+      const parts = String(options.padding).split(',').map(v => Number(v.trim()));
+      const top    = parts[0] ?? 0;
+      const right  = parts[1] ?? parts[0] ?? 0;
+      const bottom = parts[2] ?? parts[0] ?? 0;
+      const left   = parts[3] ?? parts[1] ?? parts[0] ?? 0;
+
+      const tTop    = resolveSpacingTokenKey(top);
+      const tRight  = resolveSpacingTokenKey(right);
+      const tBottom = resolveSpacingTokenKey(bottom);
+      const tLeft   = resolveSpacingTokenKey(left);
+
+      const bindSide = (token, raw, prop) => token
+        ? `const __ps_${prop} = await figma.variables.importVariableByKeyAsync(${JSON.stringify(token.key)});
+           if (__ps_${prop}) frame.setBoundVariable('${prop}', __ps_${prop}); else frame.${prop} = ${raw};`
+        : `frame.${prop} = ${raw};`;
+
+      const padCode = `(async () => {
+const frame = figma.getNodeById(${JSON.stringify(String(frameId))});
+if (!frame) return;
+${bindSide(tTop,    top,    'paddingTop')}
+${bindSide(tRight,  right,  'paddingRight')}
+${bindSide(tBottom, bottom, 'paddingBottom')}
+${bindSide(tLeft,   left,   'paddingLeft')}
+})()`;
+      try { await fastEval(padCode); } catch {}
+    }
+
+    // Apply gap if specified
+    if (options.gap !== undefined && frameId) {
+      const tGap = resolveSpacingTokenKey(options.gap);
+      const gapCode = `(async () => {
+const frame = figma.getNodeById(${JSON.stringify(String(frameId))});
+if (!frame) return;
+${tGap
+  ? `const __gs = await figma.variables.importVariableByKeyAsync(${JSON.stringify(tGap.key)});
+     if (__gs) frame.setBoundVariable('itemSpacing', __gs); else frame.itemSpacing = ${options.gap};`
+  : `frame.itemSpacing = ${options.gap};`}
+})()`;
+      try { await fastEval(gapCode); } catch {}
+    }
+
+    const paddingStr = options.padding ? `  padding: ${options.padding}` : '';
+    const gapStr = options.gap !== undefined ? `  gap: ${options.gap}` : '';
+    spinner.succeed(`Created ${layerName} (${width}×${height})${paddingStr}${gapStr}`);
   });
 
 
@@ -8393,6 +8440,7 @@ pattern
   .option('--y <number>', 'Y position', parseFloat)
   .option('--parent <nodeId>', 'Parent frame node ID — places the component inside this frame')
   .option('--prop <key=value>', 'Set a component property — repeatable (e.g. --prop "Text=Sign In")', (val, acc) => { acc.push(val); return acc; }, [])
+  .option('--sizing <mode>', 'Set horizontal sizing after placement: fill or fixed')
   .action(async (patternName, options) => {
     const libConfig = loadLibraryConfig();
     const componentsLib = libConfig?.libraries?.components;
@@ -8546,7 +8594,7 @@ pattern
       }
       figma.currentPage.selection = [inst];
       figma.viewport.scrollAndZoomIntoView([inst]);
-      return { componentName: comp.name, variantName: null, propWarnings };
+      return { id: inst.id, componentName: comp.name, variantName: null, propWarnings };
     } catch (e2) {
       return { error: e2.message };
     }
@@ -8593,7 +8641,7 @@ pattern
   }
   figma.currentPage.selection = [instance];
   figma.viewport.scrollAndZoomIntoView([instance]);
-  return { componentName: componentSet.name, variantName: variant.name, propWarnings };
+  return { id: instance.id, componentName: componentSet.name, variantName: variant.name, propWarnings };
 })()`;
 
     let result;
@@ -8625,6 +8673,21 @@ pattern
 
     for (const w of (result.propWarnings || [])) {
       console.log(chalk.yellow(`  ⚠ ${w}`));
+    }
+
+    // Apply sizing if specified
+    if (options.sizing && result.id) {
+      const sizingMode = options.sizing.toLowerCase() === 'fill' ? 'FILL' : 'FIXED';
+      const sizingCode = `(async () => {
+const node = figma.getNodeById(${JSON.stringify(String(result.id))});
+if (node && 'layoutSizingHorizontal' in node) {
+  node.layoutSizingHorizontal = '${sizingMode}';
+  if ('${sizingMode}' === 'FILL' && 'layoutSizingVertical' in node) {
+    node.layoutSizingVertical = 'FIXED';
+  }
+}
+})()`;
+      try { await daemonExec('eval', { code: sizingCode }); } catch {}
     }
   });
 
