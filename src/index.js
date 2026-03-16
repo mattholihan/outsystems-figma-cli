@@ -5739,7 +5739,7 @@ program
         const varKeyMap = {};
         for (const varName of varRefs) {
           const resolved = resolveTokenKey(varName);
-          varKeyMap[resolved.name] = resolved.key;
+          if (resolved?.key) varKeyMap[varName] = resolved.key;
         }
 
         const { FigmaClient } = await import('./figma-client.js');
