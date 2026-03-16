@@ -4649,8 +4649,16 @@ function resolveTokenKey(rawName) {
       }
     }
   }
-  console.error(chalk.red(`\n✗ Token not found: ${rawName}.`));
-  console.error(chalk.gray(`  Check tokens.json or run 'os-figma tokens pull' to resync.\n`));
+  // Detect if input looks like CSS shorthand (contains spaces or multiple numbers)
+  const looksLikeShorthand = /^\d+(\s+\d+){0,3}$/.test(rawName.trim());
+  if (looksLikeShorthand) {
+    console.error(chalk.red(`\n✗ "${rawName}" looks like a padding value, not a token name.`));
+    console.error(chalk.gray(`  To set padding by value:  os-figma padding ${rawName} -n <nodeId>`));
+    console.error(chalk.gray(`  To bind a spacing token:  os-figma bind padding --space-base -n <nodeId>\n`));
+  } else {
+    console.error(chalk.red(`\n✗ Token not found: ${rawName}.`));
+    console.error(chalk.gray(`  Check tokens.json or run 'os-figma tokens pull' to resync.\n`));
+  }
   process.exit(1);
 }
 
@@ -8716,6 +8724,21 @@ if (node && 'layoutSizingHorizontal' in node) {
     }
   }
 }
+
+// ============ COMMIT UNDO ============
+
+program
+  .command('commit-undo')
+  .description('Commit an undo boundary — groups all preceding commands into a single undoable step')
+  .action(async () => {
+    await checkConnection();
+    try {
+      await daemonExec('eval', { code: 'figma.commitUndo()' });
+      console.log(chalk.green('✓ Undo boundary committed'));
+    } catch (err) {
+      console.log(chalk.red('✗ ' + err.message));
+    }
+  });
 
 // ============ DOCTOR (Session Precondition Check) ============
 

@@ -205,7 +205,7 @@ os-figma fj eval "figma.currentPage.children.length"
   2. `os-figma node fix "<id>" --deep` — apply all auto-fixable warnings
   3. If `node fix` exits with code 1, apply remaining warnings manually with `os-figma bind`, then re-run `node fix`
   4. Re-export and re-evaluate. Repeat until `node fix` exits with code 0 and the screenshot matches the design plan
-- After the evaluate loop exits clean, commit an undo boundary: `os-figma eval "figma.commitUndo()"`
+- After the evaluate loop exits clean, commit an undo boundary: `os-figma commit-undo`
 
 ## Important Notes
 
@@ -249,7 +249,7 @@ os-figma fj eval "figma.currentPage.children.length"
     not `tokens.json`.
 
 12. **Always commit an undo boundary after completing a screen** — after the evaluate
-    loop exits clean, run `os-figma eval "figma.commitUndo()"`. This creates a single
+    loop exits clean, run `os-figma commit-undo`. This creates a single
     undo checkpoint so the user can undo screen creation as one step rather than
     stepping back through every individual command.
 

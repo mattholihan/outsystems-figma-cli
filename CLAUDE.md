@@ -642,7 +642,7 @@ the design plan. Do not exit this loop early.
 After the evaluate loop exits clean, run:
 
 ```bash
-os-figma eval "figma.commitUndo()"
+os-figma commit-undo
 ```
 
 This creates a discrete undo checkpoint so the user can undo screen creation as a single step rather than stepping back through every individual command.
