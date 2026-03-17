@@ -447,13 +447,22 @@ Use the schema to determine:
 - Whether to pass `--state` (only if the component has a States row)
 - The exact `--prop` key names for labels, text, and booleans
 
-**Step 2 — Create the screen frame**
+**Step 2 — Create and name the screen frame**
+
+Decide the screen name before running any commands. Use the
+`Screen/Platform/Name` convention — e.g. `Screen/Mobile/Login`,
+`Screen/Mobile/Onboarding`, `Screen/Web/Dashboard`.
 
 ```bash
-os-figma screen create <Name> --size <mobile|web>
-os-figma find "Screen/<Size>/<Name>"
-# Note the returned node ID — you will use it as --parent for everything
+os-figma screen create Draft --size <mobile|web>
+# Note the returned node ID
+
+os-figma set name "<screenId>" "Screen/Mobile/Login"
 ```
+
+Always rename immediately after creation. Never leave the default `Screen/Mobile/Draft/Blank` name in place.
+
+Name all child frames with meaningful `Component/Variant` names that reflect their design role — e.g. `Brand/Logo`, `Content/Form`, `Action/Primary`. Never leave frames with default names like `Frame`.
 
 **Step 2b — Set screen padding**
 
@@ -470,24 +479,6 @@ os-figma gap 16 -n "<screenId>"
 ```
 
 Never place content flush against the screen edges.
-
-**Step 2c — Plan vertical distribution**
-
-For screens where content should be vertically centred (login, empty states,
-confirmation screens), wrap the content zone in grow spacers so it sits in
-the middle of the screen rather than bunching at the top:
-
-```bash
-# Top spacer — pushes content down
-os-figma render --parent "<screenId>" "<Frame name='Spacer/Top' w={326} grow={1} />"
-
-# ... place content elements here ...
-
-# Bottom spacer — pushes content up
-os-figma render --parent "<screenId>" "<Frame name='Spacer/Bottom' w={326} grow={1} />"
-```
-
-For screens where content flows from the top (list, dashboard, form), skip this step — content should start immediately below any nav bar.
 
 **Step 3 — Render structural placeholders into the screen**
 
@@ -585,15 +576,25 @@ the design plan. Do not exit this loop early.
 
 **Exit condition:** `node fix --deep` exits with code 0 (no warnings) AND the screenshot matches the design plan. Both conditions must be true. Only then is the screen complete.
 
-**Step 5b — Commit undo boundary**
+**Step 5b — Clean up canvas and commit**
 
-After the evaluate loop exits clean, run:
-
+Before committing, delete any loose frames left at page root that are not
+screen containers. These are typically orphaned spacer frames or test frames
+from the build process.
 ```bash
-os-figma commit-undo
+# Find frames at page root that are not screen containers
+os-figma find "Spacer" --type FRAME
+# Delete any returned IDs that sit at page root (parentId = page, not a screen)
+os-figma delete "<id>"
+
+# Also check for any other non-screen frames at page root
+os-figma canvas info
 ```
 
-This creates a discrete undo checkpoint so the user can undo screen creation as a single step rather than stepping back through every individual command.
+Then create a single undo checkpoint:
+```bash
+os-figma eval "figma.commitUndo()"
+```
 
 ---
 
@@ -620,19 +621,6 @@ spacer frame:
 ```bash
 os-figma render --parent "<screenId>" "<Frame name='Spacer' w={326} h={24} />"
 ```
-
-Use these spacing values as a guide:
-
-| Gap context | Value |
-|-------------|-------|
-| Between form fields | `gap 16` on screen |
-| Logo to title | spacer h={16} |
-| Title to first field | spacer h={8} |
-| Last field to primary button | spacer h={8} |
-| Primary button to text link | spacer h={4} |
-| Text link to divider | spacer h={16} |
-| Divider to secondary button | spacer h={16} |
-| Top of screen to logo (login) | spacer h={80} |
 
 ---
 
@@ -706,45 +694,6 @@ os-figma render --parent "<screenId>" "<Frame name='Brand/Logo' w={64} h={64} ro
 
 ---
 
-### Screen archetypes
-
-Use these structural patterns as a guide for each screen type.
-Always adapt to what components are actually available in the library.
-
-**Login / Onboarding** (mobile)
-Spacer (h=80) → Brand/Logo (w=80, h=80, centred) → Spacer (h=16) →
-title text (h2, bold) + subtitle text (base, neutral-6) → Spacer (h=8) →
-Input (email, fill width) → Input (password, fill width) →
-Spacer (h=8) → Button (primary, fill width, "Sign In") →
-Link/ForgotPassword (text only, primary colour, centred) →
-Spacer (h=16) → Divider/Default (fill width, h=24, "or" label) →
-Spacer (h=16) → Button (secondary, fill width, "Continue with SSO")
-
-Centre the logo horizontally using `items='center'` on the screen frame
-or wrap it in a fill-width container with `flex='row' justify='center'`.
-
-**Login / Onboarding** (web)
-Two columns: left = Brand/Illustration placeholder (~50% width),
-right = centred form (logo, inputs, buttons, max-width ~400px)
-
-**List** (mobile): TopBar → Search → repeated Card/Item → BottomBar
-
-**List** (web): TopBar → header row (title + actions + Search) → Table → Pagination
-
-**Form** (mobile): TopBar → Input fields → Dropdown → Date Picker → Checkbox → Button (Save)
-
-**Form** (web): TopBar → two-column form (labels left, inputs right) → footer row (Save + Cancel, right-aligned)
-
-**Detail** (mobile): TopBar → Media/Hero → title + Tag → body → Divider → key/value rows → Button
-
-**Detail** (web): TopBar → two columns: content left, Card/Action right
-
-**Dashboard** (mobile): TopBar → Counter × 2 → section heading → Card/Item list → BottomBar
-
-**Dashboard** (web): TopBar → Sidebar (240px) → Counter × 4 → Chart (60%) + Card/Item list (40%)
-
----
-
 ### Spacing variables
 
 Never use hardcoded pixel values for gaps or padding.
@@ -767,10 +716,15 @@ Spacer frames are auto-layout helpers — use them sparingly and only when
 `gap` and `padding` cannot achieve the desired result.
 
 **When to use a spacer:**
-- `grow={1}` spacer to push content to the bottom of a screen (e.g. pin an
-  SSO button to the bottom while the form sits at the top)
 - Fixed-height spacer when one section needs significantly more space than
-  the screen's `gap` value provides
+  the screen's `gap` value provides (e.g. `h={80}` top spacer on a login
+  screen to push content down from the top edge)
+- `grow={1}` spacer in a **row** layout to fill remaining horizontal space
+  (e.g. divider lines flanking a label — see Divider template below)
+
+**Do not use `grow={1}` in column layouts to centre content** — this does
+not produce reliable symmetric distribution and leaves orphaned frames at
+page root.
 
 **When NOT to use a spacer:**
 - Do not use spacers to add uniform spacing between elements — use `gap` on
@@ -808,6 +762,10 @@ Always use `--parent` with spacers — see Render Best Practices rule 1.
 - **Daemon caches `figma-client.js` at startup** — changes to `figma-client.js`
   have no effect until the daemon is restarted. Always run `os-figma connect`
   after editing that file.
+- **`grow={1}` in column layouts** — does not produce reliable symmetric
+  vertical centring. Use a fixed top spacer (e.g. `h={80}`) to push content
+  down from the top edge on login and onboarding screens. `grow={1}` works
+  correctly in row layouts only (e.g. divider lines).
 
 ---
 
@@ -1011,8 +969,12 @@ convention. This makes the layer panel readable and node inspection reliable.
 
 Prefer `gap` and `padding` over spacer frames for uniform spacing. Only use
 spacers when:
-- A `grow={1}` spacer is needed to push content to the bottom of a screen
-- One section needs significantly more space than the screen `gap` provides
+- A fixed-height spacer is needed because one section needs significantly more
+  space than the screen `gap` provides
+- A `grow={1}` spacer fills remaining horizontal space in a **row** layout
+  (e.g. divider lines flanking a label)
+
+Do not use `grow={1}` in column layouts for vertical centring.
 
 Always include `--parent` on spacer render calls — see rule 1.
 
@@ -1031,6 +993,23 @@ os-figma render '<Frame name="Content/Header" flex="col">'
 # Outer double quotes — use single quotes inside JSX
 os-figma render "<Frame name='Content/Header' flex='col'>"
 ```
+
+---
+
+### Divider with label
+
+Use `grow={1}` on line frames in a **row** layout — this fills remaining
+horizontal space without hardcoded pixel widths:
+```jsx
+<Frame name='Divider/Default' w={326} flex='row' items='center' gap={8}>
+  <Frame name='Divider/Line' h={1} grow={1} bg='var:--color-neutral-4' />
+  <Text size={12} color='var:--color-neutral-6'>or</Text>
+  <Frame name='Divider/Line' h={1} grow={1} bg='var:--color-neutral-4' />
+</Frame>
+```
+
+`grow={1}` distributes space correctly in row layouts. Do not use it in
+column layouts for vertical centring — see Known Limitations.
 
 ---
 
