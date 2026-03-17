@@ -287,7 +287,7 @@ export class FigmaClient {
   /**
    * Parse JSX-like syntax to Figma Plugin API code
    */
-  parseJSX(jsx, keyMap = null, textStyleMap = [], spacingKeyMap = {}) {
+  parseJSX(jsx, keyMap = null, textStyleMap = [], spacingKeyMap = {}, radiusKeyMap = {}) {
     // Find opening Frame tag
     const openMatch = jsx.match(/<Frame\s+([^>]*)>/);
     if (!openMatch) {
@@ -315,7 +315,7 @@ export class FigmaClient {
     }
 
     // Generate code
-    return this.generateCode(props, childElements, keyMap, textStyleMap, spacingKeyMap);
+    return this.generateCode(props, childElements, keyMap, textStyleMap, spacingKeyMap, radiusKeyMap);
   }
 
   /**
@@ -472,7 +472,7 @@ export class FigmaClient {
     return children;
   }
 
-  generateCode(props, children, keyMap = null, textStyleMap = [], spacingKeyMap = {}) {
+  generateCode(props, children, keyMap = null, textStyleMap = [], spacingKeyMap = {}, radiusKeyMap = {}) {
     const name = props.name || 'Frame';
     const fillWidth = (props.w || props.width) === 'fill';
     const fillHeight = (props.h || props.height) === 'fill';
@@ -573,6 +573,24 @@ export class FigmaClient {
       return `${nodeVar}.${figmaProp} = ${val};`;
     };
 
+    // Helper: generate border-radius bind code — binds all four individual radius properties
+    const radiusBindCode = (val, nodeVar) => {
+      const token = radiusKeyMap[String(val)];
+      if (token) {
+        return `
+  try {
+    const __rv = await figma.variables.importVariableByKeyAsync(${JSON.stringify(token.key)});
+    if (__rv) {
+      ${nodeVar}.setBoundVariable('topLeftRadius', __rv);
+      ${nodeVar}.setBoundVariable('topRightRadius', __rv);
+      ${nodeVar}.setBoundVariable('bottomLeftRadius', __rv);
+      ${nodeVar}.setBoundVariable('bottomRightRadius', __rv);
+    } else { ${nodeVar}.cornerRadius = ${val}; }
+  } catch(e) { ${nodeVar}.cornerRadius = ${val}; }`;
+      }
+      return `${nodeVar}.cornerRadius = ${val};`;
+    };
+
     // Generate child code recursively
     let childCounter = 0;
     const generateChildCode = (items, parentVar) => {
@@ -607,15 +625,15 @@ export class FigmaClient {
         } else if (item._type === 'frame') {
           // Nested frame (button, etc.)
           const fName = item.name || 'Nested Frame';
-          const fBg = item.bg || item.fill || '#ffffff';
+          const fBg = item.bg || item.fill || null;
           const fStroke = item.stroke || null;
-          const fRounded = item.rounded || item.radius || 8;
+          const fRounded = item.rounded || item.radius || 0;
           const fFlex = item.flex || 'row';
           const fGap = item.gap || 0;
-          // Default padding for buttons
+          // Default padding to 0 — never rely on Figma's auto-layout defaults
           const fP = item.p !== undefined ? item.p : (item.padding !== undefined ? item.padding : null);
-          const fPx = item.px !== undefined ? item.px : (fP !== null ? fP : 16);
-          const fPy = item.py !== undefined ? item.py : (fP !== null ? fP : 8);
+          const fPx = item.px !== undefined ? item.px : (fP !== null ? fP : 0);
+          const fPy = item.py !== undefined ? item.py : (fP !== null ? fP : 0);
           const fAlign = item.align || 'center';
           const fJustify = item.justify || 'center';
           // Clip defaults to false for nested frames
@@ -645,7 +663,7 @@ export class FigmaClient {
           const fJustifyVal = alignMap[fJustify] || 'CENTER';
 
           const nestedChildren = item._children ? generateChildCode(item._children, `el${idx}`) : '';
-          const frameFillCode = this.generateFillCode(fBg, `el${idx}`);
+          const frameFillCode = fBg ? this.generateFillCode(fBg, `el${idx}`) : { code: `el${idx}.fills = [];` };
           const frameStrokeCode = fStroke ? this.generateStrokeCode(fStroke, `el${idx}`) : { code: '' };
 
           return `
@@ -661,7 +679,7 @@ export class FigmaClient {
         ${spacingBindCode(fPy, 'paddingBottom', `el${idx}`)}
         ${spacingBindCode(fPx, 'paddingLeft', `el${idx}`)}
         ${spacingBindCode(fPx, 'paddingRight', `el${idx}`)}
-        el${idx}.cornerRadius = ${fRounded};
+        ${radiusBindCode(fRounded, `el${idx}`)}
         ${frameFillCode.code}
         ${frameStrokeCode.code}
         el${idx}.primaryAxisAlignItems = '${fJustifyVal}';
@@ -687,7 +705,7 @@ export class FigmaClient {
         const el${idx} = figma.createRectangle();
         el${idx}.name = ${JSON.stringify(rName)};
         el${idx}.resize(${rWidth}, ${rHeight});
-        el${idx}.cornerRadius = ${rRounded};
+        ${radiusBindCode(rRounded, `el${idx}`)}
         ${rectFillCode.code}
         ${parentVar}.appendChild(el${idx});`;
         } else if (item._type === 'image') {
@@ -695,7 +713,7 @@ export class FigmaClient {
           const iWidth = item.w || item.width || 200;
           const iHeight = item.h || item.height || 150;
           const iBg = item.bg || '#f4f4f5';
-          const iRounded = item.rounded || item.radius || 8;
+          const iRounded = item.rounded || item.radius || 0;
           const iName = item.name || 'Image';
           const imgFillCode = this.generateFillCode(iBg, `el${idx}`);
 
@@ -703,7 +721,7 @@ export class FigmaClient {
         const el${idx} = figma.createRectangle();
         el${idx}.name = ${JSON.stringify(iName)};
         el${idx}.resize(${iWidth}, ${iHeight});
-        el${idx}.cornerRadius = ${iRounded};
+        ${radiusBindCode(iRounded, `el${idx}`)}
         ${imgFillCode.code}
         ${parentVar}.appendChild(el${idx});`;
         } else if (item._type === 'icon') {
@@ -818,7 +836,7 @@ export class FigmaClient {
         ${(!hugWidth || !hugHeight) ? `frame.resize(${hugWidth ? 100 : width}, ${hugHeight ? 100 : height});` : ''}
         frame.x = smartX;
         frame.y = ${y};
-        frame.cornerRadius = ${rounded};
+        ${radiusBindCode(rounded, 'frame')}
         ${rootFillCode.code}
         ${rootStrokeCode.code}
         frame.layoutMode = '${flex === 'row' ? 'HORIZONTAL' : 'VERTICAL'}';

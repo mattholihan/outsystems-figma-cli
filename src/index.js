@@ -5864,9 +5864,19 @@ program
           }
         }
 
+        // Build radiusKeyMap — resolve border-radius token keys for rounded values in JSX
+        const radiusKeyMap = {};
+        const roundedMatches = [...jsx.matchAll(/rounded=\{(\d+)\}/g)];
+        for (const match of roundedMatches) {
+          if (!radiusKeyMap[match[1]]) {
+            const resolved = resolveFloatToken(Number(match[1]), 'border-radius');
+            if (resolved) radiusKeyMap[match[1]] = resolved;
+          }
+        }
+
         const { FigmaClient } = await import('./figma-client.js');
         const client = new FigmaClient();
-        let code = client.parseJSX(jsx, varKeyMap, textStyleMap, spacingKeyMap);
+        let code = client.parseJSX(jsx, varKeyMap, textStyleMap, spacingKeyMap, radiusKeyMap);
 
         // If --parent specified, wrap code to reparent rendered node into target frame
         if (options.parent) {
@@ -5944,10 +5954,20 @@ program
         }
       }
 
+      // Build radiusKeyMap for non-var: path too
+      const radiusKeyMap2 = {};
+      const roundedMatches2 = [...jsx.matchAll(/rounded=\{(\d+)\}/g)];
+      for (const match of roundedMatches2) {
+        if (!radiusKeyMap2[match[1]]) {
+          const resolved = resolveFloatToken(Number(match[1]), 'border-radius');
+          if (resolved) radiusKeyMap2[match[1]] = resolved;
+        }
+      }
+
       // Parse JSX to Figma code using our own renderer (no var: keyMap needed)
       const { FigmaClient } = await import('./figma-client.js');
       const client = new FigmaClient();
-      let code = client.parseJSX(jsx, null, textStyleMap2, spacingKeyMap2);
+      let code = client.parseJSX(jsx, null, textStyleMap2, spacingKeyMap2, radiusKeyMap2);
 
       // If --parent specified, wrap code to reparent rendered node into target frame
       if (options.parent) {

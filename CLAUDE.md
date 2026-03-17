@@ -887,6 +887,17 @@ bound to the design system.
 <Frame name="Card/Default" w={326} flex="col" bg="#ffffff">
 ```
 
+**Child frame defaults (frames nested inside a root render frame):**
+- No `bg` prop → transparent (no fill). Never receives a default white fill.
+- No `rounded` prop → `cornerRadius=0`. Never receives a default radius.
+- No padding props → all four padding values explicitly set to `0`. Figma
+  defaults never leak in.
+- `bg="var:--token"` → fill bound to token at render time, no warning.
+- `rounded={n}` → corner radius bound to border-radius token at render time
+  if an exact match exists in `tokens.json`, raw value otherwise.
+- `p={n}`, `px={n}`, `py={n}` → spacing token bound at render time if exact
+  match exists in `tokens.json`.
+
 ---
 
 ### 3. Spacing values must match the token scale
