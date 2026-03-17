@@ -801,6 +801,10 @@ Always use `--parent` with spacers — see Render Best Practices rule 1.
   placement time, or follow with `os-figma set sizing fill fixed -n "<id>"`
 - `os-figma find` returns all matching nodes — use `--last` to get the most
   recently added match: `os-figma find "Button" --type INSTANCE --last`
+- `setBoundVariable('cornerRadius', v)` is silently ignored by this Figma
+  Desktop version. `boundVariables.cornerRadius` remains `null` after the
+  call. Bind all four individual properties instead:
+  `topLeftRadius`, `topRightRadius`, `bottomLeftRadius`, `bottomRightRadius`
 
 ---
 

@@ -352,6 +352,20 @@ os-figma node fix "123:456" --dry-run      # print fix plan without applying
 os-figma node fix "123:456" --deep         # fix warnings on all descendant nodes
 os-figma node fix                          # fix current Figma selection
 
+# Token resolution is property-aware: padding/gap values prefer spacing tokens,
+# font sizes prefer typography tokens, border radii prefer border tokens, etc.
+# This prevents cross-category mismatches (e.g. padding 16 binding to --font-size-base).
+#
+# --deep detects and fixes:
+#   fills[0]       — raw hex → color token
+#   strokes[0]     — raw hex → color token
+#   padding*, gap  — raw number → spacing token
+#   cornerRadius   — raw number → border-radius token (binds topLeftRadius,
+#                    topRightRadius, bottomLeftRadius, bottomRightRadius individually
+#                    because setBoundVariable('cornerRadius') is silently ignored)
+#   textStyleId    — unbound → text style
+#   effectStyleId  — unbound → effect style
+
 # Convert frames to components
 os-figma node to-component "123:456"
 

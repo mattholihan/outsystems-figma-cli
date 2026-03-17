@@ -1483,7 +1483,10 @@ for (const b of bindings) {
     node.strokes = [newStroke];
     bound++;
   } else if (prop === 'radius' && 'cornerRadius' in node) {
-    node.setBoundVariable('cornerRadius', variable);
+    node.setBoundVariable('topLeftRadius', variable);
+    node.setBoundVariable('topRightRadius', variable);
+    node.setBoundVariable('bottomLeftRadius', variable);
+    node.setBoundVariable('bottomRightRadius', variable);
     bound++;
   } else if (prop === 'gap' && 'itemSpacing' in node) {
     node.setBoundVariable('itemSpacing', variable);
@@ -4612,13 +4615,68 @@ function resolveTextStyleKey(fontSize, weight) {
 // Helper: Resolve a spacing token { name, key } from tokens.json by exact value match
 // Only matches FLOAT type tokens (spacing scale)
 // Returns { name, key } or null if no exact match
-function resolveSpacingTokenKey(value) {
+// Property-to-category mapping for semantically correct token resolution
+const PROPERTY_TOKEN_CATEGORY = {
+  paddingTop:    'spacing',
+  paddingRight:  'spacing',
+  paddingBottom: 'spacing',
+  paddingLeft:   'spacing',
+  itemSpacing:   'spacing',
+  counterAxisSpacing: 'spacing',
+  'fills[0]':    'color',
+  'strokes[0]':  'color',
+  cornerRadius:       'border-radius',
+  topLeftRadius:      'border-radius',
+  topRightRadius:     'border-radius',
+  bottomLeftRadius:   'border-radius',
+  bottomRightRadius:  'border-radius',
+  strokeWeight:  'border-size',
+  fontSize:      'typography',
+  fontWeight:    'typography',
+  lineHeight:    'typography',
+  letterSpacing: 'typography',
+};
+
+// Category → collection name keywords (case-insensitive substring match)
+const CATEGORY_KEYWORDS = {
+  'spacing':       ['spacing', 'space'],
+  'border-radius': ['border', 'radius'],
+  'border-size':   ['border', 'size'],
+  'typography':    ['font', 'typography', 'type'],
+};
+
+/**
+ * Resolve a FLOAT value to a token, preferring the specified category.
+ * Two-pass: preferred collections first, then remainder.
+ * @param {number} value - The raw numeric value to match
+ * @param {string} [preferredCategory] - 'spacing' | 'border-radius' |
+ *   'border-size' | 'typography' — controls which collection is checked first
+ * @returns {{ name: string, key: string } | null}
+ */
+function resolveFloatToken(value, preferredCategory = null) {
   const tokensPath = join(process.cwd(), 'tokens.json');
   if (!existsSync(tokensPath)) return null;
   try {
     const data = JSON.parse(readFileSync(tokensPath, 'utf8'));
     const num = Number(value);
-    for (const groups of Object.values(data.collections || {})) {
+    const collections = Object.entries(data.collections || {});
+
+    const keywords = preferredCategory
+      ? (CATEGORY_KEYWORDS[preferredCategory] || [])
+      : [];
+
+    const preferred = keywords.length
+      ? collections.filter(([name]) =>
+          keywords.some(kw => name.toLowerCase().includes(kw))
+        )
+      : [];
+    const remainder = keywords.length
+      ? collections.filter(([name]) =>
+          !keywords.some(kw => name.toLowerCase().includes(kw))
+        )
+      : collections;
+
+    for (const [, groups] of [...preferred, ...remainder]) {
       for (const entries of Object.values(groups)) {
         for (const [tokenName, entry] of Object.entries(entries)) {
           if (entry && typeof entry === 'object' && entry.type === 'FLOAT' && Number(entry.value) === num && entry.key) {
@@ -4629,6 +4687,11 @@ function resolveSpacingTokenKey(value) {
     }
   } catch {}
   return null;
+}
+
+// Backwards-compatible alias used by spacing-specific call sites
+function resolveSpacingTokenKey(value) {
+  return resolveFloatToken(value, 'spacing');
 }
 
 const bind = program
@@ -4704,7 +4767,12 @@ const v = await figma.variables.importVariableByKeyAsync('${key}');
 if (!v) return 'Could not import variable ${name} (key: ${key}). Is the Foundations library open in Figma?';
 if (nodes.length === 0) return 'No node selected';
 nodes.forEach(n => {
-  if ('cornerRadius' in n) n.setBoundVariable('cornerRadius', v);
+  if ('cornerRadius' in n) {
+    n.setBoundVariable('topLeftRadius', v);
+    n.setBoundVariable('topRightRadius', v);
+    n.setBoundVariable('bottomLeftRadius', v);
+    n.setBoundVariable('bottomRightRadius', v);
+  }
 });
 return 'Bound ' + v.name + ' to radius on ' + nodes.length + ' elements';
 })()`;
@@ -6474,6 +6542,16 @@ node
       warnings.push({ property: 'effectStyleId', issue: 'effects present but no effect style bound — fix with: os-figma bind effect "Style/Name" -n ' + node.id });
     }
 
+    // Corner radius — warn if raw, non-zero, and not bound to a variable
+    // Check individual radius properties since Figma binds those, not cornerRadius
+    if ('cornerRadius' in n && n.cornerRadius && n.cornerRadius !== 0) {
+      const bvCr = n.boundVariables || {};
+      const crBound = bvCr.topLeftRadius || bvCr.topRightRadius || bvCr.bottomLeftRadius || bvCr.bottomRightRadius;
+      if (!crBound) {
+        warnings.push({ property: 'cornerRadius', issue: 'raw corner radius ' + n.cornerRadius + ' — not bound to a variable' });
+      }
+    }
+
     result.warnings = warnings;
     return result;
   }
@@ -6701,6 +6779,14 @@ node
       };
     }
 
+    // Corner radius data with bound variable check
+    // Check individual radius properties since Figma binds those, not cornerRadius
+    if ('cornerRadius' in n && n.cornerRadius && n.cornerRadius !== 0) {
+      const bv = n.boundVariables || {};
+      const crBound = !!(bv.topLeftRadius || bv.topRightRadius || bv.bottomLeftRadius || bv.bottomRightRadius);
+      result.cornerRadius = { value: n.cornerRadius, bound: crBound };
+    }
+
     result.children = ('children' in n)
       ? n.children.map(c => recurse ? inspectNode(c, true) : { id: c.id, name: c.name, type: c.type, geometry: { x: c.x, y: c.y, w: c.width, h: c.height !== undefined ? c.height : null } })
       : [];
@@ -6726,6 +6812,10 @@ node
       if (sp.paddingRight > 0 && !sp.paddingRightBound) warnings.push({ property: 'paddingRight', value: sp.paddingRight, figmaProp: 'paddingRight' });
       if (sp.paddingBottom > 0 && !sp.paddingBottomBound) warnings.push({ property: 'paddingBottom', value: sp.paddingBottom, figmaProp: 'paddingBottom' });
       if (sp.paddingLeft > 0 && !sp.paddingLeftBound) warnings.push({ property: 'paddingLeft', value: sp.paddingLeft, figmaProp: 'paddingLeft' });
+    }
+    // Corner radius warning — unbound non-zero radius
+    if (result.cornerRadius && !result.cornerRadius.bound) {
+      warnings.push({ property: 'cornerRadius', value: result.cornerRadius.value, figmaProp: 'cornerRadius' });
     }
     result.warnings = warnings;
     return result;
@@ -6816,7 +6906,8 @@ node
       }
 
       if (prop === 'gap' || prop.startsWith('padding')) {
-        const token = resolveSpacingTokenKey(warning.value);
+        const category = PROPERTY_TOKEN_CATEGORY[warning.figmaProp] || 'spacing';
+        const token = resolveFloatToken(warning.value, category);
         if (token) {
           return { type: 'bind-spacing', nodeId: nodeData.id, nodeName: nodeData.name,
                    prop, figmaProp: warning.figmaProp, value: warning.value,
@@ -6824,6 +6915,17 @@ node
         }
         return { type: 'unresolved', nodeId: nodeData.id, nodeName: nodeData.name,
                  prop, reason: `no spacing token for value ${warning.value}` };
+      }
+
+      if (prop === 'cornerRadius') {
+        const token = resolveFloatToken(warning.value, 'border-radius');
+        if (token) {
+          return { type: 'bind-radius', nodeId: nodeData.id, nodeName: nodeData.name,
+                   prop, value: warning.value,
+                   tokenName: token.name, tokenKey: token.key };
+        }
+        return { type: 'unresolved', nodeId: nodeData.id, nodeName: nodeData.name,
+                 prop, reason: `no border-radius token for value ${warning.value}` };
       }
 
       return { type: 'unresolved', nodeId: nodeData.id, nodeName: nodeData.name, prop, reason: 'unknown warning type' };
@@ -6857,6 +6959,8 @@ node
         console.log(`  ${chalk.green('✓')} ${label} textStyleId → ${chalk.cyan(fix.styleName)}`);
       } else if (fix.type === 'bind-spacing') {
         console.log(`  ${chalk.green('✓')} ${label} ${fix.prop} — ${fix.value} → ${chalk.cyan(fix.tokenName)}`);
+      } else if (fix.type === 'bind-radius') {
+        console.log(`  ${chalk.green('✓')} ${label} cornerRadius — ${fix.value} → ${chalk.cyan(fix.tokenName)}`);
       }
     }
 
@@ -6948,6 +7052,20 @@ if (!v) throw new Error('Could not import spacing variable ${fix.tokenName}');
 node.setBoundVariable('${fix.figmaProp}', v);
 return JSON.stringify({ ok: true });
 })()`;
+      } else if (fix.type === 'bind-radius') {
+        code = `(async () => {
+const node = await figma.getNodeByIdAsync(${JSON.stringify(fix.nodeId)});
+if (!node) throw new Error('Node not found: ${fix.nodeId}');
+const v = await figma.variables.importVariableByKeyAsync(${JSON.stringify(fix.tokenKey)});
+if (!v) throw new Error('Could not import border-radius variable ${fix.tokenName}');
+if ('cornerRadius' in node) {
+  node.setBoundVariable('topLeftRadius', v);
+  node.setBoundVariable('topRightRadius', v);
+  node.setBoundVariable('bottomLeftRadius', v);
+  node.setBoundVariable('bottomRightRadius', v);
+}
+return JSON.stringify({ ok: true });
+})()`;
       }
 
       try {
@@ -6963,6 +7081,8 @@ return JSON.stringify({ ok: true });
           console.log(`  ${chalk.green('✓')} textStyleId on "${fix.nodeName}" → ${fix.styleName}`);
         } else if (fix.type === 'bind-spacing') {
           console.log(`  ${chalk.green('✓')} ${fix.prop} on "${fix.nodeName}" → ${fix.tokenName}`);
+        } else if (fix.type === 'bind-radius') {
+          console.log(`  ${chalk.green('✓')} cornerRadius on "${fix.nodeName}" → ${fix.tokenName}`);
         }
       } catch (err) {
         failed++;
