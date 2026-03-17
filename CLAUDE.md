@@ -805,6 +805,9 @@ Always use `--parent` with spacers — see Render Best Practices rule 1.
   Desktop version. `boundVariables.cornerRadius` remains `null` after the
   call. Bind all four individual properties instead:
   `topLeftRadius`, `topRightRadius`, `bottomLeftRadius`, `bottomRightRadius`
+- **Daemon caches `figma-client.js` at startup** — changes to `figma-client.js`
+  have no effect until the daemon is restarted. Always run `os-figma connect`
+  after editing that file.
 
 ---
 
