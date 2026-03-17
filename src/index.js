@@ -5795,6 +5795,8 @@ function generateFigmaCode(props, x, y) {
     const g = parseInt(hex.substr(2, 2), 16) / 255;
     const b = parseInt(hex.substr(4, 2), 16) / 255;
     code += `\n    f.fills = [{type:'SOLID', color:{r:${r.toFixed(3)},g:${g.toFixed(3)},b:${b.toFixed(3)}}}];`;
+  } else {
+    code += `\n    f.fills = [];`;
   }
 
   code += `\n    return { id: f.id, name: f.name };
@@ -5913,7 +5915,7 @@ program
       }
 
       // Try fast path for simple frames
-      if (options.fast || (!jsx.includes('><') && !jsx.includes('</Frame><'))) {
+      if (!options.parent && (options.fast || (!jsx.includes('><') && !jsx.includes('</Frame><')))) {
         const simpleProps = parseSimpleJsx(jsx.trim());
         if (simpleProps && isDaemonRunning()) {
           const code = generateFigmaCode(simpleProps, posX || 0, posY);

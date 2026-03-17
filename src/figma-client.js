@@ -480,7 +480,7 @@ export class FigmaClient {
     const hasExplicitHeight = !!(props.h || props.height);
     const width = fillWidth ? 100 : Number(props.w || props.width || 320);
     const height = fillHeight ? 100 : Number(props.h || props.height || 100);
-    const bg = props.bg || props.fill || '#ffffff';
+    const bg = props.bg || props.fill || null;
     const stroke = props.stroke || null;
     const rounded = props.rounded || props.radius || 0;
     const flex = props.flex || 'col';
@@ -535,9 +535,9 @@ export class FigmaClient {
           const color = item.color || '#000000';
           checkVarUsage(color);
         } else if (item._type === 'frame') {
-          const fBg = item.bg || item.fill || '#ffffff';
+          const fBg = item.bg || item.fill || null;
           const fStroke = item.stroke || null;
-          checkVarUsage(fBg);
+          if (fBg) checkVarUsage(fBg);
           if (fStroke) checkVarUsage(fStroke);
           if (item._children) collectFontsAndVars(item._children);
         } else if (item._type === 'rect' || item._type === 'image' || item._type === 'icon') {
@@ -788,7 +788,7 @@ export class FigmaClient {
     ` : `const smartX = ${explicitX};`;
 
     // Generate fill/stroke code for root frame
-    const rootFillCode = this.generateFillCode(bg, 'frame');
+    const rootFillCode = bg ? this.generateFillCode(bg, 'frame') : { code: 'frame.fills = [];', usesVars: false };
     const rootStrokeCode = stroke ? this.generateStrokeCode(stroke, 'frame') : { code: '', usesVars: false };
 
     // Variable loading code (only if any vars used)
