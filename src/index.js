@@ -8336,6 +8336,7 @@ pattern
 
   async function applyProps(inst, props) {
     var warnings = [];
+    var applied = [];
     for (var i = 0; i < props.length; i++) {
       var p = props[i];
       try {
@@ -8343,6 +8344,7 @@ pattern
         if (p.type === 'boolean') {
           if (resolvedKey) {
             inst.setProperties({ [resolvedKey]: p.value === 'true' });
+            applied.push({ key: p.key, value: p.value });
           } else {
             warnings.push('Property "' + p.key + '" not found on instance');
           }
@@ -8350,6 +8352,7 @@ pattern
           if (resolvedKey) {
             var iconComp = await figma.importComponentByKeyAsync(p.iconKey);
             inst.setProperties({ [resolvedKey]: iconComp.id });
+            applied.push({ key: p.key, value: p.value });
           } else {
             warnings.push('Property "' + p.key + '" not found on instance');
           }
@@ -8358,11 +8361,12 @@ pattern
           var cp = inst.componentProperties;
           if (resolvedKey && cp[resolvedKey].type === 'TEXT') {
             inst.setProperties({ [resolvedKey]: p.value });
+            applied.push({ key: p.key, value: p.value });
           } else if (resolvedKey && cp[resolvedKey].type === 'INSTANCE_SWAP') {
             warnings.push('Property "' + p.key + '" is an instance swap — pass the icon name as the value and ensure icons are scanned first');
           } else {
             var textNode = inst.findOne(function(n) { return n.type === 'TEXT' && n.name === p.key; });
-            if (textNode) { textNode.characters = p.value; }
+            if (textNode) { textNode.characters = p.value; applied.push({ key: p.key, value: p.value }); }
             else { warnings.push('Property "' + p.key + '" not found on instance'); }
           }
         }
@@ -8370,7 +8374,7 @@ pattern
         warnings.push('Property "' + p.key + '" could not be set: ' + e.message);
       }
     }
-    return warnings;
+    return { warnings: warnings, applied: applied };
   }
 
   var componentSet;
@@ -8382,7 +8386,7 @@ pattern
       var comp = await figma.importComponentByKeyAsync(key);
       var inst = comp.createInstance();
       await loadInstanceFonts(inst);
-      var propWarnings = await applyProps(inst, resolvedProps);
+      var propResult = await applyProps(inst, resolvedProps);
       var hasX = ${options.x !== undefined};
       var hasY = ${options.y !== undefined};
       if (parentNodeId) {
@@ -8407,7 +8411,7 @@ pattern
       }
       figma.currentPage.selection = [inst];
       figma.viewport.scrollAndZoomIntoView([inst]);
-      return { id: inst.id, componentName: comp.name, variantName: null, propWarnings };
+      return { id: inst.id, componentName: comp.name, variantName: null, propWarnings: propResult.warnings, propApplied: propResult.applied };
     } catch (e2) {
       return { error: e2.message };
     }
@@ -8429,7 +8433,7 @@ pattern
 
   var instance = variant.createInstance();
   await loadInstanceFonts(instance);
-  var propWarnings = await applyProps(instance, resolvedProps);
+  var propResult = await applyProps(instance, resolvedProps);
   var hasX = ${options.x !== undefined};
   var hasY = ${options.y !== undefined};
   if (parentNodeId) {
@@ -8454,7 +8458,7 @@ pattern
   }
   figma.currentPage.selection = [instance];
   figma.viewport.scrollAndZoomIntoView([instance]);
-  return { id: instance.id, componentName: componentSet.name, variantName: variant.name, propWarnings };
+  return { id: instance.id, componentName: componentSet.name, variantName: variant.name, propWarnings: propResult.warnings, propApplied: propResult.applied };
 })()`;
 
     let result;
@@ -8484,8 +8488,21 @@ pattern
     const fromLib = componentsLib ? ` from ${componentsLib}` : '';
     spinner.succeed(`Added ${displayName}${fromLib}`);
 
+    // Show applied props
+    const appliedProps = result.propApplied || [];
+    if (appliedProps.length > 0) {
+      const propStr = appliedProps.map(p => `${p.key}=${p.value}`).join(', ');
+      console.log(`  ${chalk.gray('Props:')} ${propStr}`);
+    }
+
+    // Show prop warnings with hint to run pattern describe
     for (const w of (result.propWarnings || [])) {
-      console.log(chalk.yellow(`  ⚠ ${w}`));
+      const notFoundMatch = w.match(/Property "(.+)" not found/);
+      if (notFoundMatch) {
+        console.log(`  ${chalk.yellow('⚠')} Prop "${notFoundMatch[1]}" not found — check exact key with: ${chalk.cyan(`os-figma pattern describe ${matchedName}`)}`);
+      } else {
+        console.log(chalk.yellow(`  ⚠ ${w}`));
+      }
     }
 
     // Apply sizing if specified
@@ -8500,7 +8517,10 @@ if (node && 'layoutSizingHorizontal' in node) {
   }
 }
 })()`;
-      try { await daemonExec('eval', { code: sizingCode }); } catch {}
+      try {
+        await daemonExec('eval', { code: sizingCode });
+        console.log(`  ${chalk.gray('Sizing:')} ${options.sizing} (horizontal)`);
+      } catch {}
     }
   });
 

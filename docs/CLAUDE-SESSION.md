@@ -60,6 +60,8 @@ os-figma pattern describe Button --pretty
 os-figma pattern add Button
 os-figma pattern add Button --variant Primary --state Default
 os-figma pattern add Button --variant Primary --prop "Text=Sign In" --prop "Show icon (L)=true" --prop "Icon (L)=arrow-left"
+# After pattern add, check output for Props confirmation.
+# If ⚠ appears, prop key is wrong — run `pattern describe <Component>` to check exact keys.
 ```
 
 ### Execute JavaScript in Figma

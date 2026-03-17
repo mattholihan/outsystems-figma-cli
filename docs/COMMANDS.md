@@ -180,6 +180,9 @@ os-figma pattern add Button --variant Primary --state Default \
   --sizing fill
 ```
 
+> **Prop confirmation:** `--prop` values are confirmed in output after placement.
+> Unrecognised prop keys produce a warning with a hint to run `pattern describe`.
+
 > **First-time setup:** Run `os-figma pattern scan` once with your component library
 > file open in Figma, and `os-figma pattern scan --icons` with your icon library file
 > open. Both save keys to `library-config.json`. Re-run after any library updates.
