@@ -800,6 +800,104 @@ Always use `--parent` with spacers — see Render Best Practices rule 1.
 
 ---
 
+## Composing Multiple Screens
+
+When asked to create more than one screen — a flow, a feature set, or a
+full app section — the approach changes. Multiple screens require upfront
+planning that a single screen does not.
+
+---
+
+### Plan the set before building any screen
+
+Before running any commands, define the full set:
+
+- What are all the screens? Name them now.
+- What is the relationship between them? (login → onboarding → home, etc.)
+- What platform? Mobile and web screens in the same set should share spacing
+  rhythm and component choices even if their layouts differ.
+- What is the shared design language? Decide padding scale, gap scale, and
+  component variants once — apply consistently across all screens.
+
+Write this plan before touching the CLI. Example:
+
+> "Authentication flow, mobile. Three screens: Login, Forgot Password,
+> Reset Password. All share the same generous top padding to push content
+> into the upper third, the same form spacing, and the same primary button
+> treatment. Login is the most complex — build it first to establish the
+> pattern, then reference it when building the other two."
+
+---
+
+### Build in dependency order
+
+Build the most foundational screen first — typically the one other screens
+reference for spacing, tone, or component choices. Complete it fully
+(evaluate loop exits clean) before starting the next.
+
+Do not interleave screens. Complete one, commit it, then start the next.
+
+---
+
+### Organise the canvas as you go
+
+`render` uses smart positioning — each new screen frame is automatically
+placed to the right of existing frames with a consistent gap. Build screens
+in flow order (login first, then the next screen in the journey) and the
+canvas will read left to right naturally.
+
+Check the current canvas state before starting each new screen:
+
+```bash
+os-figma canvas info
+```
+
+This confirms how many frames exist and where the next one will land. No manual positioning is needed.
+
+---
+
+### Maintain consistency across screens
+
+Before building each subsequent screen, inspect the previous one to confirm the decisions to carry forward:
+
+```bash
+# Remind yourself what the first screen established
+os-figma node inspect -n "<previousScreenId>"
+```
+
+Check:
+
+- What padding values were used on the screen frame?
+- What gap between elements?
+- Which component variants were used (e.g. Button/Primary vs Secondary)?
+- What font sizes for headings and body text?
+
+Apply the same values to the new screen. Do not re-decide spacing from scratch on each screen — that's how inconsistency creeps in.
+
+---
+
+### Shared elements across screens
+
+If the same structural element appears on multiple screens (e.g. a top navigation bar, a bottom tab bar), render it identically each time — same name, same dimensions, same tokens. Do not vary structural frame heights or padding between screens unless there is a deliberate design reason.
+
+---
+
+### Canvas cleanup applies per-screen
+
+Run the canvas cleanup step (Step 5b) after completing each screen, not just at the end. Loose frames from one screen's build process should be deleted before starting the next.
+
+---
+
+### Commit after each screen
+
+Commit an undo boundary after each screen's evaluate loop exits clean — not once at the end of the full set. This keeps undo checkpoints granular and makes it possible to roll back a single screen without losing work on the others.
+
+```bash
+os-figma eval "figma.commitUndo()"
+```
+
+---
+
 ## JSX Syntax (render command)
 
 ```jsx

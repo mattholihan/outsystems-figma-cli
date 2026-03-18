@@ -249,6 +249,11 @@ ids.forEach(id => {
     undo checkpoint so the user can undo screen creation as one step rather than
     stepping back through every individual command.
 
+13. **For multiple screens** — plan the full set before building any individual
+    screen. Build in dependency order, complete one fully before starting the
+    next, and inspect the previous screen before building each new one to
+    maintain consistency. See CLAUDE.md → Composing Multiple Screens.
+
 ## File Structure
 
 ```
