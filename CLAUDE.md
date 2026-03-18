@@ -826,7 +826,8 @@ rounded={8}             // corner radius
 opacity={0.8}
 
 // Text
-<Text size={16} weight="bold" color="var:--color-neutral-10" w="fill">Hello</Text>
+<Text size={16} weight="bold" color="var:--color-neutral-10" w="fill" align="center">Hello</Text>
+// align: left (default), center, right, justified
 ```
 
 ---
@@ -1063,6 +1064,9 @@ Always add `w="fill"` to both the parent frame AND every Text element.
   <Text color="var:--color-neutral-0" weight="semi-bold">Button</Text>
 </Frame>
 ```
+
+> Use `align="center"` directly on the `<Text>` element instead of wrapping
+> in a flex frame.
 
 **3. No emojis — use shapes as icon placeholders:**
 ```jsx

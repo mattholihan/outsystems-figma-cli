@@ -406,7 +406,8 @@ os-figma run /tmp/script.js
 
 **Effects:** `shadow="0 4 12 #0001"`, `blur={10}`, `rotate={45}`
 
-**Text:** `<Text size={16} weight="bold" color="var:--color-neutral-10" w="fill">Hello</Text>`
+**Text:** `<Text size={16} weight="bold" color="var:--color-neutral-10" w="fill" align="center">Hello</Text>`
+**Text align:** `align="left"` (default), `align="center"`, `align="right"`, `align="justified"`
 
 **WRONG vs RIGHT:**
 ```

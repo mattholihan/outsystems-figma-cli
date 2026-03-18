@@ -603,6 +603,13 @@ export class FigmaClient {
           const color = item.color || '#000000';
           const fillWidth = item.w === 'fill';
           const textFillCode = this.generateFillCode(color, `el${idx}`);
+          const textAlign = (() => {
+            const a = (item.align || item.textAlign || 'left').toLowerCase();
+            if (a === 'center')    return 'CENTER';
+            if (a === 'right')     return 'RIGHT';
+            if (a === 'justified') return 'JUSTIFIED';
+            return 'LEFT';
+          })();
 
           // Find matching text style from textStyleMap
           const textStyle = textStyleMap.find(ts => ts.size === size);
@@ -618,6 +625,7 @@ export class FigmaClient {
         el${idx}.fontName = {family:'${textStyle ? textStyle.fontFamily : 'Inter'}',style:'${textStyle ? textStyle.fontStyle : style}'};
         el${idx}.fontSize = ${size};
         el${idx}.characters = ${JSON.stringify(item.content)};
+        el${idx}.textAlignHorizontal = '${textAlign}';
         ${textFillCode.code}
         ${parentVar}.appendChild(el${idx});
         ${fillWidth ? `el${idx}.layoutSizingHorizontal = 'FILL'; el${idx}.textAutoResize = 'HEIGHT';` : ''}
