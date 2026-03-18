@@ -1221,6 +1221,31 @@ Do not use spacers for uniform spacing between elements — use `gap` on
 the parent frame instead. Do not use spacers for top/bottom breathing
 room — use `padding` on the parent frame instead.
 
+**8. Logo or icon not centring inside a column layout:**
+
+`items="center"` on a column parent centres all children cross-axis, but
+a fixed-size child (e.g. an 80×80 logo) also needs to be inside a
+fill-width wrapper to centre correctly. In Figma there is no per-child
+alignment override equivalent to CSS `align-self` for centring.
+
+```jsx
+// WRONG — logo stays left-aligned despite items="center" on parent
+<Frame name="Screen" w={390} flex="col" items="center">
+  <Frame name="Logo" w={80} h={80} rounded={16} bg="var:--color-primary" />
+  <Text w="fill" size={16} color="var:--color-neutral-10">Welcome back</Text>
+</Frame>
+
+// CORRECT — wrap the logo in a fill-width row with justify="center"
+<Frame name="Screen" w={390} flex="col">
+  <Frame name="Logo zone" w={390} flex="row" justify="center">
+    <Frame name="Logo" w={80} h={80} rounded={16} bg="var:--color-primary" />
+  </Frame>
+  <Text w="fill" size={16} color="var:--color-neutral-10">Welcome back</Text>
+</Frame>
+```
+
+The wrapper frame approach works for any element that needs independent centring within a column layout.
+
 ---
 
 ## Key Rules
