@@ -38,6 +38,7 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "screenshot the screen" / "check the output" | `os-figma export node "<id>" --feedback` |
 | "inspect a node" | `os-figma node inspect "<id>"` |
 | "inspect current selection" | `os-figma node inspect` |
+| "check colour contrast" | `os-figma accessibility check "<id>" --deep` |
 | "run preflight checks" | `os-figma doctor` |
 | "deep node tree" | `os-figma node inspect "<id>" --deep` |
 | "fix design system warnings" | `os-figma node fix "<id>" --deep` — **prefer this in the evaluate loop** |
@@ -613,6 +614,12 @@ the design plan. Do not exit this loop early.
    ```
 
 5. Return to step 1 and re-export.
+
+After `node fix --deep` exits clean, optionally run a contrast check:
+```bash
+os-figma accessibility check "<screenId>" --deep
+```
+Exits code 0 if all text passes WCAG AA. Add `--level AAA` for stricter checking. Address any failures before declaring the screen complete.
 
 **Exit condition:** `node fix --deep` exits with code 0 (no warnings) AND the screenshot matches the design plan. Both conditions must be true. Only then is the screen complete.
 

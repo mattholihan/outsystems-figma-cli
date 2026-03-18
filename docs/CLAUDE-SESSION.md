@@ -113,6 +113,9 @@ os-figma render '<Frame name="Login — Mobile" w={390} h={844} flex="col" bg="v
 os-figma render '<Frame name="Dashboard" w={1440} h={900} flex="col" bg="var:--color-neutral-0" p={64} gap={32}>'
 ```
 
+> The `p` and `gap` values above are examples only — choose based on the
+> screen type and content density, not these defaults.
+
 Choose padding and gap based on the screen type and content density. Use `os-figma screen create` if you want a quick scaffold without custom spacing.
 
 Both `render` and `screen create` print the node ID on success — note it
@@ -194,6 +197,7 @@ ids.forEach(id => {
   2. `os-figma node fix "<id>" --deep` — apply all auto-fixable warnings
   3. If `node fix` exits with code 1, apply remaining warnings manually with `os-figma bind`, then re-run `node fix`
   4. Re-export and re-evaluate. Repeat until `node fix` exits with code 0 and the screenshot matches the design plan
+  5. Once `node fix` exits clean, run a contrast check: `os-figma accessibility check "<id>" --deep` Address any failures before declaring the screen complete.
 - After the evaluate loop exits clean, commit an undo boundary: `os-figma commit-undo`
 
 ## Important Notes

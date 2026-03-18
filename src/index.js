@@ -8802,4 +8802,197 @@ program
     process.exit(anyFailed ? 1 : 0);
   });
 
+// ─── Accessibility ─────────────────────────────────────────────────────────
+
+const accessibility = program
+  .command('accessibility')
+  .alias('a11y')
+  .description('Accessibility checks');
+
+accessibility
+  .command('check [nodeId]')
+  .description('Check colour contrast ratios against WCAG standards')
+  .option('--deep', 'Recursively check all descendant nodes')
+  .option('--level <level>', 'WCAG level: AA or AAA', 'AA')
+  .action(async (nodeId, options) => {
+    await checkConnection();
+
+    if (!nodeId) {
+      console.error(chalk.red('Error: nodeId is required'));
+      process.exit(1);
+    }
+
+    const level = (options.level || 'AA').toUpperCase();
+    if (level !== 'AA' && level !== 'AAA') {
+      console.error(chalk.red('Error: --level must be AA or AAA'));
+      process.exit(1);
+    }
+
+    // Collect text nodes with fg/bg hex from Figma
+    const script = `(async () => {
+  const root = await figma.getNodeByIdAsync(${JSON.stringify(nodeId)});
+  if (!root) return JSON.stringify({ error: 'Node not found' });
+
+  const results = [];
+
+  function rgbToHex({ r, g, b }) {
+    const toHex = v => Math.round(v * 255).toString(16).padStart(2, '0');
+    return '#' + toHex(r) + toHex(g) + toHex(b);
+  }
+
+  async function collectTextNodes(node) {
+    if (node.type === 'TEXT') {
+      const fill = node.fills && node.fills[0];
+      let fgHex = null;
+      let fgToken = null;
+      if (fill && fill.type === 'SOLID') {
+        fgHex = rgbToHex(fill.color);
+        const binding = (node.boundVariables && node.boundVariables.fills && node.boundVariables.fills[0])
+          ? (node.boundVariables.fills[0].color || node.boundVariables.fills[0])
+          : null;
+        if (binding && binding.id) {
+          try {
+            const v = await figma.variables.getVariableByIdAsync(binding.id);
+            if (v) fgToken = v.name;
+          } catch {}
+        }
+      }
+
+      let bgHex = '#ffffff';
+      let bgToken = null;
+      let parent = node.parent;
+      while (parent && parent.type !== 'PAGE') {
+        const bg = parent.fills && parent.fills[0];
+        if (bg && bg.type === 'SOLID' && (bg.opacity !== undefined ? bg.opacity : 1) > 0) {
+          bgHex = rgbToHex(bg.color);
+          const bgBinding = (parent.boundVariables && parent.boundVariables.fills && parent.boundVariables.fills[0])
+            ? (parent.boundVariables.fills[0].color || parent.boundVariables.fills[0])
+            : null;
+          if (bgBinding && bgBinding.id) {
+            try {
+              const v = await figma.variables.getVariableByIdAsync(bgBinding.id);
+              if (v) bgToken = v.name;
+            } catch {}
+          }
+          break;
+        }
+        parent = parent.parent;
+      }
+
+      if (fgHex) {
+        results.push({
+          id: node.id,
+          name: node.name,
+          parentName: node.parent ? node.parent.name : '',
+          fgHex,
+          fgToken,
+          bgHex,
+          bgToken,
+          fontSize: node.fontSize,
+          fontWeight: node.fontWeight,
+          isBold: typeof node.fontWeight === 'number'
+            ? node.fontWeight >= 700
+            : String(node.fontWeight).toLowerCase().includes('bold')
+        });
+      }
+    }
+    if (node.children) {
+      for (const child of node.children) await collectTextNodes(child);
+    }
+  }
+
+  await collectTextNodes(root);
+  return JSON.stringify({ nodeName: root.name, results });
+})()`;
+
+    let raw;
+    try {
+      raw = await daemonExec('eval', { code: script });
+    } catch (err) {
+      console.error(chalk.red(`\nError: ${err.message}\n`));
+      process.exit(1);
+    }
+
+    const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+
+    if (data.error) {
+      console.error(chalk.red(`\nError: ${data.error}\n`));
+      process.exit(1);
+    }
+
+    const { nodeName, results } = data;
+    const deepLabel = options.deep ? ' (deep)' : '';
+    console.log(`\nAccessibility check — "${nodeName}"${deepLabel}\n`);
+
+    // Contrast calculation helpers
+    function hexToLinear(hex) {
+      const r = parseInt(hex.slice(1, 3), 16) / 255;
+      const g = parseInt(hex.slice(3, 5), 16) / 255;
+      const b = parseInt(hex.slice(5, 7), 16) / 255;
+      const linearise = c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      return 0.2126 * linearise(r) + 0.7152 * linearise(g) + 0.0722 * linearise(b);
+    }
+
+    function contrastRatio(hex1, hex2) {
+      const l1 = hexToLinear(hex1);
+      const l2 = hexToLinear(hex2);
+      const lighter = Math.max(l1, l2);
+      const darker = Math.min(l1, l2);
+      return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    function requiredRatio(fontSize, isBold, lvl) {
+      const isLarge = fontSize >= 18 || (isBold && fontSize >= 14);
+      if (lvl === 'AAA') return isLarge ? 4.5 : 7.0;
+      return isLarge ? 3.0 : 4.5;
+    }
+
+    function sizeLabel(fontSize, isBold, lvl) {
+      const isLarge = fontSize >= 18 || (isBold && fontSize >= 14);
+      const req = requiredRatio(fontSize, isBold, lvl);
+      if (isLarge) return `${lvl} requires ${req}:1 for large text`;
+      return `${lvl} requires ${req}:1 for normal text`;
+    }
+
+    let passed = 0;
+    let failed = 0;
+
+    function extractTokenName(variableName) {
+      const parts = variableName.split('/');
+      return parts[parts.length - 1].trim();
+    }
+
+    for (const item of results) {
+      const ratio = contrastRatio(item.fgHex, item.bgHex);
+      const req = requiredRatio(item.fontSize, item.isBold, level);
+      const ratioStr = ratio.toFixed(1) + ':1';
+      const label = item.parentName
+        ? `[${item.parentName} / ${item.name}]`
+        : `[${item.name}]`;
+      const fgLabel = item.fgToken ? extractTokenName(item.fgToken) : item.fgHex;
+      const bgLabel = item.bgToken ? extractTokenName(item.bgToken) : item.bgHex;
+
+      if (ratio >= req) {
+        passed++;
+        console.log(chalk.green(`  ✓ ${label} ${fgLabel} on ${bgLabel} — ${ratioStr}  (${level} ✓)`));
+      } else {
+        failed++;
+        console.log(chalk.red(`  ✗ ${label} ${fgLabel} on ${bgLabel} — ${ratioStr}  (${sizeLabel(item.fontSize, item.isBold, level)})`));
+      }
+    }
+
+    if (results.length === 0) {
+      console.log(chalk.yellow('  No text nodes found.\n'));
+      process.exit(0);
+    }
+
+    console.log(`\n  ${passed} passed  ${failed} failed\n`);
+    console.log(`  WCAG ${level} thresholds:`);
+    console.log(`    Normal text (< 18pt or < 14pt bold):  ${level === 'AAA' ? '7.0' : '4.5'}:1`);
+    console.log(`    Large text  (≥ 18pt or ≥ 14pt bold):  ${level === 'AAA' ? '4.5' : '3.0'}:1`);
+    console.log(`    UI components / icons:                3.0:1\n`);
+
+    process.exit(failed > 0 ? 1 : 0);
+  });
+
 program.parse();

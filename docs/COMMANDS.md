@@ -391,6 +391,38 @@ os-figma node delete "123:456"
 
 ---
 
+## Accessibility
+
+```bash
+# Check WCAG colour contrast for all text in a screen (AA by default)
+os-figma accessibility check "123:456"
+
+# Recursive check of all descendant nodes
+os-figma accessibility check "123:456" --deep
+
+# Stricter AAA level
+os-figma accessibility check "123:456" --deep --level AAA
+
+# Alias
+os-figma a11y check "123:456" --deep
+```
+
+Checks contrast ratios between text fills and their nearest background. Shows token names for bound fills (e.g. `--color-neutral-5 on --color-neutral-0`), hex values for unbound fills.
+
+Exits with code 0 if all text passes, code 1 if any fail.
+
+WCAG AA thresholds:
+
+- Normal text (< 18pt, or < 14pt bold): 4.5:1
+- Large text (≥ 18pt, or ≥ 14pt bold): 3.0:1
+
+WCAG AAA thresholds:
+
+- Normal text: 7.0:1
+- Large text: 4.5:1
+
+---
+
 ## Slots
 
 Slots are component properties that create flexible content areas within components. Designers can add, remove, and rearrange content in instances without detaching.
