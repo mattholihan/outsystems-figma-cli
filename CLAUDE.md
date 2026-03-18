@@ -919,7 +919,10 @@ os-figma eval "figma.commitUndo()"
 flex="row"              // or "col"
 gap={16}                // spacing between items
 p={24}                  // padding all sides
-px={16} py={8}          // padding x/y
+px={16} py={8}          // horizontal / vertical
+pt={56} pb={34}         // top / bottom individually
+pl={24} pr={24}         // left / right individually
+// Individual sides take precedence over px/py, which take precedence over p
 
 // Alignment
 justify="center"        // start, center, end, between

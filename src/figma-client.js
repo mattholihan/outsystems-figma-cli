@@ -488,6 +488,10 @@ export class FigmaClient {
     const p = props.p || props.padding || 0;
     const px = props.px || p;
     const py = props.py || p;
+    const paddingTop    = props.pt !== undefined ? Number(props.pt) : py;
+    const paddingBottom = props.pb !== undefined ? Number(props.pb) : py;
+    const paddingLeft   = props.pl !== undefined ? Number(props.pl) : px;
+    const paddingRight  = props.pr !== undefined ? Number(props.pr) : px;
     const align = props.align || 'MIN';
     const justify = props.justify || 'MIN';
     const useSmartPos = props.x === undefined;
@@ -642,6 +646,10 @@ export class FigmaClient {
           const fP = item.p !== undefined ? item.p : (item.padding !== undefined ? item.padding : null);
           const fPx = item.px !== undefined ? item.px : (fP !== null ? fP : 0);
           const fPy = item.py !== undefined ? item.py : (fP !== null ? fP : 0);
+          const fPaddingTop    = item.pt !== undefined ? Number(item.pt) : fPy;
+          const fPaddingBottom = item.pb !== undefined ? Number(item.pb) : fPy;
+          const fPaddingLeft   = item.pl !== undefined ? Number(item.pl) : fPx;
+          const fPaddingRight  = item.pr !== undefined ? Number(item.pr) : fPx;
           const fAlign = item.align || 'center';
           const fJustify = item.justify || 'center';
           // Clip defaults to false for nested frames
@@ -683,10 +691,10 @@ export class FigmaClient {
         el${idx}.counterAxisSizingMode = '${fFlex === 'row' ? (hasHeight && !fillHeight ? 'FIXED' : 'AUTO') : (hasWidth && !fillWidth ? 'FIXED' : 'AUTO')}';
         ${(hasWidth && !fillWidth) || (hasHeight && !fillHeight) ? `el${idx}.resize(${hasWidth && !fillWidth ? fWidth : 100}, ${hasHeight && !fillHeight ? fHeight : 40});` : ''}
         ${spacingBindCode(fGap, 'itemSpacing', `el${idx}`)}
-        ${spacingBindCode(fPy, 'paddingTop', `el${idx}`)}
-        ${spacingBindCode(fPy, 'paddingBottom', `el${idx}`)}
-        ${spacingBindCode(fPx, 'paddingLeft', `el${idx}`)}
-        ${spacingBindCode(fPx, 'paddingRight', `el${idx}`)}
+        ${spacingBindCode(fPaddingTop, 'paddingTop', `el${idx}`)}
+        ${spacingBindCode(fPaddingBottom, 'paddingBottom', `el${idx}`)}
+        ${spacingBindCode(fPaddingLeft, 'paddingLeft', `el${idx}`)}
+        ${spacingBindCode(fPaddingRight, 'paddingRight', `el${idx}`)}
         ${radiusBindCode(fRounded, `el${idx}`)}
         ${frameFillCode.code}
         ${frameStrokeCode.code}
@@ -850,10 +858,10 @@ export class FigmaClient {
         frame.layoutMode = '${flex === 'row' ? 'HORIZONTAL' : 'VERTICAL'}';
         ${wrap && flex === 'row' ? `frame.layoutWrap = 'WRAP';` : ''}
         ${spacingBindCode(gap, 'itemSpacing', 'frame')}
-        ${spacingBindCode(py, 'paddingTop', 'frame')}
-        ${spacingBindCode(py, 'paddingBottom', 'frame')}
-        ${spacingBindCode(px, 'paddingLeft', 'frame')}
-        ${spacingBindCode(px, 'paddingRight', 'frame')}
+        ${spacingBindCode(paddingTop, 'paddingTop', 'frame')}
+        ${spacingBindCode(paddingBottom, 'paddingBottom', 'frame')}
+        ${spacingBindCode(paddingLeft, 'paddingLeft', 'frame')}
+        ${spacingBindCode(paddingRight, 'paddingRight', 'frame')}
         frame.primaryAxisAlignItems = '${justifyVal}';
         frame.counterAxisAlignItems = '${alignVal}';
         frame.primaryAxisSizingMode = '${flex === 'row' ? (hugWidth ? 'AUTO' : 'FIXED') : (hugHeight ? 'AUTO' : 'FIXED')}';
