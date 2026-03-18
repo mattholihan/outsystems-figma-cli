@@ -32,8 +32,9 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "describe a component" | `os-figma pattern describe Button` |
 | "scan components from library" | `os-figma pattern scan` |
 | "scan icons from library" | `os-figma pattern scan --icons` |
-| "list available patterns" | `os-figma pattern list` |
+| "list available patterns" | `os-figma pattern list` — lists components and icons |
 | "add a button" / "add a card" | `os-figma pattern add Button` |
+| "add an icon" | `os-figma pattern add <iconName> --parent "<id>"` |
 | "screenshot the screen" / "check the output" | `os-figma export node "<id>" --feedback` |
 | "inspect a node" | `os-figma node inspect "<id>"` |
 | "inspect current selection" | `os-figma node inspect` |
@@ -684,7 +685,20 @@ os-figma pattern add Tag --variant Success \
 
 # Search — check schema first, may have neither
 os-figma pattern add Search --parent "<screenId>"
+
+# Place a standalone icon from the icon library
+os-figma pattern add keyboard_arrow_left --parent "<screenId>"
+
+# Use --icons flag to disambiguate when name exists in both components and icons
+os-figma pattern add close --icons --parent "<screenId>"
 ```
+
+Icons are looked up from `library-config.json → icons`. If a name exists in
+both components and icons, `--icons` is required to disambiguate. Run
+`os-figma pattern list` to see all available components and icons.
+
+Icons do not support `--variant`, `--state`, or `--prop`. Use `--sizing`
+and `--parent` as with any other pattern.
 
 ---
 

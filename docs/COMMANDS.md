@@ -178,7 +178,18 @@ os-figma pattern add Button --variant Primary --state Default \
   --prop "Text=Sign In" \
   --parent "<screenId>" \
   --sizing fill
+
+# Place a standalone icon from the icon library
+os-figma pattern add keyboard_arrow_left --parent "<screenId>"
+os-figma pattern add close --parent "<screenId>"
+
+# Use --icons flag when name exists in both components and icons
+os-figma pattern add close --icons --parent "<screenId>"
 ```
+
+> **Icons:** `pattern add` checks both `components` and `icons` indexes.
+> If a name exists in both, use `--icons` to target the icon library.
+> Icons do not support `--variant`, `--state`, or `--prop`.
 
 > **Prop confirmation:** `--prop` values are confirmed in output after placement.
 > Unrecognised prop keys produce a warning with a hint to run `pattern describe`.

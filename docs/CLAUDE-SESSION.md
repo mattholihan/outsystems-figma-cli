@@ -232,6 +232,8 @@ ids.forEach(id => {
    `pattern describe`. If a ⚠ appears, fix the prop key before proceeding.
    `pattern add` also prints the node ID on success — note it if
    post-placement operations are needed.
+   Icons placed via `pattern add <iconName>` do not require `pattern describe`
+   — they have no variants, states, or props. Place them directly.
 
 10. **Always fix after building** — run `os-figma node fix "<id>" --deep` after
    placing all components. It inspects every descendant, resolves unbound fills/

@@ -8063,21 +8063,33 @@ pattern
 
 pattern
   .command('list')
-  .description('List all scanned components from library-config.json')
+  .description('List all scanned components and icons from library-config.json')
   .action(() => {
     const libConfig = loadLibraryConfig();
 
-    if (!libConfig.components || Object.keys(libConfig.components).length === 0) {
-      console.log(chalk.yellow('\n  No components indexed yet.\n'));
+    const componentNames = Object.keys(libConfig.components || {}).sort();
+    const iconNames = Object.keys(libConfig.icons || {}).sort();
+
+    if (componentNames.length === 0 && iconNames.length === 0) {
+      console.log(chalk.yellow('\n  No components or icons indexed yet.\n'));
       console.log(chalk.white('  Run ') + chalk.cyan('os-figma pattern scan') + chalk.white(' to index components from the current Figma document.\n'));
       process.exit(0);
     }
 
-    const names = Object.keys(libConfig.components).sort();
-    console.log(chalk.white(`\nComponents (${names.length}):\n`));
-    for (const name of names) {
-      console.log(chalk.cyan(`  ${name}`));
+    if (componentNames.length > 0) {
+      console.log(chalk.white(`\nComponents (${componentNames.length}):\n`));
+      for (const name of componentNames) {
+        console.log(chalk.cyan(`  ${name}`));
+      }
     }
+
+    if (iconNames.length > 0) {
+      console.log(chalk.white(`\nIcons (${iconNames.length}):\n`));
+      for (const name of iconNames) {
+        console.log(chalk.cyan(`  ${name}`));
+      }
+    }
+
     console.log();
   });
 
@@ -8263,31 +8275,49 @@ pattern
   .option('--parent <nodeId>', 'Parent frame node ID — places the component inside this frame')
   .option('--prop <key=value>', 'Set a component property — repeatable (e.g. --prop "Text=Sign In")', (val, acc) => { acc.push(val); return acc; }, [])
   .option('--sizing <mode>', 'Set horizontal sizing after placement: fill or fixed')
+  .option('--icons', 'Look up name from icons index instead of components index')
   .action(async (patternName, options) => {
     const libConfig = loadLibraryConfig();
-    const componentsLib = libConfig?.libraries?.components;
 
-    if (!libConfig.components || Object.keys(libConfig.components).length === 0) {
-      console.log(chalk.red('\n✗ No components indexed.\n'));
-      console.log(chalk.white('  Run ') + chalk.cyan('os-figma pattern scan') + chalk.white(' to index components from the current Figma document.\n'));
-      process.exit(1);
-    }
-
-    // Case-insensitive lookup
+    // Case-insensitive lookup in both indexes
     const target = patternName.toLowerCase();
-    const matchedName = Object.keys(libConfig.components).find(k => k.toLowerCase() === target);
+    const componentMatch = Object.keys(libConfig.components || {}).find(k => k.toLowerCase() === target);
+    const iconMatch = Object.keys(libConfig.icons || {}).find(k => k.toLowerCase() === target);
 
-    if (!matchedName) {
-      console.log(chalk.red(`\n✗ Component "${patternName}" not found.\n`));
-      console.log(chalk.white('  Run ') + chalk.cyan('os-figma pattern scan') + chalk.white(' to update your component index.\n'));
+    // Collision — name exists in both indexes
+    if (componentMatch && iconMatch && !options.icons) {
+      console.log(chalk.yellow(`\n⚠ "${patternName}" exists in both components and icons.`));
+      console.log(chalk.white('  Use ') + chalk.cyan('--icons') + chalk.white(' to place the icon version.\n'));
       process.exit(1);
     }
 
-    const componentKey = libConfig.components[matchedName];
+    let matchedName, componentKey, sourceLib;
+
+    if (options.icons) {
+      if (!iconMatch) {
+        console.log(chalk.red(`\n✗ Icon "${patternName}" not found.\n`));
+        console.log(chalk.white('  Run ') + chalk.cyan('os-figma pattern scan --icons') + chalk.white(' to update your icon index.\n'));
+        process.exit(1);
+      }
+      matchedName = iconMatch;
+      componentKey = libConfig.icons[iconMatch];
+      sourceLib = libConfig.libraries?.foundations || libConfig.libraries?.icons || 'icon library';
+    } else if (componentMatch) {
+      matchedName = componentMatch;
+      componentKey = libConfig.components[componentMatch];
+      sourceLib = libConfig.libraries?.components || 'component library';
+    } else if (iconMatch) {
+      matchedName = iconMatch;
+      componentKey = libConfig.icons[iconMatch];
+      sourceLib = libConfig.libraries?.foundations || libConfig.libraries?.icons || 'icon library';
+    } else {
+      console.log(chalk.red(`\n✗ "${patternName}" not found in components or icons.\n`));
+      console.log(chalk.white('  Run ') + chalk.cyan('os-figma pattern scan') + chalk.white(' or ') + chalk.cyan('os-figma pattern scan --icons') + chalk.white(' to update your indexes.\n'));
+      process.exit(1);
+    }
 
     // Parse and classify --prop values before connecting to Figma
     const icons = libConfig.icons || {};
-    const iconLibName = libConfig?.libraries?.icons || 'the icons library';
     const resolvedProps = [];
     for (const p of (options.prop || [])) {
       const eqIdx = p.indexOf('=');
@@ -8494,7 +8524,7 @@ pattern
     const displayName = result.variantName
       ? `${result.componentName} (${result.variantName})`
       : result.componentName;
-    const fromLib = componentsLib ? ` from ${componentsLib}` : '';
+    const fromLib = sourceLib ? ` from ${sourceLib}` : '';
     spinner.succeed(`Added ${displayName}${fromLib}`);
     if (result.id) console.log(chalk.gray(`  id: ${result.id}`));
 
