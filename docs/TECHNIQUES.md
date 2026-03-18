@@ -121,14 +121,15 @@ const page = figma.currentPage;
 const frames = page.children.filter(n => n.name.startsWith('Frame'));
 
 frames.forEach((frame, i) => {
-  frame.name = `Screen/Mobile/${i + 1}`;
+  frame.name = `Screen ${i + 1}`; // replace with descriptive names
 });
 ```
 
 ### Rename Children Inside Frames
 
 ```javascript
-const screens = page.children.filter(n => n.name.startsWith('Screen/'));
+const screens = page.children.filter(n => n.type === 'FRAME');
+// filter by type rather than name prefix — naming is no longer path-based
 
 screens.forEach(screen => {
   const group = screen.children.find(c => c.type === 'GROUP');
@@ -139,7 +140,7 @@ screens.forEach(screen => {
 ### Different Scaling Based on Screen Type
 
 ```javascript
-const screens = page.children.filter(n => n.name.startsWith('Screen/'));
+const screens = page.children.filter(n => n.type === 'FRAME');
 
 screens.forEach(screen => {
   const content = screen.children.find(c => c.name === 'Content');
@@ -162,7 +163,7 @@ screens.forEach(screen => {
 
 ```javascript
 // Export all screens with a suffix
-const screens = page.children.filter(n => n.name.startsWith('Screen/'));
+const screens = page.children.filter(n => n.type === 'FRAME');
 
 for (const screen of screens) {
   // Use os-figma export command with the screen's node ID

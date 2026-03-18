@@ -43,6 +43,8 @@ CLI that controls Figma Desktop directly for designing apps in Figma. No API key
 | "inspect without fixing (debug only)" | `os-figma node inspect "<id>" --summary` |
 | "apply shadow to node" | `os-figma bind effect "Shadow/Card" -n "<id>"` |
 | "apply text style to node" | `os-figma bind text-style "Heading/H1" -n "<id>"` |
+| "rename a node" | `os-figma set name "<id>" "<name>"` |
+| "take a screenshot of a screen" | `os-figma export node "<id>" --feedback` — saves PNG to screenshots/, prints path for immediate evaluation |
 
 **Full command reference:** See REFERENCE.md
 
@@ -184,6 +186,11 @@ Property names are matched case-insensitively and do not require Figma's interna
 ## Screen Commands
 
 ### `screen create`
+
+> `screen create` is an optional utility. For full design control over
+> padding, gap, and naming, render the screen frame directly using
+> `os-figma render` — see Composing Screens → Step 2.
+
 Creates a blank screen frame with correct dimensions, background token binding,
 and layer naming.
 ```bash
@@ -196,11 +203,8 @@ os-figma screen create Dashboard --size web
 # Prompted if --size omitted
 os-figma screen create "User Profile"
 
-# With padding and gap (CSS shorthand — top right bottom left)
-os-figma screen create Login --size mobile --padding 32,32,48,32 --gap 16
-
-# Web screen with web-appropriate spacing
-os-figma screen create Dashboard --size web --padding 48,80,64,80 --gap 24
+# With padding and gap — choose values based on the design, not a default
+os-figma screen create Login --size mobile --padding <t,r,b,l> --gap <n>
 ```
 
 When `--padding` values match the spacing token scale (0, 4, 8, 16, 24, 32,
@@ -211,6 +215,13 @@ Layer naming: `Screen/{Size}/{Name}/Blank`
 - `Screen/Web/Dashboard/Blank`
 
 Background is bound to `--color-neutral-0` from the Foundations library variable.
+
+> `screen create` does not return the node ID. After creating, retrieve it with:
+> ```bash
+> os-figma find "<ScreenName>" --type FRAME --last
+> ```
+> This is one reason to prefer `os-figma render` for screen creation —
+> `render` returns the node ID directly.
 
 ---
 
@@ -365,18 +376,28 @@ Web:      1440 × 900   (Desktop web)
 ```
 
 ### Layer naming convention
-Always name layers using this pattern: `{Component}/{Variant}/{State}`
+Name layers the way a designer would — descriptive, natural, and specific
+to the design intent.
+
+- Screen frames: plain language — `"Login — Mobile"`, `"Dashboard"`
+- Child frames: describe their role — `"Logo"`, `"Form"`, `"Actions"`
+- Components added via `pattern add` keep their library name
+- Avoid generic names: `"Frame"`, `"Group"`, `"Container"`
+
+A name is good if someone unfamiliar with the session can understand
+what the layer is from the Figma layer panel alone.
 
 Examples:
 ```
-Screen/Mobile/Login
-Screen/Web/Dashboard
-Button/Primary/Default
-Button/Primary/Hover
-Card/Default
-Input/Text/Focused
-Navigation/TopBar/Mobile
-Navigation/Sidebar/Web
+Login — Mobile
+Dashboard
+Logo
+Email field
+Password field
+Sign in button
+Forgot password
+Divider
+Continue with Google
 ```
 
 ---
@@ -447,38 +468,39 @@ Use the schema to determine:
 - Whether to pass `--state` (only if the component has a States row)
 - The exact `--prop` key names for labels, text, and booleans
 
-**Step 2 — Create and name the screen frame**
+**Step 2 — Render the screen frame**
 
-Decide the screen name before running any commands. Use the
-`Screen/Platform/Name` convention — e.g. `Screen/Mobile/Login`,
-`Screen/Mobile/Onboarding`, `Screen/Web/Dashboard`.
+Render the screen frame directly. Choose dimensions based on platform.
+Choose padding and gap based on what the design requires — not a default.
 
-```bash
-os-figma screen create Draft --size <mobile|web>
-# Note the returned node ID
-
-os-figma set name "<screenId>" "Screen/Mobile/Login"
-```
-
-Always rename immediately after creation. Never leave the default `Screen/Mobile/Draft/Blank` name in place.
-
-Name all child frames with meaningful `Component/Variant` names that reflect their design role — e.g. `Brand/Logo`, `Content/Form`, `Action/Primary`. Never leave frames with default names like `Frame`.
-
-**Step 2b — Set screen padding**
-
-After creating the screen frame, apply padding using spacing variables.
-Do this before placing any children:
+Standard dimensions:
+- Mobile: `w={390} h={844}`
+- Tablet: `w={768} h={1024}`
+- Web: `w={1440} h={900}`
 
 ```bash
-# Preferred — padding and gap in one command at screen creation time
-os-figma screen create Login --size mobile --padding 32,32,48,32 --gap 16
-
-# Alternative — apply after creation if screen already exists
-os-figma padding 32 32 48 32 -n "<screenId>"
-os-figma gap 16 -n "<screenId>"
+os-figma render '<Frame name="Login — Mobile" w={390} h={844} flex="col"
+  bg="var:--color-neutral-0" p={...} gap={...}>'
+# Note the returned node ID — used as --parent for all subsequent calls
 ```
 
-Never place content flush against the screen edges.
+> `render` prints the node ID and name on success:
+> ```
+> ✓ Rendered: 211:4
+>   name: Login — Mobile
+> ```
+> Note this ID immediately — it is used as `--parent` for all subsequent
+> calls. No follow-up `os-figma find` needed.
+
+**Naming:** Choose a name that describes the screen naturally. Good: `"Login — Mobile"`, `"Dashboard"`, `"Onboarding / Step 1"`. Avoid: `"Screen/Mobile/Login/Blank"`, `"Frame 1"`.
+
+**Padding and gap:** Decide based on the screen type and content density.
+
+- How much breathing room does this screen need?
+- Should content feel spacious or compact?
+- Does top padding need to account for a status bar or safe area?
+
+Never use a default value without questioning whether it fits the design.
 
 **Step 3 — Render structural placeholders into the screen**
 
@@ -491,6 +513,8 @@ Always use `--parent` — see Render Best Practices rule 1.
 ```bash
 os-figma render --parent "<screenId>" "<Frame name='Navigation/TopBar' w='fill' h={56} flex='row' items='center' px={16} bg='var:--color-neutral-1' stroke='var:--color-neutral-4' strokeWidth={1}><Text size={12} color='var:--color-neutral-6'>Navigation/TopBar</Text></Frame>"
 ```
+
+> `render` prints the node ID on success — note it immediately.
 
 **Step 4 — Place real components into the screen**
 
@@ -547,6 +571,10 @@ the design plan. Do not exit this loop early.
    ```bash
    os-figma export node "<screenId>" --feedback
    ```
+   `--feedback` saves the export to `screenshots/` in the project directory
+   and prints the absolute file path. Read the file at that path to evaluate
+   the layout against your design plan. Trust your eye first — if something
+   looks wrong, it probably is.
 2. Evaluate the screenshot against your design plan:
 
    - Does the visual hierarchy match your plan?
@@ -610,17 +638,12 @@ The screen frame's `itemSpacing` controls the gap between all direct children.
 Set it once after creating the screen:
 
 ```bash
-os-figma gap 16 -n "<screenId>"    # mobile default
-os-figma gap 24 -n "<screenId>"    # web default
+os-figma gap 16 -n "<screenId>"    # example — choose based on content density
 ```
 
-For sections that need more breathing room (e.g. between the logo area and
-the form, or between the form and a secondary action), insert an explicit
-spacer frame:
-
-```bash
-os-figma render --parent "<screenId>" "<Frame name='Spacer' w={326} h={24} />"
-```
+For sections that need significantly more breathing room than the screen
+gap provides, use a fixed-height spacer frame — choose the height based
+on what the design needs, not a default value.
 
 ---
 
@@ -696,17 +719,14 @@ os-figma render --parent "<screenId>" "<Frame name='Brand/Logo' w={64} h={64} ro
 
 ### Spacing variables
 
-Never use hardcoded pixel values for gaps or padding.
+Choose spacing tokens based on the visual weight the gap needs to carry.
+Tighter tokens (`--space-xs`, `--space-s`) for related elements within a
+group. Wider tokens (`--space-l`, `--space-xl`) for breathing room between
+sections or at screen edges.
 
-| Token | Typical use |
-|-------|-------------|
-| `--space-xs` | icon gaps, tight labels |
-| `--space-s` | between related elements |
-| `--space-base` | default component gap |
-| `--space-m` | between form fields |
-| `--space-l` | between sections, screen padding (mobile) |
-| `--space-xl` | large section gaps, screen padding (web) |
-| `--space-xxl` | hero spacing, top padding on login |
+Scale: `none → xs → s → base → m → l → xl → xxl`
+
+Never use a hardcoded pixel value — always use a token from this scale.
 
 ---
 
@@ -947,18 +967,18 @@ compliance.
 
 ---
 
-### 8. Use `Component/Variant` naming on all frames
+### 8. Name frames descriptively
 
-Every frame should have a `name` prop following the `Component/Variant`
-convention. This makes the layer panel readable and node inspection reliable.
+Every frame should have a `name` prop that describes its design role.
+A good name makes the layer panel readable without context.
 
 ```jsx
-// Correct
-<Frame name="Content/Header" ...>
-<Frame name="Divider/Default" ...>
-<Frame name="Brand/Logo" ...>
+// Correct — role is clear
+<Frame name="Logo" ...>
+<Frame name="Form" ...>
+<Frame name="Divider" ...>
 
-// Wrong — generic name makes debugging harder
+// Wrong — generic, unhelpful
 <Frame name="Frame" ...>
 <Frame ...>
 ```
@@ -1069,7 +1089,8 @@ room — use `padding` on the parent frame instead.
 ## Key Rules
 
 1. **Always use token variable names from tokens.json** — not raw hex values
-2. **Always follow layer naming convention** — `{Component}/{Variant}/{State}`
+2. **Name layers descriptively** — what a designer would write on a sticky
+   note, not a path format
 3. **Always use `render` for frames** — has smart positioning
 4. **Never use `eval` to create** — no positioning, overlaps at (0,0)
 5. **For multiple frames:** Use `render-batch`

@@ -102,14 +102,18 @@ os-figma node inspect -n "<id>"
 
 ## Common OutSystems Operations
 
-### Create a Screen
-```bash
-# Mobile (390×844) — layer named Screen/Mobile/{Name}/Blank
-os-figma screen create Login --size mobile
+### Render a Screen Frame Directly
 
-# Web (1440×900) — layer named Screen/Web/{Name}/Blank
-os-figma screen create Dashboard --size web
+```bash
+# Mobile (390×844)
+os-figma render '<Frame name="Login — Mobile" w={390} h={844} flex="col" bg="var:--color-neutral-0" p={48} gap={24}>'
+# Note the returned node ID
+
+# Web (1440×900)
+os-figma render '<Frame name="Dashboard" w={1440} h={900} flex="col" bg="var:--color-neutral-0" p={64} gap={32}>'
 ```
+
+Choose padding and gap based on the screen type and content density. Use `os-figma screen create` if you want a quick scaffold without custom spacing.
 
 ### Switch Variable Mode (Light/Dark)
 ```bash
@@ -155,7 +159,7 @@ if (found) {
 os-figma eval "
 const page = figma.currentPage;
 page.children.filter(n => n.name.startsWith('Frame')).forEach((f, i) => {
-  f.name = 'Screen/Mobile/' + (i + 1);
+  f.name = 'Screen ' + (i + 1); // use descriptive names, not path format
 });
 "
 ```
@@ -181,7 +185,8 @@ ids.forEach(id => {
 
 - Run `node scripts/audit-coverage.js` at the start and end of every development session
 - Any new `runCode()` block must have a `@figma-api` comment immediately above it
-- After building a screen, run the evaluate loop until clean:
+- After building a screen, run the evaluate loop until clean (`render` prints
+  the node ID on success — note it immediately, no follow-up `find` needed):
   1. `os-figma export node "<id>" --feedback` — export and read the screenshot
   2. `os-figma node fix "<id>" --deep` — apply all auto-fixable warnings
   3. If `node fix` exits with code 1, apply remaining warnings manually with `os-figma bind`, then re-run `node fix`
@@ -204,7 +209,9 @@ ids.forEach(id => {
 
 5. **Token commands** (`pull`/`push`/`status`) and `init` must be run from the project directory, not the CLI root.
 
-6. **Always follow layer naming convention** — `{Component}/{Variant}/{State}`.
+6. **Name layers descriptively** — use plain language that reflects design
+   intent, not a path format. Good: `"Login — Mobile"`, `"Form"`, `"Logo"`.
+   Avoid: `"Screen/Mobile/Login/Blank"`, `"Frame"`.
 
 7. **Always use token variables from tokens.json** — not raw hex values.
 
@@ -217,6 +224,9 @@ ids.forEach(id => {
    it has Variants, States, and the exact `--prop` key names as returned. Do not
    proceed to `pattern add` until you have describe output for every component.
    Guessing prop names causes silent failures that are expensive to recover from.
+   After `pattern add`, check output for Props confirmation — applied props
+   are listed, and unrecognised keys produce a ⚠ warning with a hint to run
+   `pattern describe`. If a ⚠ appears, fix the prop key before proceeding.
 
 10. **Always fix after building** — run `os-figma node fix "<id>" --deep` after
    placing all components. It inspects every descendant, resolves unbound fills/

@@ -194,7 +194,6 @@ os-figma pattern add Button --variant Primary --state Default \
 ```bash
 # Create a blank mobile screen (390×844)
 # Background bound to --color-neutral-0
-# Layer named Screen/Mobile/{Name}/Blank
 os-figma screen create Login --size mobile
 
 # Create a blank web screen (1440×900)
@@ -203,14 +202,17 @@ os-figma screen create Dashboard --size web
 # Omit --size to be prompted
 os-figma screen create "User Profile"
 
-# Create with padding and gap in one step
-# Padding values matching the spacing scale are auto-bound to spacing tokens
-os-figma screen create Login --size mobile --padding 32,32,48,32 --gap 16
-os-figma screen create Dashboard --size web --padding 48,80,64,80 --gap 24
+# With padding and gap — choose values that suit the design
+# Values matching the spacing scale (0, 4, 8, 16, 24, 32, 40, 48)
+# are automatically bound to spacing tokens
+os-figma screen create <name> --size mobile --padding <t,r,b,l> --gap <n>
 ```
 
 For composing full screens with components, use pattern list, pattern describe,
 pattern add, and render together. See CLAUDE.md → Composing Screens.
+
+> For full design control over padding, gap, and naming, render the screen
+> frame directly with `os-figma render` — see CLAUDE.md → Composing Screens.
 
 ---
 

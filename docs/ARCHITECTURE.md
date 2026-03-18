@@ -97,7 +97,9 @@ This CLI is purpose-built for designing apps with a Figma component library. It 
 - **Project-specific tokens** — token values stored in `tokens.json`, synced bidirectionally with Figma
 - **Design tokens** — CSS custom property naming (`--color-primary`, `--space-m`, etc.)
 - **Screen sizes** — correct frame dimensions for mobile (390×844), tablet (768×1024), and web (1440×900)
-- **Layer naming** — `{Component}/{Variant}/{State}` convention throughout
+- **Layer naming** — descriptive natural language names chosen by the
+  agent to reflect design intent (e.g. `"Login — Mobile"`, `"Form"`,
+  `"Sign in button"`)
 - **Slots** — support for Figma Slots (CHILDREN component properties) to create flexible content areas in components
 - **Pattern index** — component and icon keys stored in `library-config.json`,
   populated by `os-figma pattern scan`. Enables `pattern list` and `pattern add`

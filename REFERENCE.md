@@ -143,8 +143,9 @@ Property names are matched case-insensitively. Figma's internal `#id` suffix and
 ```bash
 os-figma screen create <name> --size <mobile|web>   # Create blank screen frame
                                                      # Prompts for size if omitted
-os-figma screen create <name> --size mobile --padding 32,32,48,32 --gap 16
-os-figma screen create <name> --size web --padding 48,80,64,80 --gap 24
+# With padding and gap — choose values based on the design, not a default
+# Values matching the spacing scale (0, 4, 8, 16, 24, 32, 40, 48) bind automatically
+os-figma screen create <name> --size mobile --padding <t,r,b,l> --gap <n>
 ```
 
 Layer naming: `Screen/{Size}/{Name}/Blank`
@@ -191,6 +192,9 @@ os-figma render '<Frame name="Card/Default" w={320} bg="var:--color-neutral-0" r
   <Text size={14} color="var:--color-neutral-7" w="fill">Card description text.</Text>
 </Frame>'
 ```
+
+`render` prints the node ID on success — note it immediately for use
+as `--parent` in subsequent calls. No follow-up `find` needed.
 
 ### Render with Variable Binding
 
@@ -472,5 +476,5 @@ smartX += 100;
 const frame = figma.createFrame();
 frame.x = smartX;
 frame.resize(390, 844); // Mobile screen size
-frame.name = 'Screen/Mobile/New';
+frame.name = 'Login — Mobile'; // or whatever describes this screen
 ```
