@@ -115,6 +115,9 @@ os-figma render '<Frame name="Dashboard" w={1440} h={900} flex="col" bg="var:--c
 
 Choose padding and gap based on the screen type and content density. Use `os-figma screen create` if you want a quick scaffold without custom spacing.
 
+Both `render` and `screen create` print the node ID on success — note it
+immediately for use as `--parent` in subsequent calls.
+
 ### Switch Variable Mode (Light/Dark)
 ```bash
 os-figma eval "
@@ -227,6 +230,8 @@ ids.forEach(id => {
    After `pattern add`, check output for Props confirmation — applied props
    are listed, and unrecognised keys produce a ⚠ warning with a hint to run
    `pattern describe`. If a ⚠ appears, fix the prop key before proceeding.
+   `pattern add` also prints the node ID on success — note it if
+   post-placement operations are needed.
 
 10. **Always fix after building** — run `os-figma node fix "<id>" --deep` after
    placing all components. It inspects every descendant, resolves unbound fills/

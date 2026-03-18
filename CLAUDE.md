@@ -216,12 +216,13 @@ Layer naming: `Screen/{Size}/{Name}/Blank`
 
 Background is bound to `--color-neutral-0` from the Foundations library variable.
 
-> `screen create` does not return the node ID. After creating, retrieve it with:
-> ```bash
-> os-figma find "<ScreenName>" --type FRAME --last
+> `screen create` prints the node ID on success:
 > ```
-> This is one reason to prefer `os-figma render` for screen creation —
-> `render` returns the node ID directly.
+> ✔ Created Screen/Mobile/Login/Blank (390×844)
+>   id: 216:5
+> ```
+> `os-figma render` also returns the node ID directly and gives full
+> control over padding, gap, and naming — preferred for screen composition.
 
 ---
 
@@ -534,6 +535,16 @@ os-figma pattern add Button \
   --prop "Text=Sign In" \
   --parent "<screenId>"
 ```
+
+> `pattern add` prints the node ID on success:
+> ```
+> ✔ Added Input (State=Default) from PDX Template - COMPONENTS
+>   id: 216:48
+>   Props: Label=Email
+> ```
+> Note the ID if post-placement operations are needed (e.g. applying an
+> effect style or overriding sizing). If a ⚠ appears next to a prop, the
+> key is wrong — run `pattern describe <Component>` to check exact keys.
 
 **Step 4b — Set fill-width sizing**
 

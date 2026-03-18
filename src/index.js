@@ -5404,20 +5404,26 @@ else { nodes.forEach(n => { if ('opacity' in n) n.opacity = ${value}; }); 'Opaci
   });
 
 set
-  .command('name <name>')
-  .description('Rename node')
-  .option('-n, --node <id>', 'Node ID')
-  .action((name, options) => {
-    checkConnection();
-    const nodeSelector = options.node
-      ? `const node = await figma.getNodeByIdAsync('${options.node}'); const nodes = node ? [node] : [];`
-      : `const nodes = figma.currentPage.selection;`;
-    let code = `
-${nodeSelector}
-if (nodes.length === 0) 'No node found';
-else { nodes.forEach(n => { n.name = '${name}'; }); 'Renamed ' + nodes.length + ' elements to ${name}'; }
-`;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+  .command('name <nodeId> <newName>')
+  .description('Rename a node by ID')
+  .action(async (nodeId, newName) => {
+    await checkConnection();
+    const code = `(async () => {
+const node = await figma.getNodeByIdAsync(${JSON.stringify(nodeId)});
+if (!node) return JSON.stringify({ error: 'Node not found' });
+node.name = ${JSON.stringify(newName)};
+return JSON.stringify({ ok: true });
+})()`;
+    try {
+      const result = await daemonExec('eval', { code });
+      if (result?.error) {
+        console.log(chalk.red(`✗ ${result.error}: ${nodeId}`));
+      } else {
+        console.log(chalk.green(`✓`) + ` Renamed ${nodeId} → ${chalk.cyan(`"${newName}"`)}`);
+      }
+    } catch (e) {
+      console.log(chalk.red(`✗ Rename failed: ${e.message}`));
+    }
   });
 
 set
@@ -7920,6 +7926,7 @@ ${tGap
     const paddingStr = options.padding ? `  padding: ${options.padding}` : '';
     const gapStr = options.gap !== undefined ? `  gap: ${options.gap}` : '';
     spinner.succeed(`Created ${layerName} (${width}×${height})${paddingStr}${gapStr}`);
+    if (frameId) console.log(chalk.gray(`  id: ${frameId}`));
   });
 
 
@@ -8489,6 +8496,7 @@ pattern
       : result.componentName;
     const fromLib = componentsLib ? ` from ${componentsLib}` : '';
     spinner.succeed(`Added ${displayName}${fromLib}`);
+    if (result.id) console.log(chalk.gray(`  id: ${result.id}`));
 
     // Show applied props
     const appliedProps = result.propApplied || [];
