@@ -118,7 +118,7 @@ Prefer `--sizing fill` at placement time. Apply to every full-width component im
 This step repeats until all warnings are cleared and the screenshot matches the design plan. Do not exit early.
 
 1. `os-figma export node "<screenId>" --feedback` — read the screenshot file immediately
-2. Evaluate: visual hierarchy, vertical distribution, full-width spans, spacing consistency, placeholder visibility
+2. Evaluate: visual hierarchy, vertical distribution, full-width spans, spacing consistency, placeholder visibility. Also check: do all sibling components that should span full width have consistent `layoutSizingHorizontal = FILL`? If any are FIXED when they should be FILL, correct them with `os-figma set sizing fill fixed -n "<id>"` before re-exporting.
 3. `os-figma node fix "<screenId>" --deep` — auto-fix all warnings
 4. If exit code 1 (unresolved warnings), apply manually then re-run:
    ```bash
@@ -144,6 +144,7 @@ os-figma eval "figma.commitUndo()"         # single undo checkpoint
 
 ### Component placement rules
 
+- **Every interactive element must be a real library component** — buttons, inputs, links, toggles, dropdowns. A rendered placeholder frame is only acceptable for non-interactive structural elements (nav bars, hero images, dividers, decorative zones). If an interactive element is not in the component library, note it explicitly in the design plan and raise it with the user — do not silently substitute a placeholder.
 - Always run `pattern describe` first — never guess prop names
 - Only pass `--variant` if schema shows Variants row; only `--state` if States row
 - Always pass `--prop` for meaningful text content
@@ -156,6 +157,11 @@ os-figma eval "figma.commitUndo()"         # single undo checkpoint
 Text glyphs (`‹`, `×`, `←`, `✕`) are never acceptable. Icon placement is two-step:
 1. Render containing frame with placeholder frame in the icon slot (no text)
 2. `pattern add <iconName> --parent "<iconFrameId>"`
+3. After placing the icon, evaluate whether its fill colour fits the design context. If not, bind the appropriate token:
+   ```bash
+   os-figma bind fill "--color-primary" -n "<iconId>"
+   ```
+   This is a design judgment call — consider the icon's role, the surrounding palette, and the screen's emotional tone. It will not always be `--color-primary`. A back navigation arrow in a primary-coloured header might use `--color-neutral-0`; a decorative icon in a neutral zone might use `--color-neutral-7`. Choose the token that fits.
 
 ### Spacing variables
 
@@ -169,8 +175,7 @@ Never use hardcoded pixel values — always use a token from this scale.
 
 Use sparingly — only when `gap` and `padding` cannot achieve the result.
 - Fixed-height spacer: when one section needs more space than screen `gap`
-- `grow={1}` spacer: only in **row** layouts (e.g. divider lines)
-- **Do not use `grow={1}` in column layouts** — unreliable vertical centring
+- `grow={1}` spacer: only in **row** layouts for horizontal space distribution (e.g. divider lines), OR as a **single bottom spacer** in a column layout to prevent top-heavy content. Do not use two `grow={1}` spacers in a column to attempt symmetric vertical centring — this is unreliable.
 
 ### Vertical spacing
 
@@ -195,7 +200,7 @@ Set `gap` once on the screen frame: `os-figma gap 16 -n "<screenId>"`. For extra
 - `os-figma find` returns all matches — use `--last` for most recent
 - `setBoundVariable('cornerRadius', v)` silently ignored — bind `topLeftRadius`, `topRightRadius`, `bottomLeftRadius`, `bottomRightRadius` individually
 - **Daemon caches `figma-client.js`** — restart with `os-figma connect` after edits
-- **`grow={1}` in column layouts** — unreliable. Use fixed top spacer instead
+- **`grow={1}` symmetric centring in column layouts** — two `grow={1}` spacers in a column do not reliably centre content. Use a single `grow={1}` at the bottom of the column to push content upward, or use a fixed-height top spacer to push content down from the top edge.
 
 ---
 

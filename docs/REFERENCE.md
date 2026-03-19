@@ -583,6 +583,8 @@ os-figma run /tmp/script.js
 
 ## Render JSX Syntax
 
+> **Root element must be `<Frame>`** — `render` requires a `<Frame>` as the outermost element. Passing `<Text>` or any other element as the root will fail with: `✗ Render failed: Invalid JSX: must start with <Frame>`. To place a standalone text node, wrap it in a minimal `<Frame>`: `<Frame flex="row"><Text ...>label</Text></Frame>`
+
 **Elements:** `<Frame>`, `<Rectangle>`, `<Ellipse>`, `<Text>`, `<Line>`, `<Image>`, `<SVG>`, `<Icon>`
 
 **Size:** `w={390} h={844}` (mobile), `w={1440} h={900}` (web), `w="fill"`, `minW={100} maxW={500}`
