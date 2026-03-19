@@ -318,8 +318,10 @@ os-figma render '<Frame name="Card/Default" w={320} bg="var:--color-neutral-0" r
 # Render JSX as a child of an existing frame
 os-figma render --parent "94:10" "<Frame name='Header/Nav' w='fill' h={56} bg='var:--color-neutral-1' />"
 
-# Create multiple components at once
-os-figma render-batch '[...]'
+# Render multiple JSX frames in a single operation
+# --gap <n>          Gap between frames in px (default: 40)
+# --direction <dir>  Layout direction: row or col (default: row)
+os-figma render-batch '["<Frame name=\"A\" w={390} h={844}>...</Frame>","<Frame name=\"B\" w={390} h={844}>...</Frame>"]'
 ```
 
 ---

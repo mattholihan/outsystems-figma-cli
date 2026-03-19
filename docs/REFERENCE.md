@@ -33,6 +33,197 @@ os-figma doctor                          # validate all session preconditions
 # Read-only — does not modify any files or Figma state.
 ```
 
+## Design Token Names
+
+CSS custom properties used as design tokens. Always use these variable names
+(not raw hex values) when creating variables or binding to nodes.
+
+Token values are project-specific and stored in `tokens.json` in each project directory.
+Run `os-figma tokens pull` to sync current values from Figma.
+Run `os-figma tokens status` to check if tokens are in sync.
+
+### Color
+
+#### Brand Palette
+```
+--color-primary						Main brand color
+--color-secondary					Secondary brand color
+```
+#### Neutral Palette
+```
+--color-neutral-0					White
+--color-neutral-1
+--color-neutral-2
+--color-neutral-3
+--color-neutral-4
+--color-neutral-5
+--color-neutral-6
+--color-neutral-7
+--color-neutral-8
+--color-neutral-9
+--color-neutral-10				Black
+```
+#### Semantic Palette
+```
+--color-info
+--color-info-light
+--color-success
+--color-success-light
+--color-warning
+--color-warning-light
+--color-error
+--color-error-light
+```
+
+### Typography
+
+#### Font Size
+```
+--font-size-display
+--font-size-h1
+--font-size-h2
+--font-size-h3
+--font-size-h4
+--font-size-h5
+--font-size-h6
+--font-size-base
+--font-size-s
+--font-size-xs
+```
+#### Font Weight
+```
+--font-light
+--font-regular
+--font-semi-bold
+--font-bold
+```
+
+### Border
+
+#### Border Radius
+```
+--border-radius-none
+--border-radius-soft
+--border-radius-rounded
+```
+#### Border Sizes
+```
+--border-size-none
+--border-size-s
+--border-size-m
+--border-size-l
+```
+
+### Spacing
+```
+--space-none
+--space-xs
+--space-s
+--space-base
+--space-m
+--space-l
+--space-xl
+--space-xxl
+```
+
+**Spacing scale (px):** `0, 4, 8, 16, 24, 32, 40, 48`
+
+### Fast Variable Binding
+
+Use `var:--token-name` syntax in JSX and `--token-name` with `bind` commands
+to bind tokens at creation time.
+
+---
+
+## Design Styles
+
+Style keys and properties are synced from the Foundations library and stored
+in `styles.json` in the project directory. Run `os-figma styles pull` once
+per project, then re-run after any library updates.
+
+### Effect styles
+Named shadows and blurs. Keys stored in `styles.json → effects`.
+
+Common names to expect:
+- `Shadow/Card` — elevation 1, cards and panels
+- `Shadow/Overlay` — elevation 3, modals and drawers
+- `Shadow/Dropdown` — elevation 2, dropdowns and tooltips
+- `Blur/Modal` — background blur for modal overlays
+
+Apply with: `os-figma bind effect "Shadow/Card" -n "<nodeId>"`
+
+### Text styles
+Named type ramp entries. Keys stored in `styles.json → text`.
+
+Apply with: `os-figma bind text-style "Heading/H1" -n "<nodeId>"`
+
+### Applying styles
+
+```bash
+# Apply shadow/blur to any node
+os-figma bind effect "Shadow/Card" -n "<nodeId>"
+
+# Apply text style to a TEXT node
+os-figma bind text-style "Heading/H1" -n "<nodeId>"
+```
+
+Style names must match `styles.json` exactly (case-insensitive match is attempted as a fallback). Run `os-figma styles pull` if a style is missing.
+
+---
+
+## Screen Sizes
+
+Standard frame sizes:
+
+```
+Mobile:   390 × 844    (iPhone 14 base)
+Tablet:   768 × 1024   (iPad base)
+Web:      1440 × 900   (Desktop web)
+```
+
+### Layer naming convention
+Name layers the way a designer would — descriptive, natural, and specific
+to the design intent.
+
+- Screen frames: plain language — `"Login — Mobile"`, `"Dashboard"`
+- Child frames: describe their role — `"Logo"`, `"Form"`, `"Actions"`
+- Components added via `pattern add` keep their library name
+- Avoid generic names: `"Frame"`, `"Group"`, `"Container"`
+
+Examples:
+```
+Login — Mobile
+Dashboard
+Logo
+Email field
+Password field
+Sign in button
+Forgot password
+Divider
+Continue with Google
+```
+
+---
+
+## Placeholder Sizing Reference
+
+| Element | Width | Height |
+|---------|-------|--------|
+| Navigation/TopBar | fill | 56 |
+| Navigation/BottomBar | fill | 64 |
+| Navigation/Sidebar | 240 | fill |
+| Card/Item | fill | 72 |
+| Card/Action | fill | 120 |
+| Media/Hero | fill | 200 |
+| Counter/Default | fill | 80 |
+| Chart/Default | fill | 240 |
+| Divider/Default | fill | 1 |
+| Brand/Logo | 80 | 80 |
+| Table/Default | fill | 240 |
+| Pagination/Default | fill | 48 |
+
+---
+
 ## Design Tokens & Variables
 
 ### Create Token Collections
