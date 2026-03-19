@@ -273,6 +273,16 @@ os-figma set sizing fill fixed -n "105:41"   # fill width, fixed height
 os-figma set sizing fill fill -n "105:41"    # fill both dimensions
 os-figma set sizing fixed fixed -n "105:41"  # fixed both (default)
 
+# Bind a spacing token to all four padding sides simultaneously
+# ⚠ Writes all four sides — use side-specific commands to target one side
+os-figma bind padding "--space-l" -n "<nodeId>"
+
+# Bind a spacing token to individual padding sides
+os-figma bind padding-top "--space-xxl" -n "<nodeId>"
+os-figma bind padding-right "--space-l" -n "<nodeId>"
+os-figma bind padding-bottom "--space-xl" -n "<nodeId>"
+os-figma bind padding-left "--space-l" -n "<nodeId>"
+
 # Apply effect style (shadow, blur) from styles.json
 os-figma bind effect "Shadow/Card"               # selected node
 os-figma bind effect "Shadow/Card" -n "1:234"    # specific node

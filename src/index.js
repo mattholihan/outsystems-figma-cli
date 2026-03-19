@@ -4828,7 +4828,33 @@ nodes.forEach(n => {
 return 'Bound ' + v.name + ' to padding on ' + nodes.length + ' elements';
 })()`;
     figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    console.log(chalk.yellow(`  ⚠ Applied ${name} to all four padding sides. Use bind padding-top/right/bottom/left to target individual sides.`));
   });
+
+for (const side of ['top', 'right', 'bottom', 'left']) {
+  const prop = `padding${side.charAt(0).toUpperCase() + side.slice(1)}`;
+  bind
+    .command(`padding-${side} <varName>`)
+    .description(`Bind number variable to ${prop} only`)
+    .option('-n, --node <id>', 'Node ID')
+    .action((varName, options) => {
+      checkConnection();
+      const { key, name } = resolveTokenKey(varName);
+      const nodeSelector = options.node
+        ? `const node = await figma.getNodeByIdAsync('${options.node}'); const nodes = node ? [node] : [];`
+        : `const nodes = figma.currentPage.selection;`;
+      let code = `(async () => {
+${nodeSelector}
+const v = await figma.variables.importVariableByKeyAsync('${key}');
+if (!v) return 'Could not import variable ${name} (key: ${key}). Is the Foundations library open in Figma?';
+if (nodes.length === 0) return 'No node selected';
+nodes.forEach(n => { if ('${prop}' in n) n.setBoundVariable('${prop}', v); });
+const nodeRef = nodes.length === 1 ? 'node ' + nodes[0].id : nodes.length + ' nodes';
+return '✔ Bound ${prop} → ${name} on ' + nodeRef;
+})()`;
+      figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    });
+}
 
 bind
   .command('effect <styleName>')

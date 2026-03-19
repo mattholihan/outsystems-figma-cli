@@ -122,10 +122,12 @@ This step repeats until all warnings are cleared and the screenshot matches the 
 3. `os-figma node fix "<screenId>" --deep` — auto-fix all warnings
 4. If exit code 1 (unresolved warnings), apply manually then re-run:
    ```bash
+   # Bind individual properties — use side-specific commands for padding
    os-figma bind fill "--color-neutral-0" -n "<nodeId>"
    os-figma bind stroke "--color-neutral-4" -n "<nodeId>"
    os-figma bind effect "Shadow/Card" -n "<nodeId>"
    os-figma bind text-style "Heading/H1" -n "<nodeId>"
+   os-figma bind padding-top "--space-xxl" -n "<nodeId>"
    os-figma node fix "<screenId>" --deep
    ```
 5. Return to step 1. After clean exit, optionally: `os-figma accessibility check "<screenId>" --deep`
@@ -200,6 +202,7 @@ Set `gap` once on the screen frame: `os-figma gap 16 -n "<screenId>"`. For extra
 - `os-figma find` returns all matches — use `--last` for most recent
 - `setBoundVariable('cornerRadius', v)` silently ignored — bind `topLeftRadius`, `topRightRadius`, `bottomLeftRadius`, `bottomRightRadius` individually
 - **Daemon caches `figma-client.js`** — restart with `os-figma connect` after edits
+- **`bind padding` writes all four sides** — use `bind padding-top`, `bind padding-right`, `bind padding-bottom`, `bind padding-left` to target individual sides without overwriting the others
 - **`grow={1}` symmetric centring in column layouts** — two `grow={1}` spacers in a column do not reliably centre content. Use a single `grow={1}` at the bottom of the column to push content upward, or use a fixed-height top spacer to push content down from the top edge.
 
 ---
