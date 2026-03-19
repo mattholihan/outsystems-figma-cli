@@ -260,6 +260,8 @@ ids.forEach(id => {
     next, and inspect the previous screen before building each new one to
     maintain consistency. See CLAUDE.md → Composing Multiple Screens.
 
+14. **Icon slots (back, close, decorative) always require a follow-up `pattern add` after `render`** — text glyphs are never acceptable substitutes.
+
 ## File Structure
 
 ```

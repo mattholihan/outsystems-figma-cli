@@ -749,6 +749,19 @@ os-figma render --parent "<screenId>" "<Frame name='Brand/Logo' w={64} h={64} ro
 
 ---
 
+### Icon slots — always use real library icons
+
+**Icon slots require real library icons — text glyphs are never acceptable.**
+When a screen contains a navigation row or any element that calls for an icon (back, close/dismiss, or decorative), you must place the real library icon. A text glyph (`‹`, `×`, `←`, `✕`) will pass `node fix` but is not design-system-correct.
+
+Because `pattern add` cannot be nested inside a `render` expression, icon placement is always a two-step:
+1. Render the containing frame with an appropriately sized placeholder frame in the icon slot (no text content)
+2. Immediately follow up with `pattern add <iconName> --parent "<iconFrameId>"` to place the real library icon
+
+Use `pattern list` and `pattern describe` to choose the correct icon. Selecting the right icon is a design decision — consider the screen context, navigation direction, and visual weight.
+
+---
+
 ### Spacing variables
 
 Choose spacing tokens based on the visual weight the gap needs to carry.
