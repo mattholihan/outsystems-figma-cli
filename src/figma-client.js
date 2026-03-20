@@ -380,7 +380,7 @@ export class FigmaClient {
         ${fillWidth ? `try { textNode.layoutSizingHorizontal = 'FILL'; textNode.textAutoResize = 'HEIGHT'; } catch(e) {}` : ''}
         ${textStyleCode}
 
-        return { id: textNode.id, name: textNode.name };
+        return { id: textNode.id, name: textNode.name, children: [] };
       })()
     `;
       }
@@ -882,6 +882,17 @@ export class FigmaClient {
 
     const childCode = generateChildCode(children, 'frame');
 
+    // Collect explicit names from parsed children for collectNamed filtering
+    const gatherNames = (items) => {
+      const names = [];
+      for (const item of items) {
+        if (item.name) names.push(item.name);
+        if (item._children) names.push(...gatherNames(item._children));
+      }
+      return names;
+    };
+    const explicitNamesList = gatherNames(children);
+
     // Map align/justify to Figma values for root frame
     const alignMap = { start: 'MIN', center: 'CENTER', end: 'MAX', stretch: 'STRETCH' };
     const alignVal = alignMap[align] || 'MIN';
@@ -969,7 +980,20 @@ export class FigmaClient {
 
         ${childCode}
 
-        return { id: frame.id, name: frame.name };
+        function collectNamed(n, allowed) {
+          const result = [];
+          if ('children' in n) {
+            for (const child of n.children) {
+              if (allowed.has(child.name)) {
+                result.push({ id: child.id, name: child.name });
+              }
+              result.push(...collectNamed(child, allowed));
+            }
+          }
+          return result;
+        }
+        const allowed = new Set(${JSON.stringify(explicitNamesList)});
+        return { id: frame.id, name: frame.name, children: collectNamed(frame, allowed) };
       })()
     `;
   }

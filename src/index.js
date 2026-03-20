@@ -5858,7 +5858,7 @@ program
 
       // Detect w="fill" or w='fill' on the root frame — silent failure at render time
       const rootFillWidth = /^<Frame\b[^>]*\bw=["']fill["']/.test(jsx.trim());
-      if (rootFillWidth) {
+      if (rootFillWidth && !options.parent) {
         console.log(chalk.yellow(`  ⚠ w="fill" on root frame is not supported — use an explicit pixel width instead.`));
         console.log(chalk.gray(`    Mobile content width: w={326}   Full mobile: w={390}   Web: w={1280} or w={1440}`));
       }
@@ -5920,6 +5920,7 @@ program
           // Detect fill dimensions in JSX so we can apply them after appendChild
           const wantFillW = /\bw=["']fill["']/.test(jsx);
           const wantFillH = /\bh=["']fill["']/.test(jsx);
+          const explicitNames = new Set([...jsx.matchAll(/name=["']([^"']+)["']/g)].map(m => m[1]));
           code = `(async function() {
             const rendered = await (${code});
             const parent = figma.getNodeById(${parentId});
@@ -5934,7 +5935,20 @@ program
               node.x = ${targetX};
               node.y = ${targetY};
             }
-            return { id: node.id, name: node.name };
+            function collectNamed(n, allowed) {
+              const result = [];
+              if ('children' in n) {
+                for (const child of n.children) {
+                  if (allowed.has(child.name)) {
+                    result.push({ id: child.id, name: child.name });
+                  }
+                  result.push(...collectNamed(child, allowed));
+                }
+              }
+              return result;
+            }
+            const allowed = new Set(${JSON.stringify([...explicitNames])});
+            return { id: node.id, name: node.name, children: collectNamed(node, allowed) };
           })()`;
         }
 
@@ -5942,6 +5956,11 @@ program
         if (result && result.id) {
           console.log(chalk.green('✓ Rendered: ' + result.id));
           if (result.name) console.log(chalk.gray('  name: ' + result.name));
+          if (result.children && result.children.length > 0) {
+            for (const child of result.children) {
+              console.log(chalk.gray('  ↳ ' + child.id + '  ' + child.name));
+            }
+          }
           return;
         }
       }
@@ -5955,6 +5974,11 @@ program
           if (result && result.id) {
             console.log(chalk.green('✓ Rendered: ' + result.id));
             if (result.name) console.log(chalk.gray('  name: ' + result.name));
+            if (result.children && result.children.length > 0) {
+              for (const child of result.children) {
+                console.log(chalk.gray('  ↳ ' + child.id + '  ' + child.name));
+              }
+            }
             return;
           }
         }
@@ -6010,6 +6034,7 @@ program
         const targetY = posY !== undefined ? posY : 0;
         const wantFillW = /\bw=["']fill["']/.test(jsx);
         const wantFillH = /\bh=["']fill["']/.test(jsx);
+        const explicitNames2 = new Set([...jsx.matchAll(/name=["']([^"']+)["']/g)].map(m => m[1]));
         code = `(async function() {
           const rendered = await (${code});
           const parent = figma.getNodeById(${parentId});
@@ -6024,7 +6049,20 @@ program
             node.x = ${targetX};
             node.y = ${targetY};
           }
-          return { id: node.id, name: node.name };
+          function collectNamed(n, allowed) {
+            const result = [];
+            if ('children' in n) {
+              for (const child of n.children) {
+                if (allowed.has(child.name)) {
+                  result.push({ id: child.id, name: child.name });
+                }
+                result.push(...collectNamed(child, allowed));
+              }
+            }
+            return result;
+          }
+          const allowed = new Set(${JSON.stringify([...explicitNames2])});
+          return { id: node.id, name: node.name, children: collectNamed(node, allowed) };
         })()`;
       }
 
@@ -6032,6 +6070,11 @@ program
       if (result && result.id) {
         console.log(chalk.green('✓ Rendered: ' + result.id));
         if (result.name) console.log(chalk.gray('  name: ' + result.name));
+        if (result.children && result.children.length > 0) {
+          for (const child of result.children) {
+            console.log(chalk.gray('  ↳ ' + child.id + '  ' + child.name));
+          }
+        }
 
         // Post-process to fix properties not set by JSX renderer
         if (postProcessFixes.length > 0) {
