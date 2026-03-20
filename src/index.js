@@ -8287,20 +8287,57 @@ pattern
 })()`;
 
     let result;
-    try {
-      result = await fastEval(code);
-    } catch (err) {
-      spinner.fail('Failed to inspect component');
-      console.error(chalk.red(err.message));
-      process.exit(1);
-    }
+    const maxAttempts = 3;
+    const retryDelayMs = 800;
 
-    if (result?.error) {
-      spinner.fail(`Could not retrieve ${matchedName} from Figma. Make sure the library file is open.`);
-      process.exit(1);
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        result = await fastEval(code);
+      } catch (err) {
+        if (attempt < maxAttempts) {
+          spinner.text = `Inspecting ${matchedName}... (retry ${attempt}/${maxAttempts - 1})`;
+          await new Promise(r => setTimeout(r, retryDelayMs));
+          continue;
+        }
+        spinner.fail('Failed to inspect component — daemon not responding');
+        console.error(chalk.red(`  ${err.message}`));
+        console.log(chalk.gray('  Try running: os-figma connect'));
+        process.exit(1);
+        return;
+      }
+
+      if (result?.error) {
+        if (attempt < maxAttempts) {
+          spinner.text = `Inspecting ${matchedName}... (retry ${attempt}/${maxAttempts - 1})`;
+          await new Promise(r => setTimeout(r, retryDelayMs));
+          result = null;
+          continue;
+        }
+        // All attempts exhausted
+        const msg = result.error || '';
+        if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('key')) {
+          spinner.fail(`Could not retrieve ${matchedName} — component key may be stale.`);
+          console.log(chalk.gray('  Re-run: os-figma pattern scan'));
+        } else {
+          spinner.fail(`Could not retrieve ${matchedName} — library may not be reachable.`);
+          console.log(chalk.gray('  Check that the library file is open in Figma Desktop.'));
+          console.log(chalk.gray('  If it is open, this may be a transient error — try again.'));
+        }
+        process.exit(1);
+        return;
+      }
+
+      break; // Only reached on clean result
     }
 
     spinner.stop();
+
+    // Guard against malformed result
+    if (!result || !Array.isArray(result.props)) {
+      console.error(chalk.red(`\n✗ Could not retrieve schema for ${matchedName} — unexpected response from Figma.`));
+      console.log(chalk.gray('  The component key may be stale. Re-run: os-figma pattern scan'));
+      process.exit(1);
+    }
 
     // Enrich INSTANCE_SWAP props with icon values from library-config
     const iconNames = Object.keys(icons).sort();
