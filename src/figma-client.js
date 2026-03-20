@@ -288,6 +288,104 @@ export class FigmaClient {
    * Parse JSX-like syntax to Figma Plugin API code
    */
   parseJSX(jsx, keyMap = null, textStyleMap = [], spacingKeyMap = {}, radiusKeyMap = {}) {
+    // Text root branch — render a standalone TEXT node
+    const trimmed = jsx.trim();
+    if (trimmed.startsWith('<Text')) {
+      const textMatch = trimmed.match(/^<Text\s+([^>]*)>([\s\S]*?)<\/Text>$/);
+      if (textMatch) {
+        const props = this.parseProps(textMatch[1]);
+        const content = textMatch[2];
+
+        const weight = props.weight || 'regular';
+        const style = weight === 'bold' ? 'Bold' : weight === 'medium' ? 'Medium' : weight === 'semibold' ? 'Semi Bold' : 'Regular';
+        const size = Number(props.size) || 14;
+        const color = props.color || '#000000';
+        const fillWidth = props.w === 'fill';
+        const useSmartPos = props.x === undefined;
+        const explicitX = props.x || 0;
+        const y = props.y || 0;
+
+        const textAlign = (() => {
+          const a = (props.align || props.textAlign || 'left').toLowerCase();
+          if (a === 'center')    return 'CENTER';
+          if (a === 'right')     return 'RIGHT';
+          if (a === 'justified') return 'JUSTIFIED';
+          return 'LEFT';
+        })();
+
+        const textStyle = textStyleMap.find(ts => ts.size === size);
+        const fontFamily = textStyle ? textStyle.fontFamily : 'Inter';
+        const fontStyle = textStyle ? textStyle.fontStyle : style;
+
+        const textStyleCode = textStyle ? `
+        try {
+          await figma.loadFontAsync({ family: ${JSON.stringify(textStyle.fontFamily)}, style: ${JSON.stringify(textStyle.fontStyle)} });
+          const __ts0 = await figma.importStyleByKeyAsync(${JSON.stringify(textStyle.key)});
+          if (__ts0) await textNode.setTextStyleIdAsync(__ts0.id);
+        } catch(e) {}` : '';
+
+        const fillCode = this.generateFillCode(color, 'textNode');
+
+        let varLoadCode = '';
+        if (fillCode.usesVars) {
+          const boundFillHelper = `const boundFill = (variable) => figma.variables.setBoundVariableForPaint(
+          { type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5 } }, 'color', variable
+        );`;
+          if (keyMap) {
+            const varName = this.getVarName(color);
+            varLoadCode = `
+        const vars = {};
+        vars[${JSON.stringify(varName)}] = await figma.variables.importVariableByKeyAsync(${JSON.stringify(keyMap[varName])});
+        ${boundFillHelper}`;
+          } else {
+            varLoadCode = `
+        const collections = await figma.variables.getLocalVariableCollectionsAsync();
+        const vars = {};
+        for (const col of collections) {
+          for (const id of col.variableIds) {
+            const v = await figma.variables.getVariableByIdAsync(id);
+            if (v) vars[v.name] = v;
+          }
+        }
+        ${boundFillHelper}`;
+          }
+        }
+
+        const smartPosCode = useSmartPos ? `
+        let smartX = 0;
+        const children = figma.currentPage.children;
+        if (children.length > 0) {
+          let maxRight = 0;
+          children.forEach(n => {
+            const right = n.x + (n.width || 0);
+            if (right > maxRight) maxRight = right;
+          });
+          smartX = Math.round(maxRight + 100);
+        }` : `const smartX = ${explicitX};`;
+
+        return `
+      (async function() {
+        await figma.loadFontAsync({family:${JSON.stringify(fontFamily)},style:${JSON.stringify(fontStyle)}});
+        ${varLoadCode}
+        ${smartPosCode}
+
+        const textNode = figma.createText();
+        textNode.fontName = {family:${JSON.stringify(fontFamily)},style:${JSON.stringify(fontStyle)}};
+        textNode.fontSize = ${size};
+        textNode.characters = ${JSON.stringify(content)};
+        textNode.textAlignHorizontal = '${textAlign}';
+        ${fillCode.code}
+        textNode.x = smartX;
+        textNode.y = ${y};
+        ${fillWidth ? `try { textNode.layoutSizingHorizontal = 'FILL'; textNode.textAutoResize = 'HEIGHT'; } catch(e) {}` : ''}
+        ${textStyleCode}
+
+        return { id: textNode.id, name: textNode.name };
+      })()
+    `;
+      }
+    }
+
     // Find opening Frame tag
     const openMatch = jsx.match(/<Frame\s+([^>]*)>/);
     if (!openMatch) {

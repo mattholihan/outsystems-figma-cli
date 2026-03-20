@@ -583,7 +583,7 @@ os-figma run /tmp/script.js
 
 ## Render JSX Syntax
 
-> **Root element must be `<Frame>`** — `render` requires a `<Frame>` as the outermost element. Passing `<Text>` or any other element as the root will fail with: `✗ Render failed: Invalid JSX: must start with <Frame>`. To place a standalone text node, wrap it in a minimal `<Frame>`: `<Frame flex="row"><Text ...>label</Text></Frame>`
+> **`<Text>` is supported as a root element.** `render` will create a standalone text node at the target position. Note: `w="fill"` on a root `<Text>` requires a parent frame with auto-layout — omit it for text nodes placed at canvas root.
 
 **Elements:** `<Frame>`, `<Rectangle>`, `<Ellipse>`, `<Text>`, `<Line>`, `<Image>`, `<SVG>`, `<Icon>`
 
