@@ -7491,6 +7491,7 @@ program
 
     let foundationsLib;
     let componentsLib;
+    let iconsLib;
 
     // Check for existing files
     const libraryConfigPath = join(cwd, 'library-config.json');
@@ -7535,7 +7536,7 @@ program
 
     console.log(chalk.green(`\n  ✔ Project initialised: ${projectName}\n`));
     console.log(chalk.white('  Let\'s get your project set up.'));
-    console.log(chalk.gray('  Make sure both your Foundations and Components library files are open in Figma Desktop.\n'));
+    console.log(chalk.gray('  Make sure your library file(s) are open in Figma Desktop.\n'));
 
     process.once('SIGINT', () => {
       console.log(chalk.yellow('\n\n  Setup interrupted. Run os-figma init again to restart, or run each command manually.'));
@@ -7549,21 +7550,27 @@ program
       console.log(chalk.white(`  ${title}\n`));
     }
 
-    async function runRetry(action, skipCommand) {
+    async function runWithRetry(action, { tabName, skipMessage }) {
       while (true) { // eslint-disable-line no-constant-condition
         try {
           await action();
-          return;
+          return true;
         } catch (err) {
           console.log(chalk.red(`  ✖ ${err.message}`));
-          const retry = await confirm({
-            message: 'Try again?',
-            default: true,
+          const action2 = await select({
+            message: 'What would you like to do?',
+            choices: [
+              { name: 'Retry — switch to the correct tab and try again', value: 'retry' },
+              { name: 'Skip this step', value: 'skip' },
+            ],
           });
-          if (!retry) {
-            console.log(chalk.yellow(`  ⚠ Skipped. You can run this manually later: ${skipCommand}`));
-            return;
+          if (action2 === 'skip') {
+            console.log(chalk.gray(`  ℹ ${skipMessage}`));
+            return false;
           }
+          // Retry — re-show tab switch prompt
+          console.log(chalk.gray(`  Switch to "${tabName}" in Figma Desktop, then press Enter to continue…`));
+          await prompt('');
         }
       }
     }
@@ -7689,7 +7696,7 @@ program
 
       while (true) { // eslint-disable-line no-constant-condition
         foundationsLib = await select({
-          message: 'Which file is your Foundations library?',
+          message: 'Which file contains your design tokens and styles?',
           choices: buildFileChoices(),
         });
         if (foundationsLib !== REFRESH) break;
@@ -7698,16 +7705,31 @@ program
 
       while (true) { // eslint-disable-line no-constant-condition
         const componentsChoices = [
-          { name: `Same as Foundations (${foundationsLib})`, value: foundationsLib },
-          ...designFiles.filter(name => name !== foundationsLib).map(name => ({ name, value: name })),
+          ...designFiles.map(name => ({ name, value: name })),
           new Separator(),
           { name: '↺  Refresh file list', value: REFRESH },
         ];
         componentsLib = await select({
-          message: 'Which file is your Components library?',
+          message: 'Which file contains your UI components?',
           choices: componentsChoices,
         });
         if (componentsLib !== REFRESH) break;
+        await fetchStableFileList();
+      }
+
+      while (true) { // eslint-disable-line no-constant-condition
+        const iconsChoices = [
+          ...designFiles.map(name => ({ name, value: name })),
+          new Separator(),
+          { name: 'None — skip icon scanning', value: '__none__' },
+          { name: '↺  Refresh file list', value: REFRESH },
+        ];
+        iconsLib = await select({
+          message: 'Which file contains your icons?',
+          choices: iconsChoices,
+        });
+        if (iconsLib === '__none__') { iconsLib = null; break; }
+        if (iconsLib !== REFRESH) break;
         await fetchStableFileList();
       }
     }
@@ -7718,6 +7740,7 @@ program
       libraries: {
         foundations: foundationsLib,
         components: componentsLib,
+        icons: iconsLib,
       },
       createdAt: new Date().toISOString(),
     };
@@ -7732,8 +7755,8 @@ program
     await prompt('');
     activeLib = foundationsLib;
 
-    await runRetry(async () => {
-      const pullSpinner = ora('Connecting to Foundations file...').start();
+    const tokensSynced = await runWithRetry(async () => {
+      const pullSpinner = ora(`Connecting to "${foundationsLib}"...`).start();
       let pullClient;
       try {
         const pages = await FigmaClient.listPages();
@@ -7746,7 +7769,7 @@ program
         await pullClient.connect(matchedName);
       } catch (err) {
         if (pullClient) pullClient.close();
-        pullSpinner.fail('Could not connect to Foundations file');
+        pullSpinner.fail(`Could not connect to "${foundationsLib}"`);
         throw err;
       }
       pullSpinner.text = 'Reading variables from Figma...';
@@ -7791,7 +7814,7 @@ return result;
       }
       if (!figmaData || Object.keys(figmaData).length === 0) {
         pullClient.close();
-        pullSpinner.fail('No variables found in Foundations file');
+        pullSpinner.fail(`No variables found in "${foundationsLib}"`);
         throw new Error('No variables found — run os-figma tokens preset first to create token collections');
       }
       const newCollections = {};
@@ -7893,17 +7916,30 @@ return result;
       }
 
       pullClient.close();
-    }, 'os-figma tokens pull && os-figma styles pull');
+    }, {
+      tabName: foundationsLib,
+      skipMessage: 'Skipped — run os-figma tokens pull && os-figma styles pull later.',
+    });
+
+    if (!tokensSynced) {
+      console.log(chalk.yellow('  ⚠ Token binding will not work until tokens and styles are synced.'));
+    }
 
     // ─── Step 3: Pattern scan --icons ───
     printStep(3, 'Index your icon library');
-    if (activeLib !== foundationsLib) {
-      console.log(chalk.gray(`  Switch to "${foundationsLib}" in Figma Desktop, then press Enter to continue…`));
-      await prompt('');
-      activeLib = foundationsLib;
+    if (iconsLib) {
+      if (activeLib !== iconsLib) {
+        console.log(chalk.gray(`  Switch to "${iconsLib}" in Figma Desktop, then press Enter to continue…`));
+        await prompt('');
+        activeLib = iconsLib;
+      }
+      await runWithRetry(
+        () => runPatternScan({ icons: true, throwOnError: true }),
+        { tabName: iconsLib, skipMessage: 'Skipped — run os-figma pattern scan --icons later.' },
+      );
+    } else {
+      console.log(chalk.gray('  ℹ Icon scanning disabled — re-run os-figma pattern scan --icons to enable later.'));
     }
-
-    await runPatternScan({ icons: true });
 
     // ─── Step 4: Pattern scan ───
     printStep(4, 'Index your component library');
@@ -7913,7 +7949,10 @@ return result;
       activeLib = componentsLib;
     }
 
-    await runPatternScan({});
+    await runWithRetry(
+      () => runPatternScan({ throwOnError: true }),
+      { tabName: componentsLib, skipMessage: 'Skipped — run os-figma pattern scan later.' },
+    );
 
     // ─── Generate CLAUDE.md ───
     {
@@ -8160,19 +8199,23 @@ function loadLibraryConfig() {
 
 async function runPatternScan(options) {
   const libConfig = loadLibraryConfig();
+  const throwOnError = !!options.throwOnError;
 
   const isIcons = !!options.icons;
-  const targetKey = isIcons ? 'foundations' : 'components';
-  const targetName = libConfig?.libraries?.[targetKey];
+  const targetKey = isIcons ? 'icons' : 'components';
+  const targetName = libConfig?.libraries?.[targetKey]
+    || (isIcons ? libConfig?.libraries?.foundations : null);
 
   if (!targetName) {
-    const label = isIcons ? 'Foundations' : 'Components';
-    console.log(chalk.red(`\n✗ No ${targetKey} library configured in library-config.json.\n`));
-    console.log(chalk.white('  Re-run ') + chalk.cyan('os-figma init') + chalk.white(` and provide a ${label} library name.\n`));
+    const label = isIcons ? 'icons' : 'components';
+    const msg = `No ${label} library configured in library-config.json.`;
+    if (throwOnError) throw new Error(msg);
+    console.log(chalk.red(`\n✗ ${msg}\n`));
+    console.log(chalk.white('  Re-run ') + chalk.cyan('os-figma init') + chalk.white(` and provide a ${label} library file.\n`));
     process.exit(1);
   }
 
-  const spinner = ora(`Connecting to ${isIcons ? 'Foundations' : 'Components'} file...`).start();
+  const spinner = ora(`Connecting to "${targetName}"...`).start();
 
   // Switch CDP connection to the target file
   let scanClient;
@@ -8180,8 +8223,9 @@ async function runPatternScan(options) {
     let pages;
     try {
       pages = await FigmaClient.listPages();
-    } catch {
+    } catch (err) {
       spinner.fail('Not connected to Figma — run os-figma connect first');
+      if (throwOnError) throw err;
       process.exit(1);
     }
     const designFiles = pages.filter(p =>
@@ -8192,7 +8236,9 @@ async function runPatternScan(options) {
       stripSuffix(p.title).toLowerCase() === targetName.toLowerCase()
     );
     if (!match) {
-      spinner.fail(`"${targetName}" is not open in Figma Desktop. Please open it and try again.`);
+      const msg = `"${targetName}" is not open in Figma Desktop. Please open it and try again.`;
+      spinner.fail(msg);
+      if (throwOnError) throw new Error(msg);
       process.exit(1);
     }
     const matchedName = stripSuffix(match.title);
@@ -8203,6 +8249,7 @@ async function runPatternScan(options) {
       await scanClient.connect(matchedName);
     } catch (err) {
       spinner.fail(`Could not connect to "${matchedName}": ${err.message}`);
+      if (throwOnError) throw err;
       process.exit(1);
     }
   }
@@ -8233,7 +8280,9 @@ async function runPatternScan(options) {
     scanClient.close();
   } catch (err) {
     scanClient.close();
-    spinner.fail(`Failed to scan ${isIcons ? 'icons' : 'components'} from Figma`);
+    const msg = `Failed to scan ${isIcons ? 'icons' : 'components'} from Figma`;
+    spinner.fail(msg);
+    if (throwOnError) throw new Error(`${msg}: ${err.message}`);
     console.error(chalk.red(err.message));
     process.exit(1);
   }
@@ -8242,7 +8291,9 @@ async function runPatternScan(options) {
   const count = Object.keys(scanned || {}).length;
 
   if (!count) {
-    spinner.warn(`No ${isIcons ? 'icons' : 'components'} found in "${targetName}". Make sure the correct file is open and try again.`);
+    const msg = `No ${isIcons ? 'icons' : 'components'} found in "${targetName}". Make sure the correct file is open and try again.`;
+    spinner.warn(msg);
+    if (throwOnError) throw new Error(msg);
     process.exit(0);
   }
 
