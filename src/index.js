@@ -7487,13 +7487,8 @@ program
     // Prompt: project name
     const projectName = defaultProjectName;
 
-    // Prompt: foundations library
-    const rawFoundations = await prompt(chalk.white('  Foundations library file name ') + chalk.gray('(e.g. "PDX Template - FOUNDATIONS"): '));
-    const foundationsLib = rawFoundations.trim();
-
-    // Prompt: components library
-    const rawComponents = await prompt(chalk.white('  Components library file name ') + chalk.gray('(e.g. "PDX Template - COMPONENTS"): '));
-    const componentsLib = rawComponents.trim();
+    let foundationsLib;
+    let componentsLib;
 
     // Check for existing files
     const libraryConfigPath = join(cwd, 'library-config.json');
@@ -7520,17 +7515,6 @@ program
         writeFileSync(gitignorePath, existing.endsWith('\n') ? existing + 'screenshots/\n' : existing + '\nscreenshots/\n');
       }
     }
-
-    // Write library-config.json
-    const libraryConfig = {
-      project: projectName,
-      libraries: {
-        foundations: foundationsLib,
-        components: componentsLib,
-      },
-      createdAt: new Date().toISOString(),
-    };
-    writeFileSync(libraryConfigPath, JSON.stringify(libraryConfig, null, 2) + '\n');
 
     // Write tokens.json
     const tokens = {
@@ -7623,6 +7607,80 @@ program
         }
       }
     }
+
+    // ─── Select Foundations and Components libraries ───
+    {
+      const stripSuffix = t => t.replace(/\s*\u2013\s*Figma\s*$/, '').trim();
+      let designFiles = [];
+
+      // Retry until at least 2 design files are open
+      while (true) { // eslint-disable-line no-constant-condition
+        try {
+          const pages = await FigmaClient.listPages();
+          designFiles = pages
+            .filter(p => p.url && (p.url.includes('/design/') || p.url.includes('/board/')))
+            .map(p => stripSuffix(p.title));
+        } catch {
+          designFiles = [];
+        }
+
+        if (designFiles.length >= 2) break;
+
+        console.log(chalk.red('\n  ✖ At least 2 Figma files must be open (Foundations and Components).'));
+        const answer = await prompt(chalk.white('  Open both files in Figma Desktop, then press Enter to retry') + chalk.gray(" — or type 'q' to quit: "));
+        if (answer.trim().toLowerCase() === 'q' || answer.trim().toLowerCase() === 'quit') {
+          console.log('Init cancelled.');
+          process.exit(0);
+        }
+      }
+
+      console.log(chalk.white('\n  Open Figma files:'));
+      designFiles.forEach((name, i) => {
+        console.log(chalk.gray(`    ${i + 1}. ${name}`));
+      });
+
+      // Select Foundations
+      let foundationsIdx;
+      while (foundationsIdx === undefined) {
+        const raw = await prompt(chalk.white('\n  Which file is your Foundations library? ') + chalk.gray('Enter a number: '));
+        const n = parseInt(raw.trim(), 10);
+        if (!isNaN(n) && n >= 1 && n <= designFiles.length) {
+          foundationsIdx = n - 1;
+        } else {
+          console.log(chalk.red(`  ✖ Enter a number between 1 and ${designFiles.length}.`));
+        }
+      }
+
+      // Select Components
+      let componentsIdx;
+      while (componentsIdx === undefined) {
+        const raw = await prompt(chalk.white('  Which file is your Components library? ') + chalk.gray('Enter a number: '));
+        const n = parseInt(raw.trim(), 10);
+        if (!isNaN(n) && n >= 1 && n <= designFiles.length) {
+          if (n - 1 === foundationsIdx) {
+            console.log(chalk.red('  ✖ Foundations and Components must be different files.'));
+          } else {
+            componentsIdx = n - 1;
+          }
+        } else {
+          console.log(chalk.red(`  ✖ Enter a number between 1 and ${designFiles.length}.`));
+        }
+      }
+
+      foundationsLib = designFiles[foundationsIdx];
+      componentsLib = designFiles[componentsIdx];
+    }
+
+    // Write library-config.json now that library names are known
+    const libraryConfig = {
+      project: projectName,
+      libraries: {
+        foundations: foundationsLib,
+        components: componentsLib,
+      },
+      createdAt: new Date().toISOString(),
+    };
+    writeFileSync(libraryConfigPath, JSON.stringify(libraryConfig, null, 2) + '\n');
 
     // ─── Step 2: Tokens + Styles pull ───
     printStep(2, 'Sync your design tokens and styles');
