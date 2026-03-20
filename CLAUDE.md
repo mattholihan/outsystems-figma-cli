@@ -202,6 +202,7 @@ Set `gap` once on the screen frame: `os-figma gap 16 -n "<screenId>"`. For extra
 - `os-figma find` returns all matches — use `--last` for most recent
 - `setBoundVariable('cornerRadius', v)` silently ignored — bind `topLeftRadius`, `topRightRadius`, `bottomLeftRadius`, `bottomRightRadius` individually
 - **Daemon caches `figma-client.js`** — restart with `os-figma connect` after edits
+- **Off-scale spacing values block clean exit** — use `--skip <property>` to exclude intentional values from the fix pass: `os-figma node fix "<id>" --deep --skip paddingTop`
 - **`bind padding` writes all four sides** — use `bind padding-top`, `bind padding-right`, `bind padding-bottom`, `bind padding-left` to target individual sides without overwriting the others
 - **`grow={1}` symmetric centring in column layouts** — two `grow={1}` spacers in a column do not reliably centre content. Use a single `grow={1}` at the bottom of the column to push content upward, or use a fixed-height top spacer to push content down from the top edge.
 

@@ -277,6 +277,9 @@ const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
 
 const program = new Command();
 
+// Helper: accumulate repeated --flag values into an array
+function collect(val, acc) { acc.push(val); return acc; }
+
 // Helper: Prompt user
 function prompt(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -6739,6 +6742,7 @@ node
   .description('Inspect and automatically fix design system warnings on a node')
   .option('--dry-run', 'Print fix plan without applying changes')
   .option('--deep', 'Recursively fix all descendant nodes')
+  .option('--skip <property>', 'Skip warnings for this property (repeatable)', collect, [])
   .action(async (nodeId, options) => {
     await checkConnection();
 
@@ -7028,9 +7032,11 @@ node
       return { type: 'unresolved', nodeId: nodeData.id, nodeName: nodeData.name, prop, reason: 'unknown warning type' };
     }
 
+    const skipSet = new Set(options.skip || []);
     const fixPlan = [];
     for (const nodeData of nodesWithWarnings) {
       for (const warning of nodeData.warnings) {
+        if (skipSet.has(warning.property)) continue;
         fixPlan.push(resolveFixForWarning(nodeData, warning));
       }
     }
@@ -7058,6 +7064,11 @@ node
         console.log(`  ${chalk.green('✓')} ${label} ${fix.prop} — ${fix.value} → ${chalk.cyan(fix.tokenName)}`);
       } else if (fix.type === 'bind-radius') {
         console.log(`  ${chalk.green('✓')} ${label} cornerRadius — ${fix.value} → ${chalk.cyan(fix.tokenName)}`);
+      }
+    }
+    if (skipSet.size > 0) {
+      for (const prop of skipSet) {
+        console.log(`  ${chalk.gray('–')} ${prop} — ${chalk.gray('skipped (--skip)')}`);
       }
     }
 
@@ -7193,6 +7204,7 @@ return JSON.stringify({ ok: true });
     if (fixed > 0) parts.push(chalk.green(`${fixed} fixed`));
     if (failed > 0) parts.push(chalk.red(`${failed} failed`));
     if (unresolved.length > 0) parts.push(chalk.yellow(`${unresolved.length} unresolved`));
+    if (skipSet.size > 0) parts.push(chalk.gray(`${skipSet.size} skipped`));
     console.log(`Summary: ${parts.join(', ')}`);
 
     if (unresolved.length > 0) {

@@ -380,6 +380,15 @@ os-figma node fix "123:456" --dry-run      # print fix plan without applying
 os-figma node fix "123:456" --deep         # fix warnings on all descendant nodes
 os-figma node fix                          # fix current Figma selection
 
+# Fix warnings, skipping specific properties (repeatable)
+os-figma node fix "123:456" --deep --skip paddingTop
+os-figma node fix "123:456" --deep --skip paddingTop --skip paddingBottom
+
+# Use --skip for intentional off-scale values (e.g. safe-area insets,
+# fixed-height decorative zones) that should not be treated as warnings.
+# Skipped properties are shown in the fix plan output but do not affect
+# the exit code.
+
 # Token resolution is property-aware: padding/gap values prefer spacing tokens,
 # font sizes prefer typography tokens, border radii prefer border tokens, etc.
 # This prevents cross-category mismatches (e.g. padding 16 binding to --font-size-base).
