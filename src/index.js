@@ -9,6 +9,8 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from '
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
 import { createInterface } from 'readline';
+import select from '@inquirer/select';
+import confirm from '@inquirer/confirm';
 import { homedir, platform } from 'os';
 import { createServer } from 'http';
 import { FigmaClient } from './figma-client.js';
@@ -7496,8 +7498,11 @@ program
 
     for (const [label, filePath] of [['library-config.json', libraryConfigPath], ['tokens.json', tokensPath]]) {
       if (existsSync(filePath)) {
-        const rawOverwrite = await prompt(chalk.yellow(`\n  ${label} already exists. Overwrite? `) + chalk.gray('(y/N): '));
-        if (rawOverwrite.trim().toLowerCase() !== 'y') {
+        const overwrite = await confirm({
+          message: `${label} already exists. Overwrite?`,
+          default: false,
+        });
+        if (!overwrite) {
           console.log(chalk.gray(`  Skipping ${label}`));
           return;
         }
@@ -7550,8 +7555,11 @@ program
           return;
         } catch (err) {
           console.log(chalk.red(`  ✖ ${err.message}`));
-          const r = await prompt(chalk.white('  Try again? ') + chalk.gray('(Y/n): '));
-          if (r.trim().toLowerCase() === 'n') {
+          const retry = await confirm({
+            message: 'Try again?',
+            default: true,
+          });
+          if (!retry) {
             console.log(chalk.yellow(`  ⚠ Skipped. You can run this manually later: ${skipCommand}`));
             return;
           }
@@ -7634,41 +7642,29 @@ program
         }
       }
 
-      console.log(chalk.white('\n  Open Figma files:'));
-      designFiles.forEach((name, i) => {
-        console.log(chalk.gray(`    ${i + 1}. ${name}`));
-      });
+      // Select Foundations and Components via arrow-key picker
+      const fileChoices = designFiles.map(name => ({ name, value: name }));
 
-      // Select Foundations
-      let foundationsIdx;
-      while (foundationsIdx === undefined) {
-        const raw = await prompt(chalk.white('\n  Which file is your Foundations library? ') + chalk.gray('Enter a number: '));
-        const n = parseInt(raw.trim(), 10);
-        if (!isNaN(n) && n >= 1 && n <= designFiles.length) {
-          foundationsIdx = n - 1;
-        } else {
-          console.log(chalk.red(`  ✖ Enter a number between 1 and ${designFiles.length}.`));
-        }
+      let selectedFoundations;
+      let selectedComponents;
+
+      while (true) { // eslint-disable-line no-constant-condition
+        selectedFoundations = await select({
+          message: 'Which file is your Foundations library?',
+          choices: fileChoices,
+        });
+
+        selectedComponents = await select({
+          message: 'Which file is your Components library?',
+          choices: fileChoices,
+        });
+
+        if (selectedFoundations !== selectedComponents) break;
+        console.log(chalk.red('  ✖ Foundations and Components must be different files. Please select again.'));
       }
 
-      // Select Components
-      let componentsIdx;
-      while (componentsIdx === undefined) {
-        const raw = await prompt(chalk.white('  Which file is your Components library? ') + chalk.gray('Enter a number: '));
-        const n = parseInt(raw.trim(), 10);
-        if (!isNaN(n) && n >= 1 && n <= designFiles.length) {
-          if (n - 1 === foundationsIdx) {
-            console.log(chalk.red('  ✖ Foundations and Components must be different files.'));
-          } else {
-            componentsIdx = n - 1;
-          }
-        } else {
-          console.log(chalk.red(`  ✖ Enter a number between 1 and ${designFiles.length}.`));
-        }
-      }
-
-      foundationsLib = designFiles[foundationsIdx];
-      componentsLib = designFiles[componentsIdx];
+      foundationsLib = selectedFoundations;
+      componentsLib = selectedComponents;
     }
 
     // Write library-config.json now that library names are known
@@ -7872,8 +7868,10 @@ return result;
       let shouldWrite = true;
 
       if (existsSync(claudeMdPath)) {
-        const rawOverwrite = await prompt(chalk.yellow('\n  CLAUDE.md already exists. Overwrite? ') + chalk.gray('(y/N): '));
-        shouldWrite = rawOverwrite.trim().toLowerCase() === 'y';
+        shouldWrite = await confirm({
+          message: 'CLAUDE.md already exists. Overwrite?',
+          default: false,
+        });
       }
 
       if (shouldWrite) {
