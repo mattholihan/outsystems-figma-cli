@@ -9,7 +9,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from '
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
 import { createInterface } from 'readline';
-import select from '@inquirer/select';
+import select, { Separator } from '@inquirer/select';
 import confirm from '@inquirer/confirm';
 import { homedir, platform } from 'os';
 import { createServer } from 'http';
@@ -7622,21 +7622,54 @@ program
       const stripSuffix = t => t.replace(/\s*\u2013\s*Figma\s*$/, '').trim();
       let designFiles = [];
 
-      // Retry until at least 2 design files are open
-      while (true) { // eslint-disable-line no-constant-condition
-        try {
-          const pages = await FigmaClient.listPages();
-          designFiles = pages
-            .filter(p => p.url && (p.url.includes('/design/') || p.url.includes('/board/')))
-            .map(p => stripSuffix(p.title));
-        } catch {
-          designFiles = [];
+      // Poll until file list is stable (3 consecutive checks with same count, 2s apart)
+      async function fetchStableFileList() {
+        const spinner = ora('Waiting for Figma files to load…').start();
+        const BASELINE_WAIT = 3000;
+        const POLL_INTERVAL = 2000;
+        const STABLE_NEEDED = 3;
+        const MAX_WAIT = 20000;
+
+        await new Promise(r => setTimeout(r, BASELINE_WAIT));
+
+        let stableCount = 0;
+        let prevCount = -1;
+        const deadline = Date.now() + (MAX_WAIT - BASELINE_WAIT);
+
+        while (Date.now() < deadline) {
+          try {
+            const pages = await FigmaClient.listPages();
+            designFiles = pages
+              .filter(p => p.url && (p.url.includes('/design/') || p.url.includes('/board/')))
+              .map(p => stripSuffix(p.title));
+          } catch {
+            designFiles = [];
+          }
+
+          if (designFiles.length >= 1 && designFiles.length === prevCount) {
+            stableCount++;
+            if (stableCount >= STABLE_NEEDED) {
+              spinner.succeed(`Found ${designFiles.length} open Figma file${designFiles.length > 1 ? 's' : ''}`);
+              return;
+            }
+          } else {
+            stableCount = 1;
+          }
+          prevCount = designFiles.length;
+          await new Promise(r => setTimeout(r, POLL_INTERVAL));
         }
 
-        if (designFiles.length >= 2) break;
+        if (designFiles.length >= 1) {
+          spinner.succeed(`Found ${designFiles.length} open Figma file${designFiles.length > 1 ? 's' : ''}`);
+          return;
+        }
+        spinner.fail('No Figma design files found');
+      }
 
-        console.log(chalk.red('\n  ✖ At least 2 Figma files must be open (Foundations and Components).'));
-        const answer = await prompt(chalk.white('  Open both files in Figma Desktop, then press Enter to retry') + chalk.gray(" — or type 'q' to quit: "));
+      while (true) { // eslint-disable-line no-constant-condition
+        await fetchStableFileList();
+        if (designFiles.length >= 1) break;
+        const answer = await prompt(chalk.white('  Open your library file(s) in Figma Desktop, then press Enter to retry') + chalk.gray(" — or type 'q' to quit: "));
         if (answer.trim().toLowerCase() === 'q' || answer.trim().toLowerCase() === 'quit') {
           console.log('Init cancelled.');
           process.exit(0);
@@ -7644,28 +7677,39 @@ program
       }
 
       // Select Foundations and Components via arrow-key picker
-      const fileChoices = designFiles.map(name => ({ name, value: name }));
+      const REFRESH = '__refresh__';
 
-      let selectedFoundations;
-      let selectedComponents;
-
-      while (true) { // eslint-disable-line no-constant-condition
-        selectedFoundations = await select({
-          message: 'Which file is your Foundations library?',
-          choices: fileChoices,
-        });
-
-        selectedComponents = await select({
-          message: 'Which file is your Components library?',
-          choices: fileChoices,
-        });
-
-        if (selectedFoundations !== selectedComponents) break;
-        console.log(chalk.red('  ✖ Foundations and Components must be different files. Please select again.'));
+      function buildFileChoices() {
+        return [
+          ...designFiles.map(name => ({ name, value: name })),
+          new Separator(),
+          { name: '↺  Refresh file list', value: REFRESH },
+        ];
       }
 
-      foundationsLib = selectedFoundations;
-      componentsLib = selectedComponents;
+      while (true) { // eslint-disable-line no-constant-condition
+        foundationsLib = await select({
+          message: 'Which file is your Foundations library?',
+          choices: buildFileChoices(),
+        });
+        if (foundationsLib !== REFRESH) break;
+        await fetchStableFileList();
+      }
+
+      while (true) { // eslint-disable-line no-constant-condition
+        const componentsChoices = [
+          { name: `Same as Foundations (${foundationsLib})`, value: foundationsLib },
+          ...designFiles.filter(name => name !== foundationsLib).map(name => ({ name, value: name })),
+          new Separator(),
+          { name: '↺  Refresh file list', value: REFRESH },
+        ];
+        componentsLib = await select({
+          message: 'Which file is your Components library?',
+          choices: componentsChoices,
+        });
+        if (componentsLib !== REFRESH) break;
+        await fetchStableFileList();
+      }
     }
 
     // Write library-config.json now that library names are known
@@ -7679,10 +7723,14 @@ program
     };
     writeFileSync(libraryConfigPath, JSON.stringify(libraryConfig, null, 2) + '\n');
 
+    // Track which library tab the user has switched to
+    let activeLib = null;
+
     // ─── Step 2: Tokens + Styles pull ───
     printStep(2, 'Sync your design tokens and styles');
     console.log(chalk.gray(`  Switch to "${foundationsLib}" in Figma Desktop, then press Enter to continue…`));
     await prompt('');
+    activeLib = foundationsLib;
 
     await runRetry(async () => {
       const pullSpinner = ora('Connecting to Foundations file...').start();
@@ -7849,15 +7897,21 @@ return result;
 
     // ─── Step 3: Pattern scan --icons ───
     printStep(3, 'Index your icon library');
-    console.log(chalk.gray(`  Switch to "${foundationsLib}" in Figma Desktop, then press Enter to continue…`));
-    await prompt('');
+    if (activeLib !== foundationsLib) {
+      console.log(chalk.gray(`  Switch to "${foundationsLib}" in Figma Desktop, then press Enter to continue…`));
+      await prompt('');
+      activeLib = foundationsLib;
+    }
 
     await runPatternScan({ icons: true });
 
     // ─── Step 4: Pattern scan ───
     printStep(4, 'Index your component library');
-    console.log(chalk.gray(`  Switch to "${componentsLib}" in Figma Desktop, then press Enter to continue…`));
-    await prompt('');
+    if (activeLib !== componentsLib) {
+      console.log(chalk.gray(`  Switch to "${componentsLib}" in Figma Desktop, then press Enter to continue…`));
+      await prompt('');
+      activeLib = componentsLib;
+    }
 
     await runPatternScan({});
 
