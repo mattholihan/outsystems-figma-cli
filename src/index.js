@@ -5841,9 +5841,10 @@ function generateFigmaCode(props, x, y) {
 }
 
 program
-  .command('render <jsx>')
+  .command('render [jsx]')
   .description('Render JSX to Figma (uses figma-use render)')
   .option('--parent <id>', 'Parent node ID')
+  .option('-f, --file <path>', 'Read JSX from file instead of argument')
   .option('-x <n>', 'X position')
   .option('-y <n>', 'Y position')
   .option('--no-smart-position', 'Disable auto-positioning')
@@ -5851,6 +5852,20 @@ program
   .action(async (jsx, options) => {
     await checkConnection();
     try {
+      // If --file provided, read JSX from file
+      if (options.file) {
+        if (!existsSync(options.file)) {
+          console.log(chalk.red('✗ File not found: ' + options.file));
+          process.exit(1);
+        }
+        jsx = readFileSync(options.file, 'utf8').trim();
+      }
+
+      if (!jsx) {
+        console.log(chalk.red('✗ No JSX provided. Use: render "<jsx>" or render --file ./frame.jsx'));
+        process.exit(1);
+      }
+
       // Calculate smart position if not specified
       let posX = options.x;
       let posY = options.y !== undefined ? options.y : 0;

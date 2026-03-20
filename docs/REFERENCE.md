@@ -585,6 +585,8 @@ os-figma run /tmp/script.js
 
 > **`<Text>` is supported as a root element.** `render` will create a standalone text node at the target position. Note: `w="fill"` on a root `<Text>` requires a parent frame with auto-layout — omit it for text nodes placed at canvas root.
 
+> **Shell-escaping alternative:** For JSX containing apostrophes or complex copy, use `render --file ./frame.jsx` to read from a file instead of passing JSX as a shell argument.
+
 **Elements:** `<Frame>`, `<Rectangle>`, `<Ellipse>`, `<Text>`, `<Line>`, `<Image>`, `<SVG>`, `<Icon>`
 
 **Size:** `w={390} h={844}` (mobile), `w={1440} h={900}` (web), `w="fill"`, `minW={100} maxW={500}`
