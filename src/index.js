@@ -7485,8 +7485,7 @@ program
     console.log(chalk.bold('\n  Initialise OutSystems Figma Project\n'));
 
     // Prompt: project name
-    const rawName = await prompt(chalk.white(`  Project name `) + chalk.gray(`(${defaultProjectName}): `));
-    const projectName = rawName.trim() || defaultProjectName;
+    const projectName = defaultProjectName;
 
     // Prompt: foundations library
     const rawFoundations = await prompt(chalk.white('  Foundations library file name ') + chalk.gray('(e.g. "PDX Template - FOUNDATIONS"): '));
@@ -7581,7 +7580,8 @@ program
     console.log(chalk.gray('  Make sure Figma Desktop is running, then press Enter...'));
     await prompt('');
 
-    {
+    let connected = false;
+    while (!connected) {
       const connectSpinner = ora('Connecting to Figma...').start();
       try {
         const cfg = loadConfig();
@@ -7594,8 +7594,7 @@ program
             saveConfig(cfg);
           } catch (patchErr) {
             connectSpinner.fail('Could not configure Figma');
-            console.log(chalk.red('  ✖ Connection failed. Check Figma Desktop is running and try os-figma init again.'));
-            process.exit(1);
+            throw patchErr;
           }
         }
         stopDaemon();
@@ -7610,15 +7609,18 @@ program
         }
         if (!step1Connected) {
           connectSpinner.fail('No connection established');
-          console.log(chalk.red('  ✖ Connection failed. Check Figma Desktop is running and try os-figma init again.'));
-          process.exit(1);
+          throw new Error('Could not connect to Figma Desktop');
         }
         try { startDaemon(true, 'auto'); await new Promise(r => setTimeout(r, 1500)); } catch {}
         connectSpinner.succeed('Connected');
-      } catch (connectErr) {
-        connectSpinner.fail('Connection failed');
-        console.log(chalk.red('  ✖ Connection failed. Check Figma Desktop is running and try os-figma init again.'));
-        process.exit(1);
+        connected = true;
+      } catch (err) {
+        console.log(chalk.red('\n  ✖ Could not connect to Figma.'));
+        const answer = await prompt(chalk.white('  Make sure Figma Desktop is open, then press Enter to try again') + chalk.gray(" — or type 'q' to quit: "));
+        if (answer.trim().toLowerCase() === 'q' || answer.trim().toLowerCase() === 'quit') {
+          console.log('Init cancelled.');
+          process.exit(0);
+        }
       }
     }
 
