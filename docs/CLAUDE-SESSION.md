@@ -37,8 +37,8 @@ os-figma styles status
 ```
 
 > **Session start:** `tokens pull` and `styles pull` both require the Foundations
-> library file to be the active tab in Figma Desktop. Run them together at session
-> start while that file is open, then switch to your working design file.
+> library file to be open in Figma Desktop. Run them together at session start
+> while that file is open.
 >
 > **During design:** `os-figma tokens status` and `os-figma styles status` work
 > offline — they check local file state without connecting to Figma. Use

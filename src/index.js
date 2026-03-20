@@ -7535,6 +7535,7 @@ program
 
     console.log(chalk.green(`\n  ✔ Project initialised: ${projectName}\n`));
     console.log(chalk.white('  Let\'s get your project set up.'));
+    console.log(chalk.gray('  Make sure both your Foundations and Components library files are open in Figma Desktop.\n'));
 
     process.once('SIGINT', () => {
       console.log(chalk.yellow('\n\n  Setup interrupted. Run os-figma init again to restart, or run each command manually.'));
@@ -7680,8 +7681,7 @@ program
 
     // ─── Step 2: Tokens + Styles pull ───
     printStep(2, 'Sync your design tokens and styles');
-    console.log(chalk.gray(`  Open "${foundationsLib}" in Figma Desktop, then press Enter...`));
-    console.log(chalk.gray('  This will sync your tokens and styles in one step.'));
+    console.log(chalk.gray(`  Switch to "${foundationsLib}" in Figma Desktop, then press Enter to continue…`));
     await prompt('');
 
     await runRetry(async () => {
@@ -7849,15 +7849,14 @@ return result;
 
     // ─── Step 3: Pattern scan --icons ───
     printStep(3, 'Index your icon library');
-    console.log(chalk.gray(`  "${foundationsLib}" should still be open in Figma Desktop.`));
-    console.log(chalk.gray('  Press Enter to continue...'));
+    console.log(chalk.gray(`  Switch to "${foundationsLib}" in Figma Desktop, then press Enter to continue…`));
     await prompt('');
 
     await runPatternScan({ icons: true });
 
     // ─── Step 4: Pattern scan ───
     printStep(4, 'Index your component library');
-    console.log(chalk.gray(`  Open "${componentsLib}" in Figma Desktop, then press Enter...`));
+    console.log(chalk.gray(`  Switch to "${componentsLib}" in Figma Desktop, then press Enter to continue…`));
     await prompt('');
 
     await runPatternScan({});

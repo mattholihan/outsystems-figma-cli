@@ -62,7 +62,7 @@ os-figma tokens status    # confirms tokens.json exists and is not empty
 os-figma styles status    # confirms styles.json exists and is not empty
 os-figma pattern list     # confirms library-config.json has indexed components
 ```
-If tokens or styles report missing/empty files, stop and ask the user to run session-start sync. Do not attempt `tokens pull` or `styles pull` during design — those require the Foundations file to be active.
+If tokens or styles report missing/empty files, stop and ask the user to run session-start sync. Do not attempt `tokens pull` or `styles pull` during design — those require the Foundations file to be open in Figma Desktop.
 
 **Step 1 — Gather component schemas (required)**
 
