@@ -595,7 +595,7 @@ export class FigmaClient {
     const paddingBottom = props.pb !== undefined ? Number(props.pb) : py;
     const paddingLeft   = props.pl !== undefined ? Number(props.pl) : px;
     const paddingRight  = props.pr !== undefined ? Number(props.pr) : px;
-    const align = props.align || 'MIN';
+    const align = props.items || props.align || 'MIN';
     const justify = props.justify || 'MIN';
     const useSmartPos = props.x === undefined;
     const explicitX = props.x || 0;
@@ -753,7 +753,7 @@ export class FigmaClient {
           const fPaddingBottom = item.pb !== undefined ? Number(item.pb) : fPy;
           const fPaddingLeft   = item.pl !== undefined ? Number(item.pl) : fPx;
           const fPaddingRight  = item.pr !== undefined ? Number(item.pr) : fPx;
-          const fAlign = item.align || 'center';
+          const fAlign = item.items || item.align || 'center';
           const fJustify = item.justify || 'center';
           // Clip defaults to false for nested frames
           const fClip = item.clip === 'true' || item.clip === true;
