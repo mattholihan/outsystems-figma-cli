@@ -36,13 +36,14 @@ os-figma styles pull
 os-figma styles status
 ```
 
-> **Session start:** `tokens pull` and `styles pull` both require the Foundations
-> library file to be open in Figma Desktop. Run them together at session start
-> while that file is open.
+> **Session start:** `tokens pull` and `styles pull` both require your token/styles
+> library file to be the active tab in Figma Desktop. Run them together at session
+> start while that file is open.
 >
 > **During design:** `os-figma tokens status` and `os-figma styles status` work
 > offline — they check local file state without connecting to Figma. Use
-> `--sync` to compare against live Figma values (requires Foundations file open).
+> `--sync` to compare against live Figma values (requires your token/styles library
+> file to be the active tab).
 
 ### Pattern Commands
 ```bash
@@ -286,7 +287,7 @@ project-directory/           ← Per-project config (one per client/design)
 > 1. `os-figma connect`
 > 2. `os-figma doctor` *(optional — verify all preconditions in one pass)*
 > 3. `cd` to your project directory
-> 4. Open the Foundations library file in Figma Desktop
+> 4. Open your token/styles library file in Figma Desktop
 > 5. `os-figma tokens pull && os-figma styles pull`
 > 6. Switch back to your working design file in Figma Desktop
 > 6. Paste active node IDs below

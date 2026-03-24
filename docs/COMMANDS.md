@@ -11,12 +11,12 @@
 os-figma connect
 
 # Initialise a new project in the current directory
-# Prompts for project name, Foundations library, and Components library
-# Then runs an interactive walkthrough:
+# Uses an interactive walkthrough:
 #   1. Connects to Figma Desktop
-#   2. Pulls tokens and styles from Foundations file
-#   3. Scans icons from Foundations file
-#   4. Scans components from Components file
+#   2. Presents a file picker populated from open Figma tabs
+#   3. Pulls tokens and styles from your chosen library file
+#   4. Scans icons from your chosen icon library file
+#   5. Scans components from your chosen component library file
 os-figma init
 ```
 

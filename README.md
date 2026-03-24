@@ -98,22 +98,14 @@ Open a design file in Figma and start designing.
 
 Each project has its own config. Run these once from your project directory:
 ```bash
-# Initialise project files
+# Initialise project — guided setup handles tokens, styles, icons, and components
 os-figma init
-
-# Sync token values from Figma
-os-figma tokens pull
-
-# Index components from your component library (open it in Figma first)
-os-figma pattern scan
-
-# Index icons from your foundations library (open it in Figma first)
-os-figma pattern scan --icons
 ```
 
 After setup, `pattern list` and `pattern add` work offline using the indexed keys
-in `library-config.json`. Re-run `pattern scan` and `pattern scan --icons` if your
-libraries are updated.
+in `library-config.json`. If your libraries are updated later, re-run
+`os-figma pattern scan` (with your component library open) and
+`os-figma pattern scan --icons` (with your icon library open).
 
 ### Using with Claude Code
 
