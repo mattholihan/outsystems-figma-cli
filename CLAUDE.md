@@ -125,8 +125,8 @@ This step repeats until all warnings are cleared and the screenshot matches the 
    # Bind individual properties — use side-specific commands for padding
    os-figma bind fill "--color-neutral-0" -n "<nodeId>"
    os-figma bind stroke "--color-neutral-4" -n "<nodeId>"
-   os-figma bind effect "Shadow/Card" -n "<nodeId>"
-   os-figma bind text-style "Heading/H1" -n "<nodeId>"
+   os-figma bind effect "Shadow/--shadow-m" -n "<nodeId>"
+   os-figma bind text-style "Headings/heading1" -n "<nodeId>"
    os-figma bind padding-top "--space-xxl" -n "<nodeId>"
    os-figma node fix "<screenId>" --deep
    ```

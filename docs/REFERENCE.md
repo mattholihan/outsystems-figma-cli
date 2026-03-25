@@ -142,32 +142,52 @@ in `styles.json` in the project directory. Run `os-figma styles pull` once
 per project, then re-run after any library updates.
 
 ### Effect styles
-Named shadows and blurs. Keys stored in `styles.json → effects`.
+Named shadows. Keys stored in `styles.json → effects`.
 
-Common names to expect:
-- `Shadow/Card` — elevation 1, cards and panels
-- `Shadow/Overlay` — elevation 3, modals and drawers
-- `Shadow/Dropdown` — elevation 2, dropdowns and tooltips
-- `Blur/Modal` — background blur for modal overlays
+| Name | Radius | Offset | Use for |
+|------|--------|--------|---------|
+| `Shadow/--shadow-xs` | 2px | y:1 | Subtle lift, chips, badges |
+| `Shadow/--shadow-s` | 4px | y:2 | Input focus, small cards |
+| `Shadow/--shadow-m` | 6px | y:4 | Cards, panels |
+| `Shadow/--shadow-l` | 8px | y:6 | Dropdowns, popovers |
+| `Shadow/--shadow-xl` | 10px | y:8 | Modals, overlays |
 
-Apply with: `os-figma bind effect "Shadow/Card" -n "<nodeId>"`
+Apply with: `os-figma bind effect "Shadow/--shadow-m" -n "<nodeId>"`
 
 ### Text styles
 Named type ramp entries. Keys stored in `styles.json → text`.
 
-Apply with: `os-figma bind text-style "Heading/H1" -n "<nodeId>"`
+| Name | Size | Weight | Use for |
+|------|------|--------|---------|
+| `Headings/font-size-display` | 36 | SemiBold | Hero headings |
+| `Headings/heading1` | 32 | SemiBold | Page titles |
+| `Headings/heading2` | 28 | SemiBold | Section headings |
+| `Headings/heading3` | 26 | SemiBold | Card headings |
+| `Headings/heading4` | 22 | SemiBold | Sub-headings |
+| `Headings/heading5` | 20 | SemiBold | Labels |
+| `Headings/heading6` | 18 | SemiBold | Small headings |
+| `Body/font-body-base` | 16 | Regular | Body text |
+| `Body/font-body-s` | 14 | Regular | Secondary text |
+| `Body/font-body-xs` | 12 | Regular | Captions, hints |
+| `Action/font-body-base` | 16 | SemiBold | Button labels |
+| `Action/font-body-s` | 14 | SemiBold | Small button labels |
+| `Action/font-body-xs` | 12 | SemiBold | Compact actions |
+
+Apply with: `os-figma bind text-style "Headings/heading1" -n "<nodeId>"`
 
 ### Applying styles
 
 ```bash
-# Apply shadow/blur to any node
-os-figma bind effect "Shadow/Card" -n "<nodeId>"
+# Apply shadow to any node
+os-figma bind effect "Shadow/--shadow-m" -n "<nodeId>"
 
 # Apply text style to a TEXT node
-os-figma bind text-style "Heading/H1" -n "<nodeId>"
+os-figma bind text-style "Headings/heading1" -n "<nodeId>"
 ```
 
-Style names must match `styles.json` exactly (case-insensitive match is attempted as a fallback). Run `os-figma styles pull` if a style is missing.
+Style names must match `styles.json` exactly (case-insensitive match is attempted
+as a fallback). Run `os-figma styles pull` if a style is missing. Run
+`os-figma styles status` to list all available style names without a Figma connection.
 
 ---
 
