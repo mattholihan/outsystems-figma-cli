@@ -187,7 +187,7 @@ os-figma bind text-style "Headings/heading1" -n "<nodeId>"
 
 Style names must match `styles.json` exactly (case-insensitive match is attempted
 as a fallback). Run `os-figma styles pull` if a style is missing. Run
-`os-figma styles status` to list all available style names without a Figma connection.
+`os-figma styles list` to see all available style names without a Figma connection.
 
 ---
 
@@ -293,7 +293,11 @@ os-figma pattern scan                    # Index component keys from current Fig
                                          # Open component library file in Figma first
 os-figma pattern scan --icons            # Index icon keys from current Figma document
                                          # Open icon/foundations library file in Figma first
-os-figma pattern list                    # List all indexed components (no Figma connection needed)
+os-figma pattern list                    # List all indexed components and icons (no Figma connection needed)
+os-figma pattern list --icons            # Icons only
+os-figma pattern list --components       # Components only
+os-figma pattern search <query>          # Case-insensitive substring search across components and icons
+os-figma pattern search <query> --icons  # Search icons only
 ```
 
 ### Add Components

@@ -47,8 +47,14 @@ os-figma styles status
 
 ### Pattern Commands
 ```bash
-# List available components (no Figma connection required)
+# List available components and icons (no Figma connection required)
 os-figma pattern list
+os-figma pattern list --icons       # icons only
+os-figma pattern list --components  # components only
+
+# Search by name — use before pattern add when unsure of exact name
+os-figma pattern search <query>
+os-figma pattern search <query> --icons
 
 # Get full schema for a component before placing it — always run before pattern add
 os-figma pattern describe Button --pretty

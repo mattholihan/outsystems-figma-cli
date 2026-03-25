@@ -99,6 +99,13 @@ os-figma styles status
 # Compare styles.json against live Figma styles (Foundations file must be open)
 os-figma styles status --sync
 os-figma styles status --sync --file "PDX Template - FOUNDATIONS"
+
+# List all text and effect style names from styles.json (no Figma connection needed)
+os-figma styles list
+
+# Filter to one type
+os-figma styles list --text
+os-figma styles list --effects
 ```
 
 > `styles pull` must be run with the Foundations library file open in
@@ -119,8 +126,15 @@ os-figma pattern scan
 # Re-run if the icon library is updated
 os-figma pattern scan --icons
 
-# List all components saved in library-config.json (no Figma connection required)
+# List all components and icons saved in library-config.json (no Figma connection required)
 os-figma pattern list
+os-figma pattern list --icons       # icons only
+os-figma pattern list --components  # components only
+
+# Search components and icons by name (case-insensitive substring match)
+os-figma pattern search check
+os-figma pattern search arrow --icons
+os-figma pattern search input --components
 
 # Get the full schema for a component — variants, states, and all props
 # Returns structured JSON by default
@@ -288,12 +302,12 @@ os-figma bind padding-bottom "--space-xl" -n "<nodeId>"
 os-figma bind padding-left "--space-l" -n "<nodeId>"
 
 # Apply effect style (shadow, blur) from styles.json
-os-figma bind effect "Shadow/Card"               # selected node
-os-figma bind effect "Shadow/Card" -n "1:234"    # specific node
+os-figma bind effect "Shadow/--shadow-m"               # selected node
+os-figma bind effect "Shadow/--shadow-m" -n "1:234"    # specific node
 
 # Apply text style from styles.json (node must be type TEXT)
-os-figma bind text-style "Heading/H1"            # selected node
-os-figma bind text-style "Body/Base" -n "1:234"  # specific node
+os-figma bind text-style "Headings/heading1"            # selected node
+os-figma bind text-style "Body/font-body-s" -n "1:234"  # specific node
 ```
 
 ---
