@@ -8401,7 +8401,9 @@ pattern
 pattern
   .command('list')
   .description('List all scanned components and icons from library-config.json')
-  .action(() => {
+  .option('--icons', 'Show icons only')
+  .option('--components', 'Show components only')
+  .action((options) => {
     const libConfig = loadLibraryConfig();
 
     const componentNames = Object.keys(libConfig.components || {}).sort();
@@ -8413,14 +8415,17 @@ pattern
       process.exit(0);
     }
 
-    if (componentNames.length > 0) {
+    const showComponents = !options.icons;
+    const showIcons = !options.components;
+
+    if (showComponents && componentNames.length > 0) {
       console.log(chalk.white(`\nComponents (${componentNames.length}):\n`));
       for (const name of componentNames) {
         console.log(chalk.cyan(`  ${name}`));
       }
     }
 
-    if (iconNames.length > 0) {
+    if (showIcons && iconNames.length > 0) {
       console.log(chalk.white(`\nIcons (${iconNames.length}):\n`));
       for (const name of iconNames) {
         console.log(chalk.cyan(`  ${name}`));
