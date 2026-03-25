@@ -299,7 +299,7 @@ export class FigmaClient {
       const textMatch = trimmed.match(/^<Text\s+([^>]*)>([\s\S]*?)<\/Text>$/);
       if (textMatch) {
         const props = this.parseProps(textMatch[1]);
-        const content = textMatch[2];
+        const content = this.unescapeText(textMatch[2]);
 
         const weight = props.weight || 'regular';
         const style = weight === 'bold' ? 'Bold' : weight === 'medium' ? 'Medium' : weight === 'semibold' ? 'Semi Bold' : 'Regular';
@@ -449,6 +449,10 @@ export class FigmaClient {
     return str;
   }
 
+  unescapeText(s) {
+    return s.replace(/\\'/g, "'").replace(/\\!/g, '!').replace(/\\"/g, '"');
+  }
+
   parseProps(propsStr) {
     const props = {};
 
@@ -511,7 +515,7 @@ export class FigmaClient {
       if (!insideFrame) {
         const textProps = this.parseProps(match[1]);
         textProps._type = 'text';
-        textProps.content = match[2];
+        textProps.content = this.unescapeText(match[2]);
         textProps._index = idx;
         children.push(textProps);
       }
