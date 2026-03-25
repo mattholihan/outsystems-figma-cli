@@ -436,6 +436,7 @@ os-figma set radius 8                             # Corner radius
 os-figma set size 320 200                         # Resize
 os-figma set pos 100 100                          # Move
 os-figma set opacity 0.5                          # Opacity
+os-figma set text "Updated content" -n "1:234"   # Set text content on a TEXT node
 os-figma set sizing fill fixed -n "1:234"        # Fill width, fixed height
 os-figma set sizing fill fill -n "1:234"         # Fill both dimensions
 os-figma set sizing fixed fixed -n "1:234"       # Fixed both (default)
@@ -585,7 +586,7 @@ os-figma run /tmp/script.js
 
 > **`<Text>` is supported as a root element.** `render` will create a standalone text node at the target position. Note: `w="fill"` on a root `<Text>` requires a parent frame with auto-layout — omit it for text nodes placed at canvas root.
 
-> **Shell-escaping alternative:** For JSX containing apostrophes or complex copy, use `render --file ./frame.jsx` to read from a file instead of passing JSX as a shell argument.
+> **Shell-escaping:** Apostrophes in text content are handled automatically — `You'\''re all set` renders correctly. For multi-line content or complex mixed quoting, `render --file ./frame.jsx` is a clean alternative.
 
 **Elements:** `<Frame>`, `<Rectangle>`, `<Ellipse>`, `<Text>`, `<Line>`, `<Image>`, `<SVG>`, `<Icon>`
 

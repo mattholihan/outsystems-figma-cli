@@ -262,6 +262,7 @@ ids.forEach(id => {
     maintain consistency. See CLAUDE.md → Composing Multiple Screens.
 
 14. **Icon slots (back, close, decorative) always require a follow-up `pattern add` after `render`** — text glyphs are never acceptable substitutes.
+15. **To update text content post-render** — use `os-figma set text "<content>" -n "<nodeId>"`. Handles apostrophes and special characters safely. Returns an error if the target node is not of type TEXT. Do not use raw `eval` to set `characters` — `set text` is the supported path.
 
 ## File Structure
 

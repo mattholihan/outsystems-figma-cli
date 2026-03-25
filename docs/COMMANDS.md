@@ -268,6 +268,10 @@ os-figma col create "OutSystems UI Tokens"
 ## Modify Elements
 
 ```bash
+# Set text content on a TEXT node — handles apostrophes and special characters safely
+# Returns an error if target node is not of type TEXT
+os-figma set text "Updated content" -n "<nodeId>"
+
 # Set layout sizing on a node (must be child of an auto-layout frame)
 os-figma set sizing fill fixed -n "105:41"   # fill width, fixed height
 os-figma set sizing fill fill -n "105:41"    # fill both dimensions
@@ -332,9 +336,10 @@ os-figma render --parent "94:10" "<Frame name='Header/Nav' w='fill' h={56} bg='v
 os-figma render --file ./my-frame.jsx
 os-figma render --file ./my-frame.jsx --parent "<screenId>"
 
-# Use --file when JSX contains apostrophes, multi-line content, or
-# complex mixed quoting. Write the JSX in a .jsx file with no surrounding
-# quotes — the file content is used as-is.
+# Use --file for multi-line content or complex mixed quoting.
+# Apostrophes in text content are handled automatically via shell escape
+# sequences (e.g. You'\''re). Use --file as a clean alternative if preferred.
+# Write the JSX in a .jsx file with no surrounding quotes — the file content is used as-is.
 
 # Render multiple JSX frames in a single operation
 # --gap <n>          Gap between frames in px (default: 40)
