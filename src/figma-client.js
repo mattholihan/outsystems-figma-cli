@@ -580,6 +580,14 @@ export class FigmaClient {
   }
 
   generateCode(props, children, keyMap = null, textStyleMap = [], spacingKeyMap = {}, radiusKeyMap = {}) {
+    const resolveSpacingVal = (val) => {
+      if (typeof val === 'string' && val.startsWith('var:')) {
+        const tokenName = val.slice(4);
+        const entry = Object.entries(spacingKeyMap).find(([, v]) => v.name === tokenName);
+        return entry ? Number(entry[0]) : 0;
+      }
+      return val !== null && val !== undefined ? Number(val) : 0;
+    };
     const name = props.name || 'Frame';
     const fillWidth = (props.w || props.width) === 'fill';
     const fillHeight = (props.h || props.height) === 'fill';
@@ -591,14 +599,14 @@ export class FigmaClient {
     const stroke = props.stroke || null;
     const rounded = props.rounded || props.radius || 0;
     const flex = props.flex || 'col';
-    const gap = props.gap || 0;
-    const p = props.p || props.padding || 0;
-    const px = props.px || p;
-    const py = props.py || p;
-    const paddingTop    = props.pt !== undefined ? Number(props.pt) : py;
-    const paddingBottom = props.pb !== undefined ? Number(props.pb) : py;
-    const paddingLeft   = props.pl !== undefined ? Number(props.pl) : px;
-    const paddingRight  = props.pr !== undefined ? Number(props.pr) : px;
+    const gap = resolveSpacingVal(props.gap !== undefined ? props.gap : 0);
+    const p = resolveSpacingVal(props.p !== undefined ? props.p : (props.padding !== undefined ? props.padding : 0));
+    const px = props.px !== undefined ? resolveSpacingVal(props.px) : p;
+    const py = props.py !== undefined ? resolveSpacingVal(props.py) : p;
+    const paddingTop    = props.pt !== undefined ? resolveSpacingVal(props.pt) : py;
+    const paddingBottom = props.pb !== undefined ? resolveSpacingVal(props.pb) : py;
+    const paddingLeft   = props.pl !== undefined ? resolveSpacingVal(props.pl) : px;
+    const paddingRight  = props.pr !== undefined ? resolveSpacingVal(props.pr) : px;
     const align = props.items || props.align || 'MIN';
     const justify = props.justify || 'MIN';
     const useSmartPos = props.x === undefined;
@@ -748,15 +756,15 @@ export class FigmaClient {
           const fStroke = item.stroke || null;
           const fRounded = item.rounded || item.radius || 0;
           const fFlex = item.flex || 'row';
-          const fGap = item.gap || 0;
+          const fGap = resolveSpacingVal(item.gap !== undefined ? item.gap : 0);
           // Default padding to 0 — never rely on Figma's auto-layout defaults
-          const fP = item.p !== undefined ? item.p : (item.padding !== undefined ? item.padding : null);
-          const fPx = item.px !== undefined ? item.px : (fP !== null ? fP : 0);
-          const fPy = item.py !== undefined ? item.py : (fP !== null ? fP : 0);
-          const fPaddingTop    = item.pt !== undefined ? Number(item.pt) : fPy;
-          const fPaddingBottom = item.pb !== undefined ? Number(item.pb) : fPy;
-          const fPaddingLeft   = item.pl !== undefined ? Number(item.pl) : fPx;
-          const fPaddingRight  = item.pr !== undefined ? Number(item.pr) : fPx;
+          const fP = item.p !== undefined ? resolveSpacingVal(item.p) : (item.padding !== undefined ? resolveSpacingVal(item.padding) : null);
+          const fPx = item.px !== undefined ? resolveSpacingVal(item.px) : (fP !== null ? fP : 0);
+          const fPy = item.py !== undefined ? resolveSpacingVal(item.py) : (fP !== null ? fP : 0);
+          const fPaddingTop    = item.pt !== undefined ? resolveSpacingVal(item.pt) : fPy;
+          const fPaddingBottom = item.pb !== undefined ? resolveSpacingVal(item.pb) : fPy;
+          const fPaddingLeft   = item.pl !== undefined ? resolveSpacingVal(item.pl) : fPx;
+          const fPaddingRight  = item.pr !== undefined ? resolveSpacingVal(item.pr) : fPx;
           const fAlign = item.items || item.align || 'center';
           const fJustify = item.justify || 'center';
           // Clip defaults to false for nested frames

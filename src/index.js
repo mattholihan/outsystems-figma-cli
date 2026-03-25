@@ -4714,6 +4714,22 @@ function resolveSpacingTokenKey(value) {
   return resolveFloatToken(value, 'spacing');
 }
 
+function resolveFloatTokenByName(tokenName) {
+  try {
+    const tokens = JSON.parse(readFileSync(join(process.cwd(), 'tokens.json'), 'utf8'));
+    for (const groups of Object.values(tokens.collections || {})) {
+      for (const entries of Object.values(groups)) {
+        for (const [name, entry] of Object.entries(entries)) {
+          if (name === tokenName && entry && entry.type === 'FLOAT' && entry.key) {
+            return { value: Number(entry.value), key: entry.key, name };
+          }
+        }
+      }
+    }
+  } catch {}
+  return null;
+}
+
 const bind = program
   .command('bind')
   .description('Bind variables to node properties');
@@ -5947,14 +5963,19 @@ program
           if (resolved) textStyleMap.push({ size, weight, ...resolved });
         }
 
-        // Build spacingKeyMap — resolve token keys for all numeric spacing values in JSX
+        // Build spacingKeyMap — resolve token keys for all numeric and var: spacing values in JSX
         const spacingKeyMap = {};
-        const spacingProps = ['p', 'px', 'py', 'gap'];
+        const spacingProps = ['p', 'px', 'py', 'pt', 'pb', 'pl', 'pr', 'gap'];
         for (const prop of spacingProps) {
-          const match = jsx.match(new RegExp(`${prop}=\\{(\\d+)\\}`));
-          if (match) {
-            const resolved = resolveSpacingTokenKey(Number(match[1]));
-            if (resolved) spacingKeyMap[match[1]] = resolved;
+          const numMatch = jsx.match(new RegExp(`${prop}=\\{(\\d+)\\}`));
+          if (numMatch) {
+            const resolved = resolveSpacingTokenKey(Number(numMatch[1]));
+            if (resolved) spacingKeyMap[numMatch[1]] = resolved;
+          }
+          const varMatch = jsx.match(new RegExp(`${prop}="var:(--[^"]+)"`));
+          if (varMatch) {
+            const resolved = resolveFloatTokenByName(varMatch[1]);
+            if (resolved) spacingKeyMap[String(resolved.value)] = { name: resolved.name, key: resolved.key };
           }
         }
 
@@ -6063,12 +6084,17 @@ program
 
       // Build spacingKeyMap for non-var: path too
       const spacingKeyMap2 = {};
-      const spacingProps2 = ['p', 'px', 'py', 'gap'];
+      const spacingProps2 = ['p', 'px', 'py', 'pt', 'pb', 'pl', 'pr', 'gap'];
       for (const prop of spacingProps2) {
-        const match = jsx.match(new RegExp(`${prop}=\\{(\\d+)\\}`));
-        if (match) {
-          const resolved = resolveSpacingTokenKey(Number(match[1]));
-          if (resolved) spacingKeyMap2[match[1]] = resolved;
+        const numMatch = jsx.match(new RegExp(`${prop}=\\{(\\d+)\\}`));
+        if (numMatch) {
+          const resolved = resolveSpacingTokenKey(Number(numMatch[1]));
+          if (resolved) spacingKeyMap2[numMatch[1]] = resolved;
+        }
+        const varMatch = jsx.match(new RegExp(`${prop}="var:(--[^"]+)"`));
+        if (varMatch) {
+          const resolved = resolveFloatTokenByName(varMatch[1]);
+          if (resolved) spacingKeyMap2[String(resolved.value)] = { name: resolved.name, key: resolved.key };
         }
       }
 
