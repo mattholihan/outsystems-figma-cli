@@ -193,7 +193,7 @@ Set `gap` once on the screen frame: `os-figma gap 16 -n "<screenId>"`. For extra
 - **Always use `--parent`** — never place on canvas root
 - **Never use `eval` to create elements** — no smart positioning
 - **Never guess prop names** — always `pattern describe` first
-- **Never hardcode pixel gaps** — always use spacing variables
+- **Never hardcode pixel gaps** — always use spacing variables. Use `var:` token syntax in JSX props: `gap="var:--space-m"`, `p="var:--space-l"`.
 - **If a command fails** — check `docs/REFERENCE.md` for correct syntax
 
 **Known limitations:**
@@ -245,7 +245,7 @@ Run Step 5b after each screen, not just at the end. Commit undo boundary after e
 
 1. **Always use `--parent`** — every `render` call inside a screen needs `--parent <screenId>`
 2. **`bg` on visible surfaces only** — use `var:` tokens on cards/screens/sections; omit on layout frames. Child frame defaults: no `bg` → transparent, no `rounded` → 0, no padding → 0.
-3. **Spacing must match token scale** — `0, 4, 8, 16, 24, 32, 40, 48`. Off-scale values get warnings.
+3. **Spacing must match token scale** — `0, 4, 8, 16, 24, 32, 40, 48`. Off-scale values get warnings. Prefer `var:` token syntax for padding and gap — `p="var:--space-xl"`, `gap="var:--space-m"` — to bind variables at render time with zero warnings.
 4. **`w="fill"` on all Text** — prevents clipping
 5. **Root frame needs explicit pixel width** — `w="fill"` fails at root level. Standard: `326` (mobile padded), `390` (mobile full).
 6. **Always specify `flex`** — `flex="col"` or `flex="row"` on every frame with children

@@ -409,6 +409,9 @@ as `--parent` in subsequent calls. No follow-up `find` needed.
 
 ### Render with Variable Binding
 
+Padding and gap props also accept `var:` token syntax — this binds spacing
+variables at render time, producing zero warnings from `node fix`:
+
 ```bash
 os-figma render '<Frame name="Card/Default" w={320} bg="var:--color-neutral-0" stroke="var:--color-neutral-4" rounded={8} flex="col" gap={8} p={24}>
   <Text size={18} weight="bold" color="var:--color-neutral-10" w="fill">Card Title</Text>
@@ -612,9 +615,9 @@ os-figma run /tmp/script.js
 
 **Size:** `w={390} h={844}` (mobile), `w={1440} h={900}` (web), `w="fill"`, `minW={100} maxW={500}`
 
-**Layout:** `flex="row|col"`, `gap={16}`, `wrap={true}`, `justify="start|center|end|between"`, `items="start|center|end"`
+**Layout:** `flex="row|col"`, `gap={16}` or `gap="var:--space-m"`, `wrap={true}`, `justify="start|center|end|between"`, `items="start|center|end"`
 
-**Padding:** `p={24}`, `px={16} py={8}`, `pt={8} pr={16} pb={8} pl={16}`
+**Padding:** `p={24}`, `px={16} py={8}`, `pt={8} pr={16} pb={8} pl={16}`, or use token syntax: `p="var:--space-l"`, `px="var:--space-m"`
 
 **Appearance:** `bg="var:--color-neutral-0"`, `stroke="var:--color-neutral-4"`, `strokeWidth={1}`, `opacity={0.5}`
 
