@@ -8436,6 +8436,47 @@ pattern
   });
 
 pattern
+  .command('search <query>')
+  .description('Search components and icons by name (case-insensitive substring match)')
+  .option('--icons', 'Search icons only')
+  .option('--components', 'Search components only')
+  .action((query, options) => {
+    const libConfig = loadLibraryConfig();
+    const q = query.toLowerCase();
+
+    const showComponents = !options.icons;
+    const showIcons = !options.components;
+
+    const matchedComponents = showComponents
+      ? Object.keys(libConfig.components || {}).filter(n => n.toLowerCase().includes(q)).sort()
+      : [];
+    const matchedIcons = showIcons
+      ? Object.keys(libConfig.icons || {}).filter(n => n.toLowerCase().includes(q)).sort()
+      : [];
+
+    if (matchedComponents.length === 0 && matchedIcons.length === 0) {
+      console.log(chalk.yellow(`\n  No components or icons matching "${query}".\n`));
+      process.exit(0);
+    }
+
+    if (matchedComponents.length > 0) {
+      console.log(chalk.white(`\nComponents (${matchedComponents.length}):\n`));
+      for (const name of matchedComponents) {
+        console.log(chalk.cyan(`  ${name}`));
+      }
+    }
+
+    if (matchedIcons.length > 0) {
+      console.log(chalk.white(`\nIcons (${matchedIcons.length}):\n`));
+      for (const name of matchedIcons) {
+        console.log(chalk.cyan(`  ${name}`));
+      }
+    }
+
+    console.log();
+  });
+
+pattern
   .command('describe <ComponentName>')
   .description('Get the full schema for a component — variants, states, and all props')
   .option('--json', 'Output as JSON (default)')
