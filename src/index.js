@@ -5939,6 +5939,19 @@ program
         console.log(chalk.gray(`    Mobile content width: w={326}   Full mobile: w={390}   Web: w={1280} or w={1440}`));
       }
 
+      // Validate JSX tag balance — fail loudly before touching Figma
+      const openTags = [...jsx.matchAll(/<(Frame|Text|Rectangle|Ellipse|Line|Image|SVG|Icon)\b[^>]*(?<!\/)>/g)].length;
+      const closeTags = [...jsx.matchAll(/<\/(Frame|Text|Rectangle|Ellipse|Line|Image|SVG|Icon)>/g)].length;
+      const selfClosing = [...jsx.matchAll(/<(Frame|Text|Rectangle|Ellipse|Line|Image|SVG|Icon)\b[^>]*\/>/g)].length;
+      const expectedClose = openTags - selfClosing;
+      if (closeTags < expectedClose) {
+        const missing = expectedClose - closeTags;
+        console.log(chalk.red(`✗ JSX validation failed: ${missing} unclosed tag${missing > 1 ? 's' : ''} detected.`));
+        console.log(chalk.gray(`  Opened: ${openTags}  Self-closing: ${selfClosing}  Closed: ${closeTags}  Expected closing tags: ${expectedClose}`));
+        console.log(chalk.gray(`  Fix: ensure every <Frame> and <Text> has a matching </Frame> or </Text>.`));
+        process.exit(1);
+      }
+
       // Check if JSX uses variable syntax (var:name) - use our own renderer
       if (jsx.includes('var:')) {
         // Extract all var: token names and resolve their keys from tokens.json before touching Figma
