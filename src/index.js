@@ -3349,6 +3349,55 @@ styles
     if (!textInSync || !effectsInSync) process.exit(1);
   });
 
+styles
+  .command('list')
+  .description('List all text and effect styles from styles.json (no Figma connection needed)')
+  .option('--text', 'Show text styles only')
+  .option('--effects', 'Show effect styles only')
+  .action((options) => {
+    const stylesPath = join(process.cwd(), 'styles.json');
+    if (!existsSync(stylesPath)) {
+      console.log(chalk.red('\n✗ No styles.json found. Run os-figma styles pull first.\n'));
+      process.exit(1);
+    }
+
+    let styles;
+    try {
+      styles = JSON.parse(readFileSync(stylesPath, 'utf8'));
+    } catch {
+      console.log(chalk.red('\n✗ Could not parse styles.json — run os-figma styles pull to recreate it.\n'));
+      process.exit(1);
+    }
+
+    const showText = !options.effects;
+    const showEffects = !options.text;
+
+    const textNames = showText ? Object.keys(styles.text || {}).sort() : [];
+    const effectNames = showEffects ? Object.keys(styles.effects || {}).sort() : [];
+
+    if (textNames.length === 0 && effectNames.length === 0) {
+      console.log(chalk.yellow('\n  No styles found in styles.json.\n'));
+      process.exit(0);
+    }
+
+    if (textNames.length > 0) {
+      console.log(chalk.white(`\nText styles (${textNames.length}):\n`));
+      for (const name of textNames) {
+        const s = styles.text[name];
+        console.log(chalk.cyan(`  ${name}`) + chalk.gray(` — ${s.fontSize}px ${s.fontStyle}`));
+      }
+    }
+
+    if (effectNames.length > 0) {
+      console.log(chalk.white(`\nEffect styles (${effectNames.length}):\n`));
+      for (const name of effectNames) {
+        console.log(chalk.cyan(`  ${name}`));
+      }
+    }
+
+    console.log();
+  });
+
 // ============ CREATE ============
 
 const create = program
