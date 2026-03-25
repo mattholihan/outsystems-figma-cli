@@ -5321,6 +5321,31 @@ set
   });
 
 set
+  .command('text <content>')
+  .description('Set text content on a TEXT node')
+  .option('-n, --node <id>', 'Node ID (uses selection if not set)')
+  .action(async (content, options) => {
+    checkConnection();
+    const nodeSelector = options.node
+      ? `const __node = await figma.getNodeByIdAsync('${options.node}'); const __nodes = __node ? [__node] : [];`
+      : `const __nodes = figma.currentPage.selection;`;
+    const escapedContent = content.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+    const code = `(async () => {
+      ${nodeSelector}
+      if (__nodes.length === 0) return 'No node found';
+      const __textNodes = __nodes.filter(n => n.type === 'TEXT');
+      if (__textNodes.length === 0) return 'Error: target node is not a TEXT type';
+      for (const n of __textNodes) {
+        await figma.loadFontAsync(n.fontName);
+        n.characters = \`${escapedContent}\`;
+      }
+      return 'Text updated on ' + __textNodes.length + ' node(s)';
+    })()`;
+    const result = await daemonExec('eval', { code });
+    console.log(chalk.green('✓ ' + (result || 'Done')));
+  });
+
+set
   .command('stroke <color>')
   .description('Set stroke color (hex or var:name)')
   .option('-n, --node <id>', 'Node ID')
