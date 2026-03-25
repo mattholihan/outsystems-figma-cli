@@ -327,27 +327,42 @@ function figmaEvalSync(code) {
   // Try daemon first (fast path)
   const daemonRunning = isDaemonRunning();
   if (daemonRunning) {
-    try {
-      let wrappedCode = code.trim();
-      const payload = JSON.stringify({ action: 'eval', code: wrappedCode });
-      const payloadFile = `/tmp/figma-payload-${Date.now()}.json`;
-      writeFileSync(payloadFile, payload);
-      const daemonToken = getDaemonToken();
-      const tokenHeader = daemonToken ? ` -H "X-Daemon-Token: ${daemonToken}"` : '';
-      const result = execSync(
-        `curl -s -X POST http://127.0.0.1:${DAEMON_PORT}/exec -H "Content-Type: application/json"${tokenHeader} -d @${payloadFile}`,
-        { encoding: 'utf8', timeout: 60000 }
-      );
-      try { unlinkSync(payloadFile); } catch {}
-      if (!result || result.trim() === '') {
-        throw new Error('Empty response from daemon');
+    const RETRY_DELAYS = [500, 1000, 2000];
+    let fastPathError;
+    for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+      try {
+        if (attempt > 0) {
+          try { execSync(`sleep ${RETRY_DELAYS[attempt - 1] / 1000}`, { stdio: 'pipe' }); } catch {}
+          console.log(chalk.gray(`  [retry ${attempt}] Waiting for daemon to be ready...`));
+        }
+        let wrappedCode = code.trim();
+        const payload = JSON.stringify({ action: 'eval', code: wrappedCode });
+        const payloadFile = `/tmp/figma-payload-${Date.now()}.json`;
+        writeFileSync(payloadFile, payload);
+        const daemonToken = getDaemonToken();
+        const tokenHeader = daemonToken ? ` -H "X-Daemon-Token: ${daemonToken}"` : '';
+        const result = execSync(
+          `curl -s -X POST http://127.0.0.1:${DAEMON_PORT}/exec -H "Content-Type: application/json"${tokenHeader} -d @${payloadFile}`,
+          { encoding: 'utf8', timeout: 60000 }
+        );
+        try { unlinkSync(payloadFile); } catch {}
+        if (!result || result.trim() === '') {
+          throw new Error('Daemon not ready — empty response');
+        }
+        const data = JSON.parse(result);
+        if (data.error) throw new Error(data.error);
+        return data.result;
+      } catch (e) {
+        fastPathError = e;
+        const msg = e?.message || '';
+        // Only retry on transient errors — don't retry on eval errors
+        if (!msg.includes('ETIMEDOUT') && !msg.includes('ECONNREFUSED') && !msg.includes('empty response') && !msg.includes('not ready')) {
+          throw e;
+        }
       }
-      const data = JSON.parse(result);
-      if (data.error) throw new Error(data.error);
-      return data.result;
-    } catch (e) {
-      // Fall through to direct CDP connection
     }
+    // Fall through to direct CDP connection
+    console.log(chalk.gray(`  [daemon] Fast path failed after retries (${fastPathError?.message}), falling back to direct connection...`));
   }
 
   // Fallback: direct connection via temp script
